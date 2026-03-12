@@ -1,0 +1,124 @@
+<section class="profile-page">
+  <article class="card">
+    <h3>Profile Module</h3>
+    <p>Update your personal details and profile picture.</p>
+
+    @if (shouldHighlightContactDetails) {
+      <div class="profile-alert">
+        <div>
+          <strong>Complete your contact details</strong>
+          <p>
+            Google login successful. Add your mobile number and address now so tickets,
+            notifications, and future operations work properly.
+          </p>
+        </div>
+        <a routerLink="/profile" [queryParams]="{}">Update Now</a>
+      </div>
+    }
+
+    @if (message) {
+      <p class="success">{{ message }}</p>
+    }
+
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+
+    <div class="profile-hero">
+      <div class="profile-photo-card">
+        <div class="photo-frame">
+          @if (profileImageSrc) {
+            <img [src]="profileImageSrc" alt="Profile photo" />
+          } @else {
+            <span>{{ profileInitials }}</span>
+          }
+        </div>
+        <div class="photo-meta">
+          <strong>{{ form.controls.firstName.value }} {{ form.controls.lastName.value }}</strong>
+          <p>{{ form.controls.email.value }}</p>
+          <small>{{ form.controls.role.value }} profile</small>
+        </div>
+      </div>
+
+      <div class="photo-help">
+        <span class="eyebrow">Profile Photo</span>
+        <h4>Current Profile Picture</h4>
+        <p>Your saved profile image is visible here and updates instantly after selecting a new photo.</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <label>First Name</label>
+        <input [formControl]="form.controls.firstName" type="text" />
+      </div>
+      <div>
+        <label>Last Name</label>
+        <input [formControl]="form.controls.lastName" type="text" />
+      </div>
+      <div>
+        <label>Gender</label>
+        <select [formControl]="form.controls.gender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Mobile</label>
+        <input
+          [formControl]="form.controls.mobile"
+          type="text"
+          placeholder="Enter 10 to 15 digit mobile number"
+        />
+      </div>
+      <div>
+        <label>Email</label>
+        <input [formControl]="form.controls.email" type="email" />
+      </div>
+      <div>
+        <label>Role</label>
+        <input [formControl]="form.controls.role" type="text" />
+      </div>
+      <div class="full">
+        <label>Address</label>
+        <textarea
+          [formControl]="form.controls.address"
+          rows="2"
+          placeholder="Enter full address"
+        ></textarea>
+      </div>
+    </div>
+
+    @if (form.controls.mobile.invalid && form.controls.mobile.touched) {
+      <p class="field-error">Enter a valid mobile number.</p>
+    }
+
+    @if (form.controls.address.invalid && form.controls.address.touched) {
+      <p class="field-error">Address must be at least 5 characters.</p>
+    }
+
+    <div class="media-row">
+      <div class="media-input">
+        <label>Profile Image</label>
+        <input type="file" accept="image/*" (change)="onImageSelected($event)" />
+        <p>Upload a clear profile image. The preview above updates immediately.</p>
+      </div>
+
+      <div class="media-preview">
+        <span class="eyebrow">Visible Preview</span>
+        <div class="preview-frame">
+          @if (profileImageSrc) {
+            <img [src]="profileImageSrc" alt="Profile preview" />
+          } @else {
+            <span>{{ profileInitials }}</span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="primary" [disabled]="loading" (click)="save()">
+      {{ loading ? 'Saving...' : 'Save Profile' }}
+    </button>
+  </article>
+</section>

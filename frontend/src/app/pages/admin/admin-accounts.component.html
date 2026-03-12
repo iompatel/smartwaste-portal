@@ -1,0 +1,169 @@
+<section class="accounts-page">
+  <article class="hero-panel">
+    <div>
+      <span class="eyebrow">Admin Directory</span>
+      <h3>{{ pageTitle }}</h3>
+      <p>{{ pageDescription }}</p>
+    </div>
+
+    <div class="hero-actions">
+      <a routerLink="/dashboard">Back to Admin Panel</a>
+    </div>
+  </article>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="loading">Loading {{ singularLabel }} data...</p>
+  } @else {
+    <div class="stats">
+      <article>
+        <span>{{ totalCountLabel }}</span>
+        <h4>{{ accounts.length }}</h4>
+        <p>Records available in this management view.</p>
+      </article>
+      <article>
+        <span>{{ linkedTicketLabel }}</span>
+        <h4>{{ linkedTicketCount }}</h4>
+        <p>Tickets linked with the current account set.</p>
+      </article>
+      <article>
+        <span>Profile Gaps</span>
+        <h4>{{ incompleteProfiles }}</h4>
+        <p>Accounts still missing strong contact details.</p>
+      </article>
+    </div>
+
+    <div class="grid">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">Account Creation</span>
+            <h4>Create {{ pageTitle === 'Worker Management' ? 'Worker' : 'User' }}</h4>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <input type="text" [formControl]="form.controls.firstName" placeholder="First Name" />
+          <input type="text" [formControl]="form.controls.lastName" placeholder="Last Name" />
+          <input type="text" [formControl]="form.controls.mobile" placeholder="Mobile" />
+          <input type="email" [formControl]="form.controls.email" placeholder="Email" />
+          <div class="password-row">
+            <input
+              [type]="showCreatePassword ? 'text' : 'password'"
+              [formControl]="form.controls.password"
+              placeholder="Password"
+            />
+            <button type="button" (click)="showCreatePassword = !showCreatePassword">
+              {{ showCreatePassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          <select [formControl]="form.controls.gender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+          <input class="full" type="text" [formControl]="form.controls.address" placeholder="Address" />
+        </div>
+
+        <button type="button" class="primary" [disabled]="saving" (click)="createAccount()">
+          {{ saving ? 'Creating...' : 'Create ' + singularLabel }}
+        </button>
+      </article>
+    </div>
+
+    <article class="card full">
+      <div class="card-head">
+        <div>
+          <span class="eyebrow">Records Directory</span>
+          <h4>{{ pageTitle }} List</h4>
+        </div>
+      </div>
+
+      <div class="directory-toolbar">
+        <div class="search-block">
+          <label class="search-label" for="directory-search">Search Records</label>
+          <div class="search-input-wrap">
+            <input
+              id="directory-search"
+              type="text"
+              placeholder="Search by name, email, mobile, or address"
+              [value]="searchTerm"
+              (input)="searchTerm = $any($event.target).value"
+            />
+
+            @if (searchTerm) {
+              <button type="button" class="clear-search" (click)="searchTerm = ''">Clear</button>
+            }
+          </div>
+        </div>
+
+        <div class="search-summary">
+          <strong>{{ filteredAccounts.length }}</strong>
+          <span>showing</span>
+          <small>out of {{ accounts.length }} total records</small>
+        </div>
+
+        <div class="report-actions">
+          <button type="button" (click)="exportFilteredPdf()">Download PDF</button>
+        </div>
+      </div>
+
+      <div class="records-list">
+        @for (user of filteredAccounts; track user.id) {
+          <article class="record-row">
+            <div class="record-primary">
+              <h5 class="name-line">
+                <span>{{ user.firstName }} {{ user.lastName }}</span>
+                @if (managedRole === 'worker' && hasActiveHireAssignments(user)) {
+                  <span class="assigned-pill">Assigned</span>
+                }
+              </h5>
+              <p>ID {{ user.id }}</p>
+            </div>
+
+            <div class="record-fields">
+              <div class="field">
+                <span>Email</span>
+                <strong>{{ user.email }}</strong>
+              </div>
+              <div class="field">
+                <span>Mobile</span>
+                <strong>{{ user.mobile }}</strong>
+              </div>
+              <div class="field">
+                <span>Address</span>
+                <strong>{{ user.address }}</strong>
+              </div>
+              <div class="field">
+                <span>{{ linkedTicketLabel }}</span>
+                <strong>{{ ticketCountFor(user) }}</strong>
+              </div>
+            </div>
+
+            <div class="record-side">
+              <app-role-pill [role]="user.role" />
+
+              <div class="record-actions">
+                <select
+                  [value]="user.role"
+                  (change)="updateRole(user, $any($event.target).value)"
+                >
+                  <option value="admin">admin</option>
+                  <option value="worker">worker</option>
+                  <option value="user">user</option>
+                </select>
+                <button type="button" (click)="exportUserPdf(user)">User PDF</button>
+                <button type="button" class="danger" (click)="deleteUser(user)">Delete</button>
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <p class="empty-state">No {{ singularLabel }} records found.</p>
+        }
+      </div>
+    </article>
+  }
+</section>

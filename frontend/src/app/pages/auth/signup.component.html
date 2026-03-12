@@ -1,0 +1,74 @@
+<section class="auth-page single">
+  <form class="auth-card wide" [formGroup]="form" (ngSubmit)="submit()">
+    <span class="eyebrow">New Workspace Access</span>
+    <h2>Create account</h2>
+
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+
+    <div class="grid two">
+      <div>
+        <label>First Name</label>
+        <input type="text" formControlName="firstName" />
+      </div>
+      <div>
+        <label>Last Name</label>
+        <input type="text" formControlName="lastName" />
+      </div>
+      <div>
+        <label>Gender</label>
+        <select formControlName="gender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Mobile Number</label>
+        <input type="text" formControlName="mobile" />
+      </div>
+      <div>
+        <label>Email</label>
+        <input type="email" formControlName="email" />
+      </div>
+      <div>
+        <label>Password</label>
+        <div class="password-row">
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Create a password"
+          />
+          <button type="button" (click)="showPassword = !showPassword">
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
+      <div>
+        <label>Confirm Password</label>
+        <div class="password-row">
+          <input
+            [type]="showConfirmPassword ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            placeholder="Re-enter password"
+          />
+          <button type="button" (click)="showConfirmPassword = !showConfirmPassword">
+            {{ showConfirmPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <label>Address</label>
+    <textarea rows="2" formControlName="address"></textarea>
+
+    <button type="submit" class="primary" [disabled]="loading">
+      {{ loading ? 'Creating...' : 'Create Account' }}
+    </button>
+
+    <div class="links">
+      <a routerLink="/login">Already have account? Login</a>
+    </div>
+  </form>
+</section>

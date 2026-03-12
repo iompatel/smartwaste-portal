@@ -1,0 +1,166 @@
+<section class="tickets-page">
+  <div class="row">
+    <div>
+      <h3>Ticket Management Module</h3>
+      <p>
+        {{ isAdmin
+          ? 'Review ticket status across the portal and delete invalid or closed records when required.'
+          : isWorker
+            ? 'View assigned tickets and mark them completed after resolving.'
+            : 'Create and track waste collection tickets.' }}
+      </p>
+    </div>
+
+    @if (canCreateTickets) {
+      <button type="button" class="primary" (click)="openCreate()">Create Ticket</button>
+    }
+  </div>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (isFormOpen && canCreateTickets) {
+    <article class="form-card">
+      <h4>{{ editingTicket ? 'Edit Ticket' : 'New Ticket' }}</h4>
+
+      <div class="grid">
+        <div>
+          <label>Waste Type</label>
+          <input
+            type="text"
+            [formControl]="form.controls.wasteType"
+            placeholder="Dry, Wet, Medical..."
+            list="wasteTypeOptions"
+          />
+          <datalist id="wasteTypeOptions">
+            @for (type of wasteTypes; track type) {
+              <option [value]="type"></option>
+            }
+          </datalist>
+        </div>
+
+        <div>
+          <label>Priority</label>
+          <select [formControl]="form.controls.priority">
+            @for (item of priorities; track item) {
+              <option [value]="item">{{ item }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="full">
+          <label>Description</label>
+          <textarea rows="2" [formControl]="form.controls.description"></textarea>
+        </div>
+
+        <div class="full">
+          <label>Location Address</label>
+          <input type="text" [formControl]="form.controls.locationAddress" placeholder="Area/landmark" />
+        </div>
+      </div>
+
+      <div class="media-row">
+        <div>
+          <label>Upload from Gallery</label>
+          <input type="file" accept="image/*" (change)="onMediaSelected($event)" />
+        </div>
+        <div>
+          <label>Capture from Camera</label>
+          <button type="button" class="outline camera-btn" (click)="openCamera()">
+            <span class="camera-icon" aria-hidden="true"></span>
+            Open Camera
+          </button>
+        </div>
+      </div>
+
+      @if (mediaPreview) {
+        <img [src]="mediaPreview" alt="Media preview" class="preview" />
+      }
+
+      @if (cameraOpen) {
+        <div class="camera-overlay" (click)="closeCamera()">
+          <div class="camera-modal" (click)="$event.stopPropagation()">
+            <div class="camera-top">
+              <h5>Camera</h5>
+              <button type="button" class="outline" (click)="closeCamera()">Close</button>
+            </div>
+
+            @if (cameraError) {
+              <p class="error">{{ cameraError }}</p>
+            }
+
+            <video #cameraVideo class="camera-video" autoplay muted playsinline></video>
+            <canvas #cameraCanvas class="camera-canvas"></canvas>
+
+            <div class="camera-actions">
+              <button type="button" class="primary" (click)="captureFromCamera()">Capture</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="form-actions">
+        <button type="button" class="outline" (click)="cancelForm()">Cancel</button>
+        <button type="button" class="primary" [disabled]="saving" (click)="saveTicket()">
+          {{ saving ? 'Saving...' : 'Save Ticket' }}
+        </button>
+      </div>
+    </article>
+  }
+
+  @if (loading) {
+    <p class="loading">Loading tickets...</p>
+  } @else {
+    <div class="list">
+      @for (ticket of tickets; track ticket.id) {
+        <article class="ticket-card">
+          <div class="header">
+            <div>
+              <h4>{{ ticket.ticketCode }}</h4>
+              <p>{{ ticket.wasteType }} | {{ ticket.priority }} priority</p>
+            </div>
+            <app-status-badge [status]="ticket.status" />
+          </div>
+
+          <p>{{ ticket.description }}</p>
+          <p><strong>Location:</strong> {{ ticket.locationAddress }}</p>
+          <p><strong>User ID:</strong> {{ ticket.userId }} | <strong>Worker:</strong> {{ ticket.workerId ?? 'Unassigned' }}</p>
+
+          @if (ticket.mediaData) {
+            <img [src]="ticket.mediaData" alt="Ticket media" class="preview" />
+          }
+
+          <div class="actions">
+            @if (isAdmin || isWorker) {
+              <button type="button" class="outline" (click)="openDirections(ticket)">
+                Directions
+              </button>
+            }
+
+            @if (canEdit(ticket)) {
+              <button type="button" (click)="openEdit(ticket)">Edit</button>
+            }
+
+            @if (isWorker) {
+              <button
+                type="button"
+                class="primary"
+                [disabled]="ticket.status === 'completed'"
+                (click)="quickStatusUpdate(ticket, 'completed')"
+              >
+                Mark Completed
+              </button>
+            }
+
+            @if (canDelete(ticket)) {
+              <button type="button" class="danger" (click)="deleteTicket(ticket)">Delete</button>
+            }
+          </div>
+        </article>
+      } @empty {
+        <p>No tickets found.</p>
+      }
+    </div>
+  }
+</section>

@@ -1,0 +1,66 @@
+<section class="auth-page">
+  <div class="left-panel">
+    <div class="hero-copy">
+      <span class="eyebrow">Smart Waste Command</span>
+      <h1>{{ title }}</h1>
+      <p>
+        Smart digital platform for Admin, Worker, and User to manage waste tickets, track
+        ticket status, and monitor city cleanliness in one shared workspace.
+      </p>
+    </div>
+
+    <div class="feature-grid">
+      <article>
+        <strong>Role-based dashboards</strong>
+        <p>Separate access flows for operations, field work, and citizens.</p>
+      </article>
+      <article>
+        <strong>Live issue tracking</strong>
+        <p>Ticket status, map links, notifications, and assignment updates.</p>
+      </article>
+      <article>
+        <strong>Digital operations layer</strong>
+        <p>Admin controls, secure profiles, notifications, and portal settings.</p>
+      </article>
+    </div>
+  </div>
+
+  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <span class="eyebrow">Secure Access</span>
+    <h2>Login</h2>
+
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+
+    <label for="email">Email</label>
+    <input id="email" type="email" formControlName="email" placeholder="name@example.com" />
+
+    <label for="password">Password</label>
+    <div class="password-row">
+      <input
+        id="password"
+        [type]="showPassword ? 'text' : 'password'"
+        formControlName="password"
+        placeholder="Enter password"
+      />
+      <button type="button" (click)="showPassword = !showPassword">
+        {{ showPassword ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+
+    <button type="submit" class="primary" [disabled]="loading">
+      {{ loading ? 'Signing In...' : 'Login' }}
+    </button>
+
+    <button type="button" class="google" (click)="loginWithGoogle()" [disabled]="loading">
+      <span class="google-logo" aria-hidden="true">G</span>
+      Login with Google
+    </button>
+
+    <div class="links">
+      <a routerLink="/signup">Create account</a>
+      <a routerLink="/forgot-password">Forgot password</a>
+    </div>
+  </form>
+</section>

@@ -1,0 +1,67 @@
+<section class="broadcast-page">
+  <article class="hero-panel">
+    <div>
+      <span class="eyebrow">Broadcast Desk</span>
+      <h3>Command Broadcast Console</h3>
+      <p>Send polished admin notices from a dedicated page so the control flow stays cleaner.</p>
+    </div>
+
+    <div class="hero-tags">
+      <span>Admin only</span>
+      <span>Preview ready</span>
+      <span>Quick dispatch</span>
+    </div>
+  </article>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (success) {
+    <p class="success">{{ success }}</p>
+  }
+
+  <article class="card form-card">
+    <div class="card-head">
+      <div>
+        <span class="eyebrow">Compose</span>
+        <h4>Send Broadcast</h4>
+      </div>
+    </div>
+
+    <div class="broadcast-form">
+      <input type="text" [formControl]="noticeForm.controls.title" placeholder="Notification title" />
+      <textarea rows="6" [formControl]="noticeForm.controls.message" placeholder="Message"></textarea>
+      <button type="button" class="primary" [disabled]="sending" (click)="sendNotification()">
+        {{ sending ? 'Sending...' : 'Send Notification' }}
+      </button>
+    </div>
+  </article>
+
+  <article class="card history-card">
+    <div class="card-head">
+      <div>
+        <span class="eyebrow">Recent Dispatches</span>
+        <h4>Broadcast History</h4>
+      </div>
+    </div>
+
+    @if (loading) {
+      <p class="loading">Loading broadcast history...</p>
+    } @else {
+      <div class="history-list">
+        @for (item of recentBroadcasts; track item.id) {
+          <div class="history-item">
+            <div>
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.message }}</p>
+            </div>
+            <span>{{ item.createdAt | date: 'dd MMM y, h:mm a' }}</span>
+          </div>
+        } @empty {
+          <p class="empty-state">No broadcasts sent yet.</p>
+        }
+      </div>
+    }
+  </article>
+</section>

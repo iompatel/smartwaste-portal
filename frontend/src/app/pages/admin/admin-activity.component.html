@@ -1,0 +1,54 @@
+<section class="activity-page">
+  <article class="hero-panel">
+    <div>
+      <span class="eyebrow">Admin Activity</span>
+      <h3>Stored Admin Actions</h3>
+      <p>Review login, account management, notification, and ticket actions from one dedicated page.</p>
+    </div>
+  </article>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <span class="eyebrow">Activity Log</span>
+        <h4>Admin Activity Stream</h4>
+      </div>
+    </div>
+
+    @if (loading) {
+      <p class="loading">Loading admin activity...</p>
+    } @else {
+      <div class="activity-stream">
+        <div class="activity-headings">
+          <span>Time</span>
+          <span>Admin</span>
+          <span>Session</span>
+          <span>Action</span>
+        </div>
+
+        @for (activity of activities; track activity.id) {
+          <div class="activity-line">
+            <div class="activity-meta">
+              <span class="activity-part">
+                <span class="activity-time">{{ activity.createdAt | date: 'dd MMM y, h:mm a' }}</span>
+              </span>
+              <span class="activity-part">{{ activity.adminName }}</span>
+              <span class="activity-part">{{ activity.sessionLabel || 'SESSION-LIVE' }}</span>
+              <span class="activity-part">{{ activity.action }}</span>
+            </div>
+
+            <div class="activity-summary">
+              {{ activity.summary }}
+            </div>
+          </div>
+        } @empty {
+          <p class="empty-state">No admin activity stored yet.</p>
+        }
+      </div>
+    }
+  </article>
+</section>

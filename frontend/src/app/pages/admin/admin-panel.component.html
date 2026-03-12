@@ -1,0 +1,142 @@
+<section class="admin-page">
+  <article class="hero-panel">
+    <div>
+      <span class="eyebrow">Administration Console</span>
+      <h3>Admin Panel</h3>
+      <p>Maintain users, workers, tickets, reports, and activity notifications.</p>
+    </div>
+
+    <div class="hero-meta">
+      <div>
+        <span>Date & Time</span>
+        <strong>{{ nowLabel }}</strong>
+      </div>
+    </div>
+  </article>
+
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="loading">Loading admin data...</p>
+  } @else {
+    <div class="stats">
+      <article>
+        <span>Total Accounts</span>
+        <h4>{{ users.length }}</h4>
+        <p>All registered portal users</p>
+      </article>
+      <article>
+        <span>Workers</span>
+        <h4>{{ workerCount }}</h4>
+        <p>Field-ready sanitation staff</p>
+      </article>
+      <article>
+        <span>Priority Load</span>
+        <h4>{{ highPriorityTickets }}</h4>
+        <p>High priority tickets live now</p>
+      </article>
+      <article>
+        <span>Pending Tickets</span>
+        <h4>{{ pendingTickets }}</h4>
+        <p>Tickets waiting for action</p>
+      </article>
+    </div>
+
+    <article class="metrics-bar">
+      <div class="metric">
+        <span>Open Tickets</span>
+        <strong>{{ activeTicketCount }}</strong>
+      </div>
+      <div class="metric">
+        <span>Closed Tickets</span>
+        <strong>{{ closedTicketCount }}</strong>
+      </div>
+      <div class="metric">
+        <span>Assign Worker Requests</span>
+        <strong>{{ pendingHireRequests }}</strong>
+      </div>
+    </article>
+
+    <div class="panel-grid" [class.single]="pendingHireRequests === 0">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">Operations Snapshot</span>
+            <h4>Recent Tickets</h4>
+          </div>
+        </div>
+
+        <div class="ticket-list">
+          @for (ticket of tickets.slice(0, 5); track ticket.id) {
+            <div class="ticket-item">
+              <div>
+                <strong>{{ ticket.ticketCode }}</strong>
+                <p>{{ ticket.wasteType }} | {{ ticket.priority }}</p>
+              </div>
+              <app-status-badge [status]="ticket.status" />
+            </div>
+          }
+        </div>
+      </article>
+
+      @if (pendingHireRequests > 0) {
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <span class="eyebrow">Assign Worker</span>
+              <h4>New Hire Requests</h4>
+            </div>
+            <a class="link" routerLink="/hire-worker">Open Assign Worker</a>
+          </div>
+
+          <div class="ticket-list">
+            @for (request of latestPendingHireRequests; track request.id) {
+              <div class="ticket-item hire-item">
+                <div class="hire-details">
+                  <strong>{{ request.requestCode }} · {{ request.title ?? 'Personal Work' }}</strong>
+
+                  <div class="hire-meta">
+                    <div class="hire-field">
+                      <span>Requester</span>
+                      <strong>{{ request.requesterName }}</strong>
+                    </div>
+                    <div class="hire-field">
+                      <span>Mobile</span>
+                      <strong>{{ request.requesterMobile }}</strong>
+                    </div>
+                    <div class="hire-field">
+                      <span>Email</span>
+                      <strong>{{ request.requesterEmail }}</strong>
+                    </div>
+                    <div class="hire-field full">
+                      <span>Requester Address</span>
+                      <strong>{{ request.requesterAddress }}</strong>
+                    </div>
+                    <div class="hire-field full">
+                      <span>Work Address</span>
+                      <strong>{{ request.workAddress }}</strong>
+                    </div>
+                  </div>
+
+                  <p class="hire-purpose">
+                    <span class="muted">Purpose:</span> {{ request.purpose }}
+                  </p>
+                  <p class="hire-time">
+                    <span class="muted">Created:</span> {{ request.createdAt | date: 'short' }}
+                  </p>
+                </div>
+
+                <div class="hire-right">
+                  <strong class="pill">pending</strong>
+                </div>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+
+  }
+</section>

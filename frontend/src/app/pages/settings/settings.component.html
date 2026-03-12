@@ -1,0 +1,30 @@
+<section class="settings-page">
+  <article class="card">
+    <h3>Settings Module</h3>
+    <p>Theme preferences, notification permissions, and secure session controls.</p>
+
+    <div class="row">
+      <div>
+        <h4>Theme Mode</h4>
+        <p>Current theme: {{ currentTheme }}</p>
+      </div>
+      <button type="button" (click)="toggleTheme()">Toggle Theme</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <h4>Browser Notifications</h4>
+        <p>Permission: {{ notificationPermission }}</p>
+      </div>
+      <button type="button" (click)="enableNotifications()">Enable Notifications</button>
+    </div>
+
+    <div class="row danger-row">
+      <div>
+        <h4>Session</h4>
+        <p>Securely logout from portal.</p>
+      </div>
+      <button type="button" class="danger" (click)="logout()">Logout</button>
+    </div>
+  </article>
+</section>

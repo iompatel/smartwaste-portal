@@ -1,0 +1,142 @@
+<div class="layout-shell">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <span class="eyebrow">Digital Operations Suite</span>
+        <h1>{{ title }}</h1>
+      </div>
+
+      <nav>
+        @for (item of navItems; track item.label + ':' + item.path) {
+          @if (canShow(item.roles)) {
+            <a [routerLink]="item.path" routerLinkActive="active">{{ navLabel(item) }}</a>
+          }
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          @if (user?.profileImage) {
+            <img class="avatar avatar-image" [src]="user?.profileImage" alt="Profile photo" />
+          } @else {
+            <span class="avatar">{{ userInitials }}</span>
+          }
+          <div>
+            <strong>{{ user?.firstName }} {{ user?.lastName }}</strong>
+            <p>{{ user?.role }} access</p>
+          </div>
+        </div>
+
+        <button type="button" class="logout" (click)="logout()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="welcome">
+          <span class="eyebrow">Workspace</span>
+          <h2>Welcome, {{ user?.firstName }}</h2>
+          <p>{{ user?.email }}</p>
+        </div>
+
+        <div class="topbar-right">
+          @if (user) {
+            <app-role-pill [role]="user.role" />
+          }
+
+          <details #notificationMenu class="notifications">
+            <summary>
+              <span>Notifications</span>
+              <strong>{{ notifications.length }}</strong>
+            </summary>
+            <ul>
+              @if (notifications.length) {
+                <li class="notification-controls">
+                  <button
+                    type="button"
+                    class="notification-control"
+                    [disabled]="markingAllNotifications"
+                    (click)="markAllNotificationsRead()"
+                  >
+                    {{ markingAllNotifications ? 'Marking...' : 'Mark all as read' }}
+                  </button>
+                </li>
+              }
+
+              @for (item of notifications; track item.id) {
+                <li>
+                  <button type="button" class="notification-item" (click)="markNotificationRead(item.id)">
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.message }}</p>
+                  </button>
+                </li>
+              } @empty {
+                <li>
+                  <strong>No recent notifications</strong>
+                  <p>System updates will appear here.</p>
+                </li>
+              }
+            </ul>
+          </details>
+
+          @if (user) {
+            <details class="profile-menu">
+              <summary class="profile-chip">
+                @if (user.profileImage) {
+                  <img class="avatar avatar-image" [src]="user.profileImage" alt="Profile photo" />
+                } @else {
+                  <span class="avatar">{{ userInitials }}</span>
+                }
+                <div>
+                  <strong>{{ user.firstName }} {{ user.lastName }}</strong>
+                  <p>{{ user.role }}</p>
+                </div>
+                <span class="menu-caret">▾</span>
+              </summary>
+
+              <div class="profile-dropdown">
+                <div class="profile-menu-head">
+                  @if (user.profileImage) {
+                    <img class="avatar avatar-image" [src]="user.profileImage" alt="Profile photo" />
+                  } @else {
+                    <span class="avatar">{{ userInitials }}</span>
+                  }
+                  <div>
+                    <strong>{{ user.firstName }} {{ user.lastName }}</strong>
+                    <p>{{ user.email }}</p>
+                    <small>{{ user.role }} access</small>
+                  </div>
+                </div>
+
+                <nav class="profile-menu-links">
+                  @for (item of profileMenuItems; track item.path) {
+                    <a [routerLink]="item.path">{{ item.label }}</a>
+                  }
+                </nav>
+
+                <button type="button" class="profile-logout" (click)="logout()">Logout</button>
+              </div>
+            </details>
+          }
+        </div>
+      </header>
+
+      @if (needsProfileCompletion) {
+        <div class="profile-completion-banner">
+          <div>
+            <strong>Complete your mobile number and address</strong>
+            <p>
+              Your Google account is signed in, but contact details are still incomplete.
+              Update profile now to avoid future ticket or notification issues.
+            </p>
+          </div>
+          <a routerLink="/profile" [queryParams]="{ completeProfile: '1' }">Complete Profile</a>
+        </div>
+      }
+
+      <section class="page">
+        <router-outlet />
+      </section>
+    </main>
+  </div>
+</div>
