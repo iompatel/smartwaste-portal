@@ -4,6 +4,14 @@ This project is a complete **web portal** implementation with:
 - Angular frontend (`frontend/`)
 - Node.js + Express + MongoDB backend (`backend/`)
 
+## Live Connectivity (Web + App)
+
+The web portal and mobile app are connected to the same backend API.
+
+- Web portal: https://smartwasteportal.onrender.com
+- Backend API: https://smartwaste-backend-5zei.onrender.com/api
+
+
 ## Current Portal Features
 
 - Login / Signup / Forgot Password
