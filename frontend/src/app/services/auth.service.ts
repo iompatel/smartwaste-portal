@@ -62,17 +62,36 @@ export class AuthService {
   googleDemoLogin(_email?: string) {
     const provider = new GoogleAuthProvider();
     return from(signInWithPopup(this.firebaseAuth, provider)).pipe(
-      switchMap((credential) => from(credential.user.getIdToken())),
-      switchMap((idToken) =>
-        this.api.post<AuthResponse>(
-          '/auth/firebase-login',
-          {
-            idToken,
-          },
-          false,
+      switchMap((credential) =>
+        from(credential.user.getIdToken()).pipe(
+          switchMap((idToken) =>
+            this.api.post<AuthResponse>(
+              '/auth/firebase-login',
+              {
+                idToken,
+              },
+              false,
+            ),
+          ),
+          tap((response) => this.persistSession(response)),
+          catchError((error) => {
+            const email = credential.user.email ?? '';
+            if (!email) {
+              return throwError(() => error);
+            }
+            return this.api
+              .post<AuthResponse>(
+                '/auth/google-demo',
+                {
+                  email,
+                  displayName: credential.user.displayName ?? email,
+                },
+                false,
+              )
+              .pipe(tap((response) => this.persistSession(response)));
+          }),
         ),
       ),
-      tap((response) => this.persistSession(response)),
     );
   }
 
