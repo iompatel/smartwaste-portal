@@ -106,10 +106,12 @@ Expected response includes:
 
 ```json
 {
-  "status": "ok",
-  "database": "mongodb-connected"
+  "status": "ok"
 }
 ```
+
+Database readiness is available separately at `http://localhost:4000/api/ready` and returns
+`503` while MongoDB is disconnected.
 
 ## Demo Accounts
 

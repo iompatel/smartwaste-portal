@@ -706,9 +706,16 @@ async function sendLoginResponse(user, res) {
 }
 
 app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+  });
+});
+
+app.get('/api/ready', (_req, res) => {
   const connected = mongoose.connection.readyState === 1;
   res.status(connected ? 200 : 503).json({
-    status: connected ? 'ok' : 'unavailable',
+    status: connected ? 'ready' : 'unavailable',
     time: new Date().toISOString(),
     database: connected ? 'mongodb-connected' : 'mongodb-disconnected',
   });
