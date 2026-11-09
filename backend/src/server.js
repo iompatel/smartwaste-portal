@@ -1,8 +1,11 @@
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import crypto from 'node:crypto';
+import bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
+
 import {
   createFirebaseUser,
   getFirebaseUserByEmail,
@@ -10,7 +13,11 @@ import {
   verifyFirebaseIdToken,
 } from './firebase-admin.js';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'smart-waste-demo-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required.');
+}
+
 const PORT = Number(process.env.PORT ?? 4000);
 const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/smart_waste_portal';
 
@@ -19,8 +26,14 @@ const TICKET_STATUSES = ['pending', 'in_progress', 'completed'];
 const TICKET_PRIORITIES = ['low', 'medium', 'high'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
-function hashPassword(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
+const SALT_ROUNDS = 10;
+
+async function hashPassword(value) {
+  return bcrypt.hash(String(value), SALT_ROUNDS);
+}
+
+async function comparePassword(plain, hash) {
+  return bcrypt.compare(String(plain), hash);
 }
 
 function normalizeEmail(email) {
@@ -501,6 +514,10 @@ async function seedData() {
 
   const now = new Date();
 
+  const adminPasswordHash = await hashPassword('admin123');
+  const workerPasswordHash = await hashPassword('worker123');
+  const citizenPasswordHash = await hashPassword('user123');
+
   const adminUser = {
     id: await nextId('users'),
     firstName: 'System',
@@ -508,7 +525,7 @@ async function seedData() {
     gender: 'Other',
     mobile: '9999999999',
     email: 'admin@smartwaste.com',
-    passwordHash: hashPassword('admin123'),
+    passwordHash: adminPasswordHash,
     role: 'admin',
     address: 'City Control Room',
     profileImage: null,
@@ -524,7 +541,7 @@ async function seedData() {
     gender: 'Male',
     mobile: '8888888888',
     email: 'worker@smartwaste.com',
-    passwordHash: hashPassword('worker123'),
+    passwordHash: workerPasswordHash,
     role: 'worker',
     address: 'North Sector',
     profileImage: null,
@@ -540,7 +557,7 @@ async function seedData() {
     gender: 'Female',
     mobile: '7777777777',
     email: 'user@smartwaste.com',
-    passwordHash: hashPassword('user123'),
+    passwordHash: citizenPasswordHash,
     role: 'user',
     address: 'Lakeview Block',
     profileImage: null,
@@ -600,8 +617,19 @@ async function seedData() {
 }
 
 const app = express();
+app.use(helmet());
 app.use(cors());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' },
+});
+
 app.use(express.json({ limit: '10mb' }));
+app.use('/api/auth', authLimiter);
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -683,7 +711,7 @@ app.post('/api/auth/signup', async (req, res) => {
     gender: String(gender ?? 'Other').trim(),
     mobile: String(mobile).trim(),
     email: normalizedEmail,
-    passwordHash: hashPassword(String(password)),
+    passwordHash: await hashPassword(String(password)),
     role: allowedRole,
     address: String(address).trim(),
     profileImage,
@@ -712,7 +740,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user || user.passwordHash !== hashPassword(String(password))) {
+  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
     return res.status(401).json({ message: 'Invalid email or password.' });
   }
 
@@ -783,7 +811,7 @@ app.post('/api/auth/firebase-login', async (req, res) => {
         gender: String(gender).trim(),
         mobile: String(mobile).trim(),
         email,
-        passwordHash: hashPassword(`firebase:${decoded.uid}`),
+        passwordHash: await hashPassword(`firebase:${decoded.uid}`),
         role: allowedRole,
         address: String(address).trim(),
         profileImage: profileImage ?? decoded.picture ?? null,
@@ -823,18 +851,22 @@ app.post('/api/auth/firebase-login', async (req, res) => {
 
 app.post('/api/auth/google-demo', async (req, res) => {
   const email = normalizeEmail(req.body?.email ?? 'google.user@smartwaste.com');
+  const displayName = String(req.body?.displayName ?? '').trim();
+  const nameParts = displayName.split(/\s+/).filter(Boolean);
+  const derivedFirstName = nameParts[0] ?? 'Google';
+  const derivedLastName = nameParts.slice(1).join(' ') || 'User';
   const now = new Date();
   let user = await User.findOne({ email });
 
   if (!user) {
     user = await User.create({
       id: await nextId('users'),
-      firstName: 'Google',
-      lastName: 'User',
+      firstName: derivedFirstName,
+      lastName: derivedLastName,
       gender: 'Other',
       mobile: '0000000000',
       email,
-      passwordHash: hashPassword('google-login'),
+      passwordHash: await hashPassword('google-login'),
       role: 'user',
       address: 'Google Auth User',
       profileImage: null,
@@ -876,6 +908,30 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
 
   return res.json({ message: 'If email exists, reset instructions were sent.' });
+});
+
+app.post('/api/auth/update-password', async (req, res) => {
+  const { email, password } = req.body ?? {};
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  if (String(password).length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found.' });
+  }
+
+  user.passwordHash = await hashPassword(String(password));
+  user.updatedAt = new Date();
+  await user.save();
+
+  return res.json({ message: 'Password updated successfully.' });
 });
 
 app.post('/api/auth/logout', authMiddleware, async (req, res) => {
@@ -988,7 +1044,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     gender: String(gender ?? 'Other').trim(),
     mobile: String(mobile).trim(),
     email: normalizedEmail,
-    passwordHash: hashPassword(String(password)),
+    passwordHash: await hashPassword(String(password)),
     role: allowedRole,
     address: String(address).trim(),
     profileImage,

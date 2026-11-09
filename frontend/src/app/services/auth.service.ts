@@ -209,6 +209,10 @@ export class AuthService {
     );
   }
 
+  updatePassword(email: string, password: string) {
+    return this.api.post<{ message: string }>('/auth/update-password', { email, password }, false);
+  }
+
   refreshUser() {
     return this.api.get<User>('/me').pipe(
       tap((user) => {

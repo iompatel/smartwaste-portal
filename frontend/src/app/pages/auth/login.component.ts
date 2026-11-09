@@ -22,6 +22,8 @@ export class LoginComponent {
   loading = false;
   showPassword = false;
   error = '';
+  showSyncPassword = false;
+  syncing = false;
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -36,6 +38,7 @@ export class LoginComponent {
 
     this.loading = true;
     this.error = '';
+    this.showSyncPassword = false;
 
     this.authService.login(this.form.getRawValue().email, this.form.getRawValue().password).subscribe({
       next: () => {
@@ -51,9 +54,33 @@ export class LoginComponent {
           code.includes('auth/wrong-password')
         ) {
           this.error = 'Invalid email or password.';
+          this.showSyncPassword = true;
           return;
         }
         this.error = err?.error?.message ?? 'Unable to login right now.';
+      },
+    });
+  }
+
+  syncPassword() {
+    const email = this.form.getRawValue().email;
+    const newPassword = this.form.getRawValue().password;
+    if (!email || !newPassword) {
+      return;
+    }
+
+    this.syncing = true;
+    this.error = '';
+
+    this.authService.updatePassword(email, newPassword).subscribe({
+      next: () => {
+        this.syncing = false;
+        this.showSyncPassword = false;
+        this.submit();
+      },
+      error: () => {
+        this.syncing = false;
+        this.error = 'Unable to sync password. Please try again.';
       },
     });
   }

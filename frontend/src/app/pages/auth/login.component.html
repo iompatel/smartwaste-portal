@@ -33,6 +33,25 @@
       <p class="error">{{ error }}</p>
     }
 
+    @if (showSyncPassword) {
+      <div class="sync-block">
+        <p class="muted">
+          If you reset your password on Firebase, enter your new password below to sync it with
+          your account, then login again.
+        </p>
+        <label for="sync-password">New Password</label>
+        <input
+          id="sync-password"
+          type="password"
+          formControlName="password"
+          placeholder="Enter your new password"
+        />
+        <button type="button" class="outline" [disabled]="syncing" (click)="syncPassword()">
+          {{ syncing ? 'Syncing...' : 'Sync Password' }}
+        </button>
+      </div>
+    }
+
     <label for="email">Email</label>
     <input id="email" type="email" formControlName="email" placeholder="name@example.com" />
 

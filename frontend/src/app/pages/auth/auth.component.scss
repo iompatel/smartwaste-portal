@@ -236,6 +236,20 @@
     padding: 0.72rem 0.8rem;
     font-size: 0.8rem;
   }
+
+  .sync-block {
+    margin: 0.9rem 0;
+    padding: 0.8rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    background: var(--glass-bg);
+  }
+
+  .sync-block .muted {
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
 }
 
 .grid.two {
