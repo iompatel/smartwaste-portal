@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { APP_TITLE } from '../../core/constants';
 import { AuthService } from '../../services/auth.service';
@@ -20,15 +20,26 @@ export class LoginComponent {
   private readonly route = inject(ActivatedRoute);
 
   readonly title = APP_TITLE;
+  readonly isAdminConsole = this.route.snapshot.data['adminOnly'] === true;
   loading = false;
   showPassword = false;
   error = '';
-  showSyncPassword = false;
-  syncing = false;
 
   get returnUrl(): string {
     const url = this.route.snapshot.queryParams?.['returnUrl'];
-    return typeof url === 'string' && url.startsWith('/') ? url : '/dashboard';
+    const fallback = this.isAdminConsole ? '/admin-panel' : '/dashboard';
+    if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) {
+      return fallback;
+    }
+
+    if (
+      this.isAdminConsole &&
+      !/^\/(admin-panel(?:\/|$)|admin-activity(?:\/|$)|broadcast-desk(?:\/|$))/.test(url)
+    ) {
+      return fallback;
+    }
+
+    return url;
   }
 
   readonly form = this.fb.nonNullable.group({
@@ -44,9 +55,12 @@ export class LoginComponent {
 
     this.loading = true;
     this.error = '';
-    this.showSyncPassword = false;
+    const { email, password } = this.form.getRawValue();
+    const loginRequest = this.isAdminConsole
+      ? this.authService.adminLogin(email, password)
+      : this.authService.login(email, password);
 
-    this.authService.login(this.form.getRawValue().email, this.form.getRawValue().password).subscribe({
+    loginRequest.subscribe({
       next: () => {
         this.loading = false;
         this.router.navigateByUrl(this.returnUrl);
@@ -60,33 +74,9 @@ export class LoginComponent {
           code.includes('auth/wrong-password')
         ) {
           this.error = 'Invalid email or password.';
-          this.showSyncPassword = true;
           return;
         }
         this.error = err?.error?.message ?? 'Unable to login right now.';
-      },
-    });
-  }
-
-  syncPassword() {
-    const email = this.form.getRawValue().email;
-    const newPassword = this.form.getRawValue().password;
-    if (!email || !newPassword) {
-      return;
-    }
-
-    this.syncing = true;
-    this.error = '';
-
-    this.authService.updatePassword(email, newPassword).subscribe({
-      next: () => {
-        this.syncing = false;
-        this.showSyncPassword = false;
-        this.submit();
-      },
-      error: () => {
-        this.syncing = false;
-        this.error = 'Unable to sync password. Please try again.';
       },
     });
   }
@@ -95,7 +85,7 @@ export class LoginComponent {
     this.loading = true;
     this.error = '';
 
-    this.authService.googleDemoLogin().subscribe({
+    this.authService.googleLogin().subscribe({
       next: () => {
         this.loading = false;
         if (this.authService.needsContactDetails()) {
@@ -105,7 +95,7 @@ export class LoginComponent {
           return;
         }
 
-        this.router.navigate(['/dashboard']);
+        this.router.navigateByUrl(this.returnUrl);
       },
       error: (err) => {
         this.loading = false;

@@ -59,7 +59,13 @@ export class AuthService {
     );
   }
 
-  googleDemoLogin(_email?: string) {
+  adminLogin(email: string, password: string) {
+    return this.api
+      .post<AuthResponse>('/auth/admin-login', { email, password }, false)
+      .pipe(tap((response) => this.persistSession(response)));
+  }
+
+  googleLogin() {
     const provider = new GoogleAuthProvider();
     return from(signInWithPopup(this.firebaseAuth, provider)).pipe(
       switchMap((credential) =>
@@ -74,22 +80,6 @@ export class AuthService {
             ),
           ),
           tap((response) => this.persistSession(response)),
-          catchError((error) => {
-            const email = credential.user.email ?? '';
-            if (!email) {
-              return throwError(() => error);
-            }
-            return this.api
-              .post<AuthResponse>(
-                '/auth/google-demo',
-                {
-                  email,
-                  displayName: credential.user.displayName ?? email,
-                },
-                false,
-              )
-              .pipe(tap((response) => this.persistSession(response)));
-          }),
         ),
       ),
     );
@@ -207,10 +197,6 @@ export class AuthService {
           'Password reset link sent. Use only the latest email link and check spam folder.',
       })),
     );
-  }
-
-  updatePassword(email: string, password: string) {
-    return this.api.post<{ message: string }>('/auth/update-password', { email, password }, false);
   }
 
   refreshUser() {

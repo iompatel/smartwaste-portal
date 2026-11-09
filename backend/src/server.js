@@ -12,6 +12,11 @@ import {
   isFirebaseEnabled,
   verifyFirebaseIdToken,
 } from './firebase-admin.js';
+import {
+  PASSWORD_POLICY_MESSAGE,
+  canUseLoginPortal,
+  isStrongPassword,
+} from './auth-policy.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -27,6 +32,16 @@ const TICKET_PRIORITIES = ['low', 'medium', 'high'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
+const DEMO_PASSWORDS = {
+  'admin@smartwaste.com': 'Admin#123',
+  'worker@smartwaste.com': 'Worker#123',
+  'user@smartwaste.com': 'User#123',
+};
+const LEGACY_DEMO_PASSWORDS = {
+  'admin@smartwaste.com': 'admin123',
+  'worker@smartwaste.com': 'worker123',
+  'user@smartwaste.com': 'user123',
+};
 
 async function hashPassword(value) {
   return bcrypt.hash(String(value), SALT_ROUNDS);
@@ -38,13 +53,6 @@ async function comparePassword(plain, hash) {
 
 function normalizeEmail(email) {
   return String(email ?? '').trim().toLowerCase();
-}
-
-const PASSWORD_POLICY_MESSAGE =
-  'Password must be at least 8 characters and include one uppercase letter and one special character.';
-
-function isStrongPassword(value) {
-  return /^(?=.*[A-Z])(?=.*[^A-Za-z0-9\s]).{8,}$/.test(String(value ?? ''));
 }
 
 function cleanRecord(value) {
@@ -455,16 +463,22 @@ async function autoAssignUnassignedTickets(limit = 25) {
 
 function defaultPasswordForKnownDemoUsers(email) {
   const normalizedEmail = normalizeEmail(email);
-  const map = {
-    'admin@smartwaste.com': 'admin123',
-    'worker@smartwaste.com': 'worker123',
-    'user@smartwaste.com': 'user123',
-  };
 
   return (
-    map[normalizedEmail] ??
+    DEMO_PASSWORDS[normalizedEmail] ??
     `Temp#${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(2, 6)}`
   );
+}
+
+async function upgradeLegacyDemoPasswords() {
+  for (const [email, legacyPassword] of Object.entries(LEGACY_DEMO_PASSWORDS)) {
+    const user = await User.findOne({ email });
+    if (user && (await comparePassword(legacyPassword, user.passwordHash))) {
+      user.passwordHash = await hashPassword(DEMO_PASSWORDS[email]);
+      user.updatedAt = new Date();
+      await user.save();
+    }
+  }
 }
 
 async function ensureUserExistsInFirebase(localUser) {
@@ -509,6 +523,7 @@ async function syncDefaultDemoUsersToFirebase() {
 async function seedData() {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
+    await upgradeLegacyDemoPasswords();
     await Promise.all([
       syncCounter('users', User),
       syncCounter('tickets', Ticket),
@@ -521,9 +536,9 @@ async function seedData() {
 
   const now = new Date();
 
-  const adminPasswordHash = await hashPassword('admin123');
-  const workerPasswordHash = await hashPassword('worker123');
-  const citizenPasswordHash = await hashPassword('user123');
+  const adminPasswordHash = await hashPassword(DEMO_PASSWORDS['admin@smartwaste.com']);
+  const workerPasswordHash = await hashPassword(DEMO_PASSWORDS['worker@smartwaste.com']);
+  const citizenPasswordHash = await hashPassword(DEMO_PASSWORDS['user@smartwaste.com']);
 
   const adminUser = {
     id: await nextId('users'),
@@ -670,11 +685,32 @@ function requireRoles(...roles) {
   };
 }
 
+async function sendLoginResponse(user, res) {
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  const token = generateToken(user);
+  const sessionLabel = buildSessionLabel(jwt.verify(token, JWT_SECRET));
+
+  if (user.role === 'admin') {
+    await createAdminActivity({
+      adminUser: user,
+      sessionLabel,
+      action: 'Admin Login',
+      targetType: 'session',
+      summary: 'Signed in to the Smart Waste admin portal.',
+    });
+  }
+
+  return res.json({ token, user: sanitizeUser(user) });
+}
+
 app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
+  const connected = mongoose.connection.readyState === 1;
+  res.status(connected ? 200 : 503).json({
+    status: connected ? 'ok' : 'unavailable',
     time: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'mongodb-connected' : 'mongodb-disconnected',
+    database: connected ? 'mongodb-connected' : 'mongodb-disconnected',
   });
 });
 
@@ -751,23 +787,31 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password.' });
   }
 
-  user.lastLoginAt = new Date();
-  await user.save();
-
-  const token = generateToken(user);
-  const sessionLabel = buildSessionLabel(jwt.verify(token, JWT_SECRET));
-
-  if (user.role === 'admin') {
-    await createAdminActivity({
-      adminUser: user,
-      sessionLabel,
-      action: 'Admin Login',
-      targetType: 'session',
-      summary: 'Signed in to the Smart Waste admin portal.',
-    });
+  if (!canUseLoginPortal(user.role, 'public')) {
+    return res.status(403).json({ message: 'Admin accounts must use the Admin Console.' });
   }
 
-  return res.json({ token, user: sanitizeUser(user) });
+  return sendLoginResponse(user, res);
+});
+
+app.post('/api/auth/admin-login', async (req, res) => {
+  const { email, password } = req.body ?? {};
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
+    return res.status(401).json({ message: 'Invalid email or password.' });
+  }
+
+  if (!canUseLoginPortal(user.role, 'admin')) {
+    return res.status(403).json({ message: 'Admin access is required.' });
+  }
+
+  return sendLoginResponse(user, res);
 });
 
 app.post('/api/auth/firebase-login', async (req, res) => {
@@ -792,102 +836,54 @@ app.post('/api/auth/firebase-login', async (req, res) => {
     });
   }
 
+  let decoded;
   try {
-    const decoded = await verifyFirebaseIdToken(String(idToken));
-    const email = normalizeEmail(decoded.email);
-
-    if (!email) {
-      return res.status(400).json({ message: 'No email found in Firebase token.' });
-    }
-
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      const now = new Date();
-      // Public Firebase login/signup can create only the "user" role.
-      const allowedRole = 'user';
-      const fullName = String(decoded.name ?? '').trim();
-      const nameParts = fullName.split(/\s+/).filter(Boolean);
-      const derivedFirstName = nameParts[0] ?? 'Firebase';
-      const derivedLastName = nameParts.slice(1).join(' ') || 'User';
-
-      user = await User.create({
-        id: await nextId('users'),
-        firstName: String(firstName ?? derivedFirstName).trim(),
-        lastName: String(lastName ?? derivedLastName).trim(),
-        gender: String(gender).trim(),
-        mobile: String(mobile).trim(),
-        email,
-        passwordHash: await hashPassword(`firebase:${decoded.uid}`),
-        role: allowedRole,
-        address: String(address).trim(),
-        profileImage: profileImage ?? decoded.picture ?? null,
-        createdAt: now,
-        updatedAt: now,
-        lastLoginAt: now,
-      });
-
-      await createNotification({
-        userId: user.id,
-        title: 'Account Created',
-        message: 'Welcome to Smart Waste Management System.',
-      });
-    } else {
-      user.lastLoginAt = new Date();
-      await user.save();
-    }
-
-    const token = generateToken(user);
-    const sessionLabel = buildSessionLabel(jwt.verify(token, JWT_SECRET));
-
-    if (user.role === 'admin') {
-      await createAdminActivity({
-        adminUser: user,
-        sessionLabel,
-        action: 'Admin Login',
-        targetType: 'session',
-        summary: 'Signed in to the Smart Waste admin portal.',
-      });
-    }
-
-    return res.json({ token, user: sanitizeUser(user) });
+    decoded = await verifyFirebaseIdToken(String(idToken));
   } catch {
     return res.status(401).json({ message: 'Invalid Firebase token.' });
   }
-});
 
-app.post('/api/auth/google-demo', async (req, res) => {
-  const email = normalizeEmail(req.body?.email ?? 'google.user@smartwaste.com');
-  const displayName = String(req.body?.displayName ?? '').trim();
-  const nameParts = displayName.split(/\s+/).filter(Boolean);
-  const derivedFirstName = nameParts[0] ?? 'Google';
-  const derivedLastName = nameParts.slice(1).join(' ') || 'User';
-  const now = new Date();
+  const email = normalizeEmail(decoded.email);
+  if (!email) {
+    return res.status(400).json({ message: 'No email found in Firebase token.' });
+  }
+
   let user = await User.findOne({ email });
+  if (user && !canUseLoginPortal(user.role, 'public')) {
+    return res.status(403).json({ message: 'Admin accounts must use the Admin Console.' });
+  }
 
   if (!user) {
+    const now = new Date();
+    const fullName = String(decoded.name ?? '').trim();
+    const nameParts = fullName.split(/\s+/).filter(Boolean);
+    const derivedFirstName = nameParts[0] ?? 'Firebase';
+    const derivedLastName = nameParts.slice(1).join(' ') || 'User';
+
     user = await User.create({
       id: await nextId('users'),
-      firstName: derivedFirstName,
-      lastName: derivedLastName,
-      gender: 'Other',
-      mobile: '0000000000',
+      firstName: String(firstName ?? derivedFirstName).trim(),
+      lastName: String(lastName ?? derivedLastName).trim(),
+      gender: String(gender).trim(),
+      mobile: String(mobile).trim(),
       email,
-      passwordHash: await hashPassword('google-login'),
+      passwordHash: await hashPassword(`firebase:${decoded.uid}`),
       role: 'user',
-      address: 'Google Auth User',
-      profileImage: null,
+      address: String(address).trim(),
+      profileImage: profileImage ?? decoded.picture ?? null,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,
     });
-  } else {
-    user.lastLoginAt = now;
-    await user.save();
+
+    await createNotification({
+      userId: user.id,
+      title: 'Account Created',
+      message: 'Welcome to Smart Waste Management System.',
+    });
   }
 
-  const token = generateToken(user);
-  return res.json({ token, user: sanitizeUser(user) });
+  return sendLoginResponse(user, res);
 });
 
 app.post('/api/auth/forgot-password', async (req, res) => {
@@ -915,30 +911,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
 
   return res.json({ message: 'If email exists, reset instructions were sent.' });
-});
-
-app.post('/api/auth/update-password', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!normalizedEmail || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
-  }
-
-  if (!isStrongPassword(password)) {
-    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
-  }
-
-  user.passwordHash = await hashPassword(String(password));
-  user.updatedAt = new Date();
-  await user.save();
-
-  return res.json({ message: 'Password updated successfully.' });
 });
 
 app.post('/api/auth/logout', authMiddleware, async (req, res) => {
@@ -1038,6 +1010,14 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
   }
 
   const normalizedEmail = normalizeEmail(email);
+  if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  }
+
   const existing = await User.findOne({ email: normalizedEmail }, { id: 1 }).lean();
   if (existing) {
     return res.status(409).json({ message: 'Email already exists.' });

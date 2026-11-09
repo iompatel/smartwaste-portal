@@ -6,16 +6,14 @@ This project is a complete **web portal** implementation with:
 
 ## Current Portal Features
 
-- Login / Signup / Forgot Password
+- User/worker login, separate Admin Console login, Signup, and Forgot Password
 - Firebase email-password login + Google login bridge
 - Role-based dashboards (Admin, Worker, User)
 - Named routes with route guards
-- Admin panel for user, worker, ticket, and dustbin operations
+- Admin panel for user, worker, ticket, notification, and hire-request operations
 - Ticket CRUD module with assignment and status changes
-- Dustbin CRUD module with fill-level updates and overflow alert ticket creation
 - Profile management
 - Settings page (theme, logout, notifications)
-- Content module (To-Do planner)
 - Camera / Gallery upload support for tickets
 - Location integration + Google Maps preview / tracking
 - Browser notifications integration
@@ -88,6 +86,9 @@ npm start
 
 Frontend runs on `http://localhost:4200`.
 
+Admin Console runs at `http://localhost:4200/admin-console`. Public user and worker login remains
+at `http://localhost:4200/login`.
+
 ## Build Frontend
 
 ```bash
@@ -112,6 +113,9 @@ Expected response includes:
 
 ## Demo Accounts
 
-- Admin: `admin@smartwaste.com` / `admin123`
-- Worker: `worker@smartwaste.com` / `worker123`
-- User: `user@smartwaste.com` / `user123`
+- Admin: `admin@smartwaste.com` / `Admin#123` (use `/admin-console`)
+- Worker: `worker@smartwaste.com` / `Worker#123`
+- User: `user@smartwaste.com` / `User#123`
+
+Passwords created through signup or the Admin Console require at least 8 characters, one uppercase
+letter, and one special character.

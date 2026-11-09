@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,5 +11,6 @@ const payload = {
 };
 
 const content = `window.__SWMS_CONFIG__ = ${JSON.stringify(payload, null, 2)};\n`;
+mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, content);
 console.log(`Runtime config written to ${outputPath}`);

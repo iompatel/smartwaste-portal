@@ -1,12 +1,16 @@
 <section class="auth-page">
   <div class="left-panel">
     <div class="hero-copy">
-      <span class="eyebrow">Smart Waste Command</span>
+      <span class="eyebrow">{{ isAdminConsole ? 'Administration' : 'Smart Waste Command' }}</span>
       <h1>{{ title }}</h1>
-      <p>
-        Smart digital platform for Admin, Worker, and User to manage waste tickets, track
-        ticket status, and monitor city cleanliness in one shared workspace.
-      </p>
+      @if (isAdminConsole) {
+        <p>Restricted access for authorized Smart Waste administrators.</p>
+      } @else {
+        <p>
+          Smart digital platform for workers and citizens to manage waste tickets, track ticket
+          status, and monitor city cleanliness in one shared workspace.
+        </p>
+      }
     </div>
 
     <div class="feature-grid">
@@ -26,34 +30,21 @@
   </div>
 
   <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
-    <span class="eyebrow">Secure Access</span>
-    <h2>Login</h2>
+    <span class="eyebrow">{{ isAdminConsole ? 'Admin Only' : 'Secure Access' }}</span>
+    <h2>{{ isAdminConsole ? 'Admin Console' : 'Login' }}</h2>
 
     @if (error) {
       <p class="error">{{ error }}</p>
     }
 
-    @if (showSyncPassword) {
-      <div class="sync-block">
-        <p class="muted">
-          If you reset your password on Firebase, enter your new password below to sync it with
-          your account, then login again.
-        </p>
-        <label for="sync-password">New Password</label>
-        <input
-          id="sync-password"
-          type="password"
-          formControlName="password"
-          placeholder="Enter your new password"
-        />
-        <button type="button" class="outline" [disabled]="syncing" (click)="syncPassword()">
-          {{ syncing ? 'Syncing...' : 'Sync Password' }}
-        </button>
-      </div>
-    }
-
     <label for="email">Email</label>
-    <input id="email" type="email" formControlName="email" placeholder="name@example.com" />
+    <input
+      id="email"
+      type="email"
+      formControlName="email"
+      placeholder="name@example.com"
+      autocomplete="email"
+    />
 
     <label for="password">Password</label>
     <div class="password-row">
@@ -62,6 +53,7 @@
         [type]="showPassword ? 'text' : 'password'"
         formControlName="password"
         placeholder="Enter password"
+        autocomplete="current-password"
       />
       <button type="button" (click)="showPassword = !showPassword">
         {{ showPassword ? 'Hide' : 'Show' }}
@@ -69,17 +61,24 @@
     </div>
 
     <button type="submit" class="primary" [disabled]="loading">
-      {{ loading ? 'Signing In...' : 'Login' }}
+      {{ loading ? 'Signing In...' : isAdminConsole ? 'Enter Admin Console' : 'Login' }}
     </button>
 
-    <button type="button" class="google" (click)="loginWithGoogle()" [disabled]="loading">
-      <span class="google-logo" aria-hidden="true">G</span>
-      Login with Google
-    </button>
+    @if (!isAdminConsole) {
+      <button type="button" class="google" (click)="loginWithGoogle()" [disabled]="loading">
+        <span class="google-logo" aria-hidden="true">G</span>
+        Login with Google
+      </button>
+    }
 
     <div class="links">
-      <a routerLink="/signup">Create account</a>
-      <a routerLink="/forgot-password">Forgot password</a>
+      @if (isAdminConsole) {
+        <a routerLink="/login">User or worker login</a>
+      } @else {
+        <a routerLink="/signup">Create account</a>
+        <a routerLink="/admin-console">Admin Console</a>
+        <a routerLink="/forgot-password">Forgot password</a>
+      }
     </div>
   </form>
 </section>

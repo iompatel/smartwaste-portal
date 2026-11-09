@@ -54,3 +54,4 @@ backend/.env
 frontend/node_modules/
 frontend/.angular/
 frontend/dist/
+/backups/

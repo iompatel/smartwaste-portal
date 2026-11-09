@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 
 import { adminGuard } from './guards/admin.guard';
 import { authGuard } from './guards/auth.guard';
-import { AdminAccountsComponent } from './pages/admin/admin-accounts.component';
 import { AdminActivityComponent } from './pages/admin/admin-activity.component';
 import { AdminBroadcastComponent } from './pages/admin/admin-broadcast.component';
 import { AdminPanelComponent } from './pages/admin/admin-panel.component';
@@ -19,6 +18,12 @@ import { ShellComponent } from './shell/shell.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  {
+    path: 'admin-console',
+    component: LoginComponent,
+    pathMatch: 'full',
+    data: { adminOnly: true },
+  },
   { path: 'signup', component: SignupComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   {
@@ -36,18 +41,23 @@ export const routes: Routes = [
       { path: 'admin-panel', component: AdminPanelComponent, canActivate: [adminGuard] },
       {
         path: 'admin-panel/users',
-        component: AdminAccountsComponent,
+        loadComponent: () =>
+          import('./pages/admin/admin-accounts.component').then(
+            (module) => module.AdminAccountsComponent,
+          ),
         canActivate: [adminGuard],
         data: { accountRole: 'user' },
       },
       {
         path: 'admin-panel/workers',
-        component: AdminAccountsComponent,
+        loadComponent: () =>
+          import('./pages/admin/admin-accounts.component').then(
+            (module) => module.AdminAccountsComponent,
+          ),
         canActivate: [adminGuard],
         data: { accountRole: 'worker' },
       },
-      // Legacy/bookmarked admin-console URLs land on the admin panel instead of the login page.
-      { path: 'admin-console', redirectTo: 'admin-panel', pathMatch: 'full' },
+      // Preserve old deep links while keeping /admin-console as a separate login page.
       { path: 'admin-console/users', redirectTo: 'admin-panel/users', pathMatch: 'full' },
       { path: 'admin-console/workers', redirectTo: 'admin-panel/workers', pathMatch: 'full' },
     ],
