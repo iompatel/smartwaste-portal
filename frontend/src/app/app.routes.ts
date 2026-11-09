@@ -46,6 +46,10 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         data: { accountRole: 'worker' },
       },
+      // Legacy/bookmarked admin-console URLs land on the admin panel instead of the login page.
+      { path: 'admin-console', redirectTo: 'admin-panel', pathMatch: 'full' },
+      { path: 'admin-console/users', redirectTo: 'admin-panel/users', pathMatch: 'full' },
+      { path: 'admin-console/workers', redirectTo: 'admin-panel/workers', pathMatch: 'full' },
     ],
   },
   { path: '**', redirectTo: '/login' },
