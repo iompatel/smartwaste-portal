@@ -6,13 +6,12 @@ import { Ticket, TicketPriority, TicketStatus } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
-import { RevealDirective } from '../../shared/reveal.directive';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, StatusBadgeComponent, RevealDirective],
+  imports: [CommonModule, ReactiveFormsModule, StatusBadgeComponent],
   templateUrl: './tickets.component.html',
   styleUrl: './tickets.component.scss',
 })

@@ -1,9 +1,9 @@
 <section class="dashboard">
-  <article class="hero" appReveal>
+  <article class="hero">
     <div class="hero-copy">
       <span class="eyebrow">City Command Center</span>
       <h3>
-        @if (isWorker) { Worker Dashboard } @else { User Dashboard }
+        @if (isWorker) { Worker Dashboard } @else { Users Dashboard }
       </h3>
 
       <div class="hero-chips">
@@ -26,42 +26,6 @@
   @if (loading) {
     <p class="loading">Loading dashboard...</p>
   } @else {
-    <article class="today-widget" appReveal [revealDelay]="80">
-      <div class="calendar-tile" aria-hidden="true">
-        <span>{{ todayWeekday }}</span>
-        <strong>{{ todayDay }}</strong>
-        <small>{{ todayMonth }}</small>
-      </div>
-
-      <div class="today-copy">
-        <span class="eyebrow">Today at a glance</span>
-        <h4>{{ isWorker ? 'Your field workspace is ready.' : 'Your city workspace is up to date.' }}</h4>
-        <p>Live counts from your tickets and requests, with the next actions close by.</p>
-      </div>
-
-      <div class="today-metrics" aria-label="Today summary">
-        <div>
-          <span>Created today</span>
-          <strong>{{ ticketsToday }}</strong>
-        </div>
-        <div>
-          <span>Open now</span>
-          <strong>{{ openTicketCount }}</strong>
-        </div>
-        <div>
-          <span>High priority</span>
-          <strong>{{ highPriorityCount }}</strong>
-        </div>
-      </div>
-
-      <nav class="quick-actions" aria-label="Quick actions">
-        <a routerLink="/tickets">Tickets</a>
-        <a routerLink="/hire-worker">{{ isWorker ? 'Hired task' : 'Hire worker' }}</a>
-        <a routerLink="/profile">Profile</a>
-        <a routerLink="/settings">Settings</a>
-      </nav>
-    </article>
-
     <div class="stats">
       @if (isUser) {
         <app-stat-card label="My Tickets" [value]="myTicketCount" hint="Tickets created by you" />

@@ -1,54 +1,40 @@
-<section class="auth-page" [class.admin-console]="isAdminConsole">
+<section class="auth-page">
   <div class="left-panel">
-    <div class="product-lockup">
-      <span class="product-mark" aria-hidden="true"><span></span></span>
-      <strong>Smart Waste</strong>
-    </div>
-
     <div class="hero-copy">
-      <span class="eyebrow">{{ isAdminConsole ? 'Administration' : 'Connected City Operations' }}</span>
-      <h1>{{ isAdminConsole ? 'Control, without the clutter.' : 'A cleaner city, in one calm workspace.' }}</h1>
+      <span class="eyebrow">{{ isAdminConsole ? 'Administration' : 'Smart Waste Command' }}</span>
+      <h1>{{ title }}</h1>
       @if (isAdminConsole) {
-        <p>Review accounts, assignments, tickets, and city operations from a focused control surface.</p>
+        <p>Restricted access for authorized Smart Waste administrators.</p>
       } @else {
         <p>
-          Report issues, follow progress, and coordinate field work through one secure, responsive
-          portal.
+          Smart digital platform for workers and citizens to manage waste tickets, track ticket
+          status, and monitor city cleanliness in one shared workspace.
         </p>
       }
     </div>
 
     <div class="feature-grid">
       <article>
-        <span>01</span>
-        <strong>Made for each role</strong>
-        <p>Clear tools for operations, field teams, and citizens.</p>
+        <strong>Role-based dashboards</strong>
+        <p>Separate access flows for operations, field work, and citizens.</p>
       </article>
       <article>
-        <span>02</span>
-        <strong>Progress at a glance</strong>
-        <p>Ticket status, directions, and assignments stay easy to scan.</p>
+        <strong>Live issue tracking</strong>
+        <p>Ticket status, map links, notifications, and assignment updates.</p>
       </article>
       <article>
-        <span>03</span>
-        <strong>Private by design</strong>
-        <p>Role-based access keeps each workspace focused and secure.</p>
+        <strong>Digital operations layer</strong>
+        <p>Admin controls, secure profiles, notifications, and portal settings.</p>
       </article>
     </div>
   </div>
 
   <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="form-heading">
-      <span class="form-symbol" aria-hidden="true"></span>
-      <div>
-        <span class="eyebrow">{{ isAdminConsole ? 'Admin Only' : 'Secure Access' }}</span>
-        <h2>{{ isAdminConsole ? 'Admin Console' : 'Welcome back' }}</h2>
-        <p>{{ isAdminConsole ? 'Use your administrator credentials.' : 'Sign in to continue to your workspace.' }}</p>
-      </div>
-    </div>
+    <span class="eyebrow">{{ isAdminConsole ? 'Admin Only' : 'Secure Access' }}</span>
+    <h2>{{ isAdminConsole ? 'Admin Console' : 'Login' }}</h2>
 
     @if (error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="error">{{ error }}</p>
     }
 
     <label for="email">Email</label>
@@ -58,11 +44,7 @@
       formControlName="email"
       placeholder="name@example.com"
       autocomplete="email"
-      [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
     />
-    @if (form.controls.email.touched && form.controls.email.invalid) {
-      <p class="field-error">Enter a valid email address.</p>
-    }
 
     <label for="password">Password</label>
     <div class="password-row">
@@ -72,15 +54,11 @@
         formControlName="password"
         placeholder="Enter password"
         autocomplete="current-password"
-        [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
       />
       <button type="button" (click)="showPassword = !showPassword">
         {{ showPassword ? 'Hide' : 'Show' }}
       </button>
     </div>
-    @if (form.controls.password.touched && form.controls.password.invalid) {
-      <p class="field-error">Enter your password.</p>
-    }
 
     <button type="submit" class="primary" [disabled]="loading">
       {{ loading ? 'Signing In...' : isAdminConsole ? 'Enter Admin Console' : 'Login' }}
@@ -88,7 +66,8 @@
 
     @if (!isAdminConsole) {
       <button type="button" class="google" (click)="loginWithGoogle()" [disabled]="loading">
-        Continue with Google
+        <span class="google-logo" aria-hidden="true">G</span>
+        Login with Google
       </button>
     }
 

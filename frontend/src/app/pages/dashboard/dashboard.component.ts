@@ -8,24 +8,15 @@ import { AuthService } from '../../services/auth.service';
 import { PortalService } from '../../services/portal.service';
 import { StatCardComponent } from '../../shared/stat-card.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { RevealDirective } from '../../shared/reveal.directive';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, StatCardComponent, StatusBadgeComponent, RevealDirective],
+  imports: [CommonModule, RouterLink, StatCardComponent, StatusBadgeComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
-  private readonly today = new Date();
-
-  readonly todayWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(
-    this.today,
-  );
-  readonly todayDay = new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(this.today);
-  readonly todayMonth = new Intl.DateTimeFormat(undefined, { month: 'short' }).format(this.today);
-
   loading = true;
   summary: DashboardSummary | null = null;
   tickets: Ticket[] = [];
@@ -65,23 +56,6 @@ export class DashboardComponent implements OnInit {
 
   get pendingHireCount() {
     return this.hireRequests.filter((request) => request.status === 'pending').length;
-  }
-
-  get ticketsToday() {
-    return this.tickets.filter((ticket) => {
-      const createdAt = new Date(ticket.createdAt);
-      return (
-        createdAt.getFullYear() === this.today.getFullYear() &&
-        createdAt.getMonth() === this.today.getMonth() &&
-        createdAt.getDate() === this.today.getDate()
-      );
-    }).length;
-  }
-
-  get highPriorityCount() {
-    return this.tickets.filter(
-      (ticket) => ticket.priority === 'high' && ticket.status !== 'completed',
-    ).length;
   }
 
   get recentTickets() {

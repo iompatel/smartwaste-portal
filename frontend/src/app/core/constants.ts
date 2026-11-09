@@ -4,4 +4,3 @@ export const APP_TITLE = 'Smart Waste Management System';
 export const SESSION_TOKEN_KEY = 'swms_token';
 export const SESSION_USER_KEY = 'swms_user';
 export const THEME_KEY = 'swms_theme';
-export const COMPACT_LAYOUT_KEY = 'swms_compact_layout';

@@ -5,13 +5,12 @@ import { forkJoin } from 'rxjs';
 
 import { HireRequest, Ticket, User } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
-import { RevealDirective } from '../../shared/reveal.directive';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 
 @Component({
   selector: 'app-admin-panel',
   standalone: true,
-  imports: [CommonModule, RouterLink, StatusBadgeComponent, RevealDirective],
+  imports: [CommonModule, RouterLink, StatusBadgeComponent],
   templateUrl: './admin-panel.component.html',
   styleUrl: './admin-panel.component.scss',
 })

@@ -12,54 +12,33 @@ import { Component, Input } from '@angular/core';
   `,
   styles: [
     `
-      :host {
-        display: block;
-        min-width: 0;
-      }
       .card {
-        position: relative;
-        min-height: 9rem;
-        overflow: hidden;
-        background:
-          radial-gradient(circle at 100% 0%, var(--accent-soft), transparent 52%),
-          var(--content-surface);
+        background: var(--surface);
         border: 1px solid var(--glass-border);
-        border-radius: var(--radius-lg);
-        padding: 1rem;
-        box-shadow: var(--shadow-card);
-      }
-      .card::after {
-        content: '';
-        position: absolute;
-        right: 1rem;
-        bottom: 1rem;
-        width: 0.45rem;
-        height: 0.45rem;
-        border-radius: 50%;
-        background: var(--success);
-        box-shadow: 0 0 0 5px var(--success-soft);
+        border-radius: 24px;
+        padding: 0.92rem;
+        box-shadow: var(--shadow-soft);
+        backdrop-filter: blur(18px);
       }
       .label {
         margin: 0;
         color: var(--text-muted);
-        font-size: 0.68rem;
-        font-weight: 650;
+        font-size: 0.7rem;
+        font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
       h3 {
-        margin: 0.7rem 0 0;
-        font-size: 2.35rem;
+        margin: 0.48rem 0 0;
+        font-size: 1.95rem;
         line-height: 1;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: -0.06em;
+        letter-spacing: -0.05em;
       }
       .hint {
-        max-width: calc(100% - 1.4rem);
-        margin: 0.55rem 0 0;
+        margin: 0.38rem 0 0;
         color: var(--text-muted);
-        font-size: 0.75rem;
-        line-height: 1.45;
+        font-size: 0.76rem;
+        line-height: 1.5;
       }
     `,
   ],

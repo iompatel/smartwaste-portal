@@ -3,12 +3,11 @@ import { Component, OnInit, inject } from '@angular/core';
 
 import { AdminActivity } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
-import { RevealDirective } from '../../shared/reveal.directive';
 
 @Component({
   selector: 'app-admin-activity',
   standalone: true,
-  imports: [CommonModule, RevealDirective],
+  imports: [CommonModule],
   templateUrl: './admin-activity.component.html',
   styleUrl: './admin-activity.component.scss',
 })
