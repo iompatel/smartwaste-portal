@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 
 import { APP_TITLE } from '../../core/constants';
 import { AuthService } from '../../services/auth.service';
@@ -17,6 +17,7 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly title = APP_TITLE;
   loading = false;
@@ -24,6 +25,11 @@ export class LoginComponent {
   error = '';
   showSyncPassword = false;
   syncing = false;
+
+  get returnUrl(): string {
+    const url = this.route.snapshot.queryParams?.['returnUrl'];
+    return typeof url === 'string' && url.startsWith('/') ? url : '/dashboard';
+  }
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -43,7 +49,7 @@ export class LoginComponent {
     this.authService.login(this.form.getRawValue().email, this.form.getRawValue().password).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+        this.router.navigateByUrl(this.returnUrl);
       },
       error: (err) => {
         this.loading = false;
