@@ -30,7 +30,7 @@ export class ShellComponent implements OnInit {
   markingAllNotifications = false;
 
   readonly navItems = [
-    { label: 'Admin Panel', path: '/dashboard', roles: ['admin'] },
+    { label: 'Admin Panel', path: '/admin-panel', roles: ['admin'] },
     { label: 'Users', path: '/admin-panel/users', roles: ['admin'] },
     { label: 'Workers', path: '/admin-panel/workers', roles: ['admin'] },
     { label: 'Admin Activity', path: '/admin-activity', roles: ['admin'] },
@@ -140,7 +140,7 @@ export class ShellComponent implements OnInit {
     const items: Array<{ label: string; path: string }> = [
       {
         label: this.user.role === 'admin' ? 'Admin Panel' : 'Dashboard',
-        path: '/dashboard',
+        path: this.user.role === 'admin' ? '/admin-panel' : '/dashboard',
       },
       { label: 'Profile', path: '/profile' },
       { label: 'Settings', path: '/settings' },
