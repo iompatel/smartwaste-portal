@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
+import { PASSWORD_HINT, PASSWORD_PATTERN } from '../../core/password';
 
 @Component({
   selector: 'app-signup',
@@ -28,10 +29,15 @@ export class SignupComponent {
     gender: ['Other', [Validators.required]],
     mobile: ['', [Validators.required, Validators.minLength(10)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
-    confirmPassword: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]],
+    confirmPassword: [
+      '',
+      [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)],
+    ],
     address: ['', [Validators.required]],
   });
+
+  readonly passwordHint = PASSWORD_HINT;
 
   submit() {
     if (this.form.invalid) {

@@ -55,11 +55,16 @@
               [type]="showCreatePassword ? 'text' : 'password'"
               [formControl]="form.controls.password"
               placeholder="Password"
+              autocomplete="new-password"
             />
             <button type="button" (click)="showCreatePassword = !showCreatePassword">
               {{ showCreatePassword ? 'Hide' : 'Show' }}
             </button>
           </div>
+          <p class="field-hint">{{ passwordHint }}</p>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p class="field-error">{{ passwordHint }}</p>
+          }
           <select [formControl]="form.controls.gender">
             <option value="Male">Male</option>
             <option value="Female">Female</option>

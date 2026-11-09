@@ -39,11 +39,16 @@
             [type]="showPassword ? 'text' : 'password'"
             formControlName="password"
             placeholder="Create a password"
+            autocomplete="new-password"
           />
           <button type="button" (click)="showPassword = !showPassword">
             {{ showPassword ? 'Hide' : 'Show' }}
           </button>
         </div>
+        <p class="field-hint">{{ passwordHint }}</p>
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <p class="field-error">{{ passwordHint }}</p>
+        }
       </div>
       <div>
         <label>Confirm Password</label>
@@ -52,11 +57,15 @@
             [type]="showConfirmPassword ? 'text' : 'password'"
             formControlName="confirmPassword"
             placeholder="Re-enter password"
+            autocomplete="new-password"
           />
           <button type="button" (click)="showConfirmPassword = !showConfirmPassword">
             {{ showConfirmPassword ? 'Hide' : 'Show' }}
           </button>
         </div>
+        @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid) {
+          <p class="field-error">{{ passwordHint }}</p>
+        }
       </div>
     </div>
 

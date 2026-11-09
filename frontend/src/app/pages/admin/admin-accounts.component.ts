@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import { HireRequest, Ticket, User } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
 import { RolePillComponent } from '../../shared/role-pill.component';
+import { PASSWORD_HINT, PASSWORD_PATTERN } from '../../core/password';
 import { forkJoin, of } from 'rxjs';
 
 type ManagedRole = 'user' | 'worker';
@@ -42,9 +43,11 @@ export class AdminAccountsComponent implements OnInit {
     gender: ['Other', [Validators.required]],
     mobile: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]],
     address: ['', [Validators.required]],
   });
+
+  readonly passwordHint = PASSWORD_HINT;
 
   ngOnInit() {
     this.loadData();

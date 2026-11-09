@@ -40,6 +40,13 @@ function normalizeEmail(email) {
   return String(email ?? '').trim().toLowerCase();
 }
 
+const PASSWORD_POLICY_MESSAGE =
+  'Password must be at least 8 characters and include one uppercase letter and one special character.';
+
+function isStrongPassword(value) {
+  return /^(?=.*[A-Z])(?=.*[^A-Za-z0-9\s]).{8,}$/.test(String(value ?? ''));
+}
+
 function cleanRecord(value) {
   if (!value) {
     return null;
@@ -692,8 +699,8 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(400).json({ message: 'Invalid email format.' });
   }
 
-  if (String(password).length < 6) {
-    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
 
   // Public signup can create only the "user" role.
@@ -918,8 +925,8 @@ app.post('/api/auth/update-password', async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required.' });
   }
 
-  if (String(password).length < 6) {
-    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
 
   const user = await User.findOne({ email: normalizedEmail });
