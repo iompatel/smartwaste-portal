@@ -4,11 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { AppNotification } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
+import { RevealDirective } from '../../shared/reveal.directive';
 
 @Component({
   selector: 'app-admin-broadcast',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RevealDirective],
   templateUrl: './admin-broadcast.component.html',
   styleUrl: './admin-broadcast.component.scss',
 })

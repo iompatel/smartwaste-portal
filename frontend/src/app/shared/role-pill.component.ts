@@ -20,9 +20,9 @@ import { UserRole } from '../models/types';
         letter-spacing: 0.04em;
       }
       .admin {
-        background: rgba(216, 67, 67, 0.1);
-        border-color: rgba(216, 67, 67, 0.14);
-        color: #a92a2a;
+        background: var(--danger-soft);
+        border-color: var(--danger-border);
+        color: var(--danger);
       }
       .worker {
         background: rgba(0, 113, 227, 0.1);
@@ -30,9 +30,9 @@ import { UserRole } from '../models/types';
         color: var(--accent-deep);
       }
       .user {
-        background: rgba(52, 199, 89, 0.1);
-        border-color: rgba(52, 199, 89, 0.14);
-        color: #19713a;
+        background: var(--success-soft);
+        border-color: color-mix(in srgb, var(--success) 25%, transparent);
+        color: color-mix(in srgb, var(--success) 70%, var(--text));
       }
     `,
   ],

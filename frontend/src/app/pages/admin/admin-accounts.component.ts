@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import { HireRequest, Ticket, User } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
 import { RolePillComponent } from '../../shared/role-pill.component';
+import { RevealDirective } from '../../shared/reveal.directive';
 import { PASSWORD_HINT, PASSWORD_PATTERN } from '../../core/password';
 import { forkJoin, of } from 'rxjs';
 
@@ -15,7 +16,7 @@ type ManagedRole = 'user' | 'worker';
 @Component({
   selector: 'app-admin-accounts',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, RolePillComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, RolePillComponent, RevealDirective],
   templateUrl: './admin-accounts.component.html',
   styleUrl: './admin-accounts.component.scss',
 })

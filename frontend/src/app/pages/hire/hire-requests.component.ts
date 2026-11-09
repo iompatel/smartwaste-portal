@@ -7,11 +7,12 @@ import { HireRequest, User } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
+import { RevealDirective } from '../../shared/reveal.directive';
 
 @Component({
   selector: 'app-hire-requests',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, RevealDirective],
   templateUrl: './hire-requests.component.html',
   styleUrl: './hire-requests.component.scss',
 })

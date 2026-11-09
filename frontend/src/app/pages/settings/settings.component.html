@@ -1,30 +1,98 @@
 <section class="settings-page">
-  <article class="card">
-    <h3>Settings Module</h3>
-    <p>Theme preferences, notification permissions, and secure session controls.</p>
+  <header class="settings-hero" appReveal>
+    <span class="eyebrow">Personalize</span>
+    <h3>Settings</h3>
+    <p>Adjust the portal to match your display, workflow, and notification preferences.</p>
+  </header>
 
-    <div class="row">
-      <div>
-        <h4>Theme Mode</h4>
-        <p>Current theme: {{ currentTheme }}</p>
+  <div class="settings-grid">
+    <article class="settings-group">
+      <div class="group-heading">
+        <span class="group-icon appearance" aria-hidden="true"></span>
+        <div>
+          <h4>Appearance</h4>
+          <p>Saved on this device and applied immediately.</p>
+        </div>
       </div>
-      <button type="button" (click)="toggleTheme()">Toggle Theme</button>
-    </div>
 
-    <div class="row">
-      <div>
-        <h4>Browser Notifications</h4>
-        <p>Permission: {{ notificationPermission }}</p>
+      <div class="setting-row">
+        <div class="setting-copy">
+          <strong>Dark appearance</strong>
+          <span>{{ isDark ? 'Dark surfaces are active' : 'Light surfaces are active' }}</span>
+        </div>
+        <button
+          type="button"
+          class="switch"
+          role="switch"
+          [class.on]="isDark"
+          [attr.aria-checked]="isDark"
+          aria-label="Toggle dark appearance"
+          (click)="toggleTheme()"
+        >
+          <span aria-hidden="true"></span>
+        </button>
       </div>
-      <button type="button" (click)="enableNotifications()">Enable Notifications</button>
-    </div>
 
-    <div class="row danger-row">
-      <div>
-        <h4>Session</h4>
-        <p>Securely logout from portal.</p>
+      <div class="setting-row">
+        <div class="setting-copy">
+          <strong>Compact layout</strong>
+          <span>Fit more tickets and records on larger screens.</span>
+        </div>
+        <button
+          type="button"
+          class="switch"
+          role="switch"
+          [class.on]="compactLayout"
+          [attr.aria-checked]="compactLayout"
+          aria-label="Toggle compact layout"
+          (click)="toggleCompactLayout()"
+        >
+          <span aria-hidden="true"></span>
+        </button>
       </div>
-      <button type="button" class="danger" (click)="logout()">Logout</button>
-    </div>
-  </article>
+    </article>
+
+    <article class="settings-group">
+      <div class="group-heading">
+        <span class="group-icon notifications-icon" aria-hidden="true"></span>
+        <div>
+          <h4>Notifications</h4>
+          <p>Get useful updates only when you choose to allow them.</p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-copy">
+          <strong>Browser notifications</strong>
+          <span>Permission: {{ notificationPermission }}</span>
+        </div>
+        <button
+          type="button"
+          class="setting-action"
+          [disabled]="notificationPermission === 'granted' || notificationPermission === 'unsupported'"
+          (click)="enableNotifications()"
+        >
+          {{ notificationPermission === 'granted' ? 'Enabled' : 'Enable' }}
+        </button>
+      </div>
+    </article>
+
+    <article class="settings-group danger-group">
+      <div class="group-heading">
+        <span class="group-icon session-icon" aria-hidden="true"></span>
+        <div>
+          <h4>Session</h4>
+          <p>End this session and remove its local sign-in data.</p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-copy">
+          <strong>Sign out</strong>
+          <span>You will return to the secure login page.</span>
+        </div>
+        <button type="button" class="danger" (click)="logout()">Logout</button>
+      </div>
+    </article>
+  </div>
 </section>

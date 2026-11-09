@@ -3,7 +3,6 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { APP_TITLE } from '../../core/constants';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -19,7 +18,6 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  readonly title = APP_TITLE;
   readonly isAdminConsole = this.route.snapshot.data['adminOnly'] === true;
   loading = false;
   showPassword = false;

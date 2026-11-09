@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { ThemeService } from '../../services/theme.service';
+import { RevealDirective } from '../../shared/reveal.directive';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RevealDirective],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
 })
@@ -30,8 +31,20 @@ export class SettingsComponent {
     return this.themeService.currentMode;
   }
 
+  get isDark() {
+    return this.currentTheme === 'dark';
+  }
+
+  get compactLayout() {
+    return this.themeService.compactLayout;
+  }
+
   toggleTheme() {
     this.themeService.toggle();
+  }
+
+  toggleCompactLayout() {
+    this.themeService.toggleCompact();
   }
 
   async enableNotifications() {

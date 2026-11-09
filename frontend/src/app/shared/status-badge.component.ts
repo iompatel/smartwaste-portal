@@ -22,9 +22,9 @@ import { TicketStatus } from '../models/types';
         text-transform: uppercase;
       }
       .pending {
-        background: rgba(255, 204, 0, 0.14);
-        border-color: rgba(255, 204, 0, 0.18);
-        color: #9c6d00;
+        background: var(--warning-soft);
+        border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+        color: var(--warning);
       }
       .in_progress {
         background: rgba(0, 113, 227, 0.1);
@@ -32,9 +32,9 @@ import { TicketStatus } from '../models/types';
         color: var(--accent-deep);
       }
       .completed {
-        background: rgba(52, 199, 89, 0.12);
-        border-color: rgba(52, 199, 89, 0.16);
-        color: #19713a;
+        background: var(--success-soft);
+        border-color: color-mix(in srgb, var(--success) 25%, transparent);
+        color: color-mix(in srgb, var(--success) 70%, var(--text));
       }
     `,
   ],

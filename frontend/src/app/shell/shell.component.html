@@ -2,11 +2,14 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="brand-block">
-        <span class="eyebrow">Digital Operations Suite</span>
-        <h1>{{ title }}</h1>
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <div class="brand-copy">
+          <span class="eyebrow">City Operations</span>
+          <h1>{{ title }}</h1>
+        </div>
       </div>
 
-      <nav>
+      <nav aria-label="Primary navigation">
         @for (item of navItems; track item.label + ':' + item.path) {
           @if (canShow(item.roles)) {
             <a [routerLink]="item.path" routerLinkActive="active">{{ navLabel(item) }}</a>
@@ -45,7 +48,7 @@
           }
 
           <details #notificationMenu class="notifications">
-            <summary>
+            <summary [attr.aria-label]="notifications.length + ' unread notifications'">
               <span>Notifications</span>
               <strong>{{ notifications.length }}</strong>
             </summary>
@@ -81,7 +84,7 @@
 
           @if (user) {
             <details class="profile-menu">
-              <summary class="profile-chip">
+              <summary class="profile-chip" aria-label="Open profile menu">
                 @if (user.profileImage) {
                   <img class="avatar avatar-image" [src]="user.profileImage" alt="Profile photo" />
                 } @else {
@@ -91,7 +94,7 @@
                   <strong>{{ user.firstName }} {{ user.lastName }}</strong>
                   <p>{{ user.role }}</p>
                 </div>
-                <span class="menu-caret">▾</span>
+                <span class="menu-caret" aria-hidden="true"></span>
               </summary>
 
               <div class="profile-dropdown">
@@ -108,7 +111,7 @@
                   </div>
                 </div>
 
-                <nav class="profile-menu-links">
+                <nav class="profile-menu-links" aria-label="Profile navigation">
                   @for (item of profileMenuItems; track item.path) {
                     <a [routerLink]="item.path">{{ item.label }}</a>
                   }

@@ -4,39 +4,40 @@
     <h2>Create account</h2>
 
     @if (error) {
-      <p class="error">{{ error }}</p>
+      <p class="error" role="alert">{{ error }}</p>
     }
 
     <div class="grid two">
       <div>
-        <label>First Name</label>
-        <input type="text" formControlName="firstName" />
+        <label for="first-name">First Name</label>
+        <input id="first-name" type="text" formControlName="firstName" autocomplete="given-name" />
       </div>
       <div>
-        <label>Last Name</label>
-        <input type="text" formControlName="lastName" />
+        <label for="last-name">Last Name</label>
+        <input id="last-name" type="text" formControlName="lastName" autocomplete="family-name" />
       </div>
       <div>
-        <label>Gender</label>
-        <select formControlName="gender">
+        <label for="gender">Gender</label>
+        <select id="gender" formControlName="gender">
           <option value="Male">Male</option>
           <option value="Female">Female</option>
           <option value="Other">Other</option>
         </select>
       </div>
       <div>
-        <label>Mobile Number</label>
-        <input type="text" formControlName="mobile" />
+        <label for="mobile">Mobile Number</label>
+        <input id="mobile" type="tel" formControlName="mobile" autocomplete="tel" inputmode="tel" />
       </div>
       <div>
-        <label>Email</label>
-        <input type="email" formControlName="email" />
+        <label for="signup-email">Email</label>
+        <input id="signup-email" type="email" formControlName="email" autocomplete="email" />
       </div>
       <div>
-        <label>Password</label>
+        <label for="signup-password">Password</label>
         <div class="password-row">
           <input
             [type]="showPassword ? 'text' : 'password'"
+            id="signup-password"
             formControlName="password"
             placeholder="Create a password"
             autocomplete="new-password"
@@ -51,10 +52,11 @@
         }
       </div>
       <div>
-        <label>Confirm Password</label>
+        <label for="confirm-password">Confirm Password</label>
         <div class="password-row">
           <input
             [type]="showConfirmPassword ? 'text' : 'password'"
+            id="confirm-password"
             formControlName="confirmPassword"
             placeholder="Re-enter password"
             autocomplete="new-password"
@@ -69,8 +71,8 @@
       </div>
     </div>
 
-    <label>Address</label>
-    <textarea rows="2" formControlName="address"></textarea>
+    <label for="signup-address">Address</label>
+    <textarea id="signup-address" rows="2" formControlName="address" autocomplete="street-address"></textarea>
 
     <button type="submit" class="primary" [disabled]="loading">
       {{ loading ? 'Creating...' : 'Create Account' }}
