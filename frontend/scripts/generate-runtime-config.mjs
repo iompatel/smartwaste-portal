@@ -8,6 +8,7 @@ const outputPath = join(__dirname, '..', 'src', 'assets', 'runtime-config.js');
 
 const payload = {
   API_BASE_URL: apiBaseUrl,
+  DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
 };
 
 const content = `window.__SWMS_CONFIG__ = ${JSON.stringify(payload, null, 2)};\n`;
