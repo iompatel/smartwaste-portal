@@ -705,6 +705,34 @@ async function sendLoginResponse(user, res) {
   return res.json({ token, user: sanitizeUser(user) });
 }
 
+async function handlePasswordLogin(req, res, portal) {
+  const { email, password } = req.body ?? {};
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
+    return res.status(401).json({ message: 'Invalid email or password.' });
+  }
+
+  if (!canUseLoginPortal(user.role, portal)) {
+    const message =
+      portal === 'admin'
+        ? 'Admin access is required.'
+        : portal === 'worker'
+          ? 'Worker access is required.'
+          : user.role === 'admin'
+            ? 'Admin accounts must use the Admin Console.'
+            : 'Worker accounts must use the Worker Console.';
+    return res.status(403).json({ message });
+  }
+
+  return sendLoginResponse(user, res);
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -782,43 +810,15 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!normalizedEmail || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
-    return res.status(401).json({ message: 'Invalid email or password.' });
-  }
-
-  if (!canUseLoginPortal(user.role, 'public')) {
-    return res.status(403).json({ message: 'Admin accounts must use the Admin Console.' });
-  }
-
-  return sendLoginResponse(user, res);
+  return handlePasswordLogin(req, res, 'public');
 });
 
 app.post('/api/auth/admin-login', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  const normalizedEmail = normalizeEmail(email);
+  return handlePasswordLogin(req, res, 'admin');
+});
 
-  if (!normalizedEmail || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
-    return res.status(401).json({ message: 'Invalid email or password.' });
-  }
-
-  if (!canUseLoginPortal(user.role, 'admin')) {
-    return res.status(403).json({ message: 'Admin access is required.' });
-  }
-
-  return sendLoginResponse(user, res);
+app.post('/api/auth/worker-login', async (req, res) => {
+  return handlePasswordLogin(req, res, 'worker');
 });
 
 app.post('/api/auth/firebase-login', async (req, res) => {
@@ -857,7 +857,12 @@ app.post('/api/auth/firebase-login', async (req, res) => {
 
   let user = await User.findOne({ email });
   if (user && !canUseLoginPortal(user.role, 'public')) {
-    return res.status(403).json({ message: 'Admin accounts must use the Admin Console.' });
+    return res.status(403).json({
+      message:
+        user.role === 'admin'
+          ? 'Admin accounts must use the Admin Console.'
+          : 'Worker accounts must use the Worker Console.',
+    });
   }
 
   if (!user) {
@@ -899,7 +904,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return res.status(400).json({ message: 'Email is required.' });
   }
 
-  const user = await User.findOne({ email }).lean();
+  const user = await User.findOne({ email, role: 'user' }).lean();
 
   try {
     if (user) {

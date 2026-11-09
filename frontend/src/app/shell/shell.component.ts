@@ -102,8 +102,9 @@ export class ShellComponent implements OnInit {
   }
 
   logout() {
+    const loginPath = this.authService.loginPathForRole(this.user?.role);
     this.authService.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate([loginPath]);
   }
 
   get needsProfileCompletion() {

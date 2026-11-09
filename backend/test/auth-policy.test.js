@@ -10,10 +10,13 @@ test('password policy requires length, uppercase, and a special character', () =
   assert.equal(isStrongPassword('A#123'), false);
 });
 
-test('public and admin login portals accept only their intended roles', () => {
+test('each login portal accepts only its intended role', () => {
   assert.equal(canUseLoginPortal('admin', 'admin'), true);
   assert.equal(canUseLoginPortal('admin', 'public'), false);
-  assert.equal(canUseLoginPortal('worker', 'public'), true);
+  assert.equal(canUseLoginPortal('worker', 'worker'), true);
+  assert.equal(canUseLoginPortal('worker', 'public'), false);
   assert.equal(canUseLoginPortal('user', 'public'), true);
+  assert.equal(canUseLoginPortal('user', 'worker'), false);
   assert.equal(canUseLoginPortal('worker', 'admin'), false);
+  assert.equal(canUseLoginPortal('user', 'unknown'), false);
 });

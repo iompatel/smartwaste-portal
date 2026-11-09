@@ -6,5 +6,11 @@ export function isStrongPassword(value) {
 }
 
 export function canUseLoginPortal(role, portal) {
-  return portal === 'admin' ? role === 'admin' : role === 'worker' || role === 'user';
+  const roleByPortal = {
+    admin: 'admin',
+    worker: 'worker',
+    public: 'user',
+  };
+
+  return roleByPortal[portal] === role;
 }

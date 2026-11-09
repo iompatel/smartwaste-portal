@@ -20,21 +20,19 @@ export class LoginComponent {
   private readonly route = inject(ActivatedRoute);
 
   readonly title = APP_TITLE;
-  readonly isAdminConsole = this.route.snapshot.data['adminOnly'] === true;
   loading = false;
   showPassword = false;
   error = '';
 
   get returnUrl(): string {
     const url = this.route.snapshot.queryParams?.['returnUrl'];
-    const fallback = this.isAdminConsole ? '/admin-panel' : '/dashboard';
+    const fallback = '/dashboard';
     if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) {
       return fallback;
     }
 
     if (
-      this.isAdminConsole &&
-      !/^\/(admin-panel(?:\/|$)|admin-activity(?:\/|$)|broadcast-desk(?:\/|$))/.test(url)
+      !/^\/(dashboard|tickets|hire-worker|profile|settings)(?:\/|\?|$)/.test(url)
     ) {
       return fallback;
     }
@@ -56,11 +54,8 @@ export class LoginComponent {
     this.loading = true;
     this.error = '';
     const { email, password } = this.form.getRawValue();
-    const loginRequest = this.isAdminConsole
-      ? this.authService.adminLogin(email, password)
-      : this.authService.login(email, password);
 
-    loginRequest.subscribe({
+    this.authService.login(email, password).subscribe({
       next: () => {
         this.loading = false;
         this.router.navigateByUrl(this.returnUrl);

@@ -1,0 +1,64 @@
+<section class="auth-page console-admin">
+  <div class="left-panel">
+    <div class="hero-copy">
+      <span class="eyebrow">Restricted Administration</span>
+      <h1>{{ title }}</h1>
+      <p>Secure access for administrators managing accounts, assignments, broadcasts, and activity.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article>
+        <strong>Operations overview</strong>
+        <p>Review tickets, staffing, and high-priority work.</p>
+      </article>
+      <article>
+        <strong>Account controls</strong>
+        <p>Manage user and worker access from one console.</p>
+      </article>
+      <article>
+        <strong>Activity records</strong>
+        <p>Track administrator actions and portal broadcasts.</p>
+      </article>
+    </div>
+  </div>
+
+  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <span class="eyebrow">Admin Only</span>
+    <h2>Admin Console</h2>
+
+    @if (error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <label for="admin-email">Admin Email</label>
+    <input
+      id="admin-email"
+      type="email"
+      formControlName="email"
+      placeholder="admin@example.com"
+      autocomplete="username"
+    />
+
+    <label for="admin-password">Password</label>
+    <div class="password-row">
+      <input
+        id="admin-password"
+        [type]="showPassword ? 'text' : 'password'"
+        formControlName="password"
+        placeholder="Enter admin password"
+        autocomplete="current-password"
+      />
+      <button type="button" (click)="showPassword = !showPassword">
+        {{ showPassword ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+
+    <button type="submit" class="primary" [disabled]="loading">
+      {{ loading ? 'Verifying...' : 'Enter Admin Console' }}
+    </button>
+
+    <div class="links">
+      <a routerLink="/login">Return to User Login</a>
+    </div>
+  </form>
+</section>

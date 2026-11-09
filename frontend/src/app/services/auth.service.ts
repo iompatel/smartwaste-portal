@@ -65,6 +65,22 @@ export class AuthService {
       .pipe(tap((response) => this.persistSession(response)));
   }
 
+  workerLogin(email: string, password: string) {
+    return this.api
+      .post<AuthResponse>('/auth/worker-login', { email, password }, false)
+      .pipe(tap((response) => this.persistSession(response)));
+  }
+
+  loginPathForRole(role: User['role'] | undefined = this.currentUser?.role) {
+    if (role === 'admin') {
+      return '/admin-console';
+    }
+    if (role === 'worker') {
+      return '/worker-console';
+    }
+    return '/login';
+  }
+
   googleLogin() {
     const provider = new GoogleAuthProvider();
     return from(signInWithPopup(this.firebaseAuth, provider)).pipe(

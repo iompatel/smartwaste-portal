@@ -258,6 +258,26 @@
   gap: 0.75rem;
 }
 
+.console-admin .left-panel {
+  background:
+    radial-gradient(circle at top left, rgba(175, 82, 222, 0.14), transparent 38%),
+    linear-gradient(180deg, var(--glass-bg), var(--surface));
+}
+
+.console-admin .auth-card {
+  border-color: rgba(175, 82, 222, 0.18);
+}
+
+.console-worker .left-panel {
+  background:
+    radial-gradient(circle at top left, rgba(52, 199, 89, 0.14), transparent 38%),
+    linear-gradient(180deg, var(--glass-bg), var(--surface));
+}
+
+.console-worker .auth-card {
+  border-color: rgba(52, 199, 89, 0.18);
+}
+
 @media (max-width: 1100px) {
   .auth-page {
     grid-template-columns: 1fr;

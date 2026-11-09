@@ -20,9 +20,15 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   {
     path: 'admin-console',
-    component: LoginComponent,
     pathMatch: 'full',
-    data: { adminOnly: true },
+    loadComponent: () =>
+      import('./pages/auth/admin-login.component').then((module) => module.AdminLoginComponent),
+  },
+  {
+    path: 'worker-console',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./pages/auth/worker-login.component').then((module) => module.WorkerLoginComponent),
   },
   { path: 'signup', component: SignupComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },

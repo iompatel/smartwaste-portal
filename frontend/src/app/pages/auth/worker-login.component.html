@@ -1,0 +1,64 @@
+<section class="auth-page console-worker">
+  <div class="left-panel">
+    <div class="hero-copy">
+      <span class="eyebrow">Field Operations</span>
+      <h1>{{ title }}</h1>
+      <p>Dedicated access for workers resolving assigned tickets and personal-work requests.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article>
+        <strong>Assigned tickets</strong>
+        <p>See only the work assigned to your account.</p>
+      </article>
+      <article>
+        <strong>Directions ready</strong>
+        <p>Open work locations without searching manually.</p>
+      </article>
+      <article>
+        <strong>Clear completion flow</strong>
+        <p>Update completed work and notify the requester.</p>
+      </article>
+    </div>
+  </div>
+
+  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <span class="eyebrow">Worker Only</span>
+    <h2>Worker Console</h2>
+
+    @if (error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <label for="worker-email">Worker Email</label>
+    <input
+      id="worker-email"
+      type="email"
+      formControlName="email"
+      placeholder="worker@example.com"
+      autocomplete="username"
+    />
+
+    <label for="worker-password">Password</label>
+    <div class="password-row">
+      <input
+        id="worker-password"
+        [type]="showPassword ? 'text' : 'password'"
+        formControlName="password"
+        placeholder="Enter worker password"
+        autocomplete="current-password"
+      />
+      <button type="button" (click)="showPassword = !showPassword">
+        {{ showPassword ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+
+    <button type="submit" class="primary" [disabled]="loading">
+      {{ loading ? 'Verifying...' : 'Enter Worker Console' }}
+    </button>
+
+    <div class="links">
+      <a routerLink="/login">Return to User Login</a>
+    </div>
+  </form>
+</section>

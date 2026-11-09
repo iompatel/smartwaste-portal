@@ -6,8 +6,8 @@ This project is a complete **web portal** implementation with:
 
 ## Current Portal Features
 
-- User/worker login, separate Admin Console login, Signup, and Forgot Password
-- Firebase email-password login + Google login bridge
+- Separate User, Worker Console, and Admin Console login flows
+- Firebase email-password + Google login bridge for public user accounts
 - Role-based dashboards (Admin, Worker, User)
 - Named routes with route guards
 - Admin panel for user, worker, ticket, notification, and hire-request operations
@@ -86,8 +86,11 @@ npm start
 
 Frontend runs on `http://localhost:4200`.
 
-Admin Console runs at `http://localhost:4200/admin-console`. Public user and worker login remains
-at `http://localhost:4200/login`.
+Login routes:
+
+- User: `http://localhost:4200/login`
+- Worker: `http://localhost:4200/worker-console`
+- Admin: `http://localhost:4200/admin-console`
 
 ## Build Frontend
 
@@ -116,8 +119,8 @@ Database readiness is available separately at `http://localhost:4000/api/ready` 
 ## Demo Accounts
 
 - Admin: `admin@smartwaste.com` / `Admin#123` (use `/admin-console`)
-- Worker: `worker@smartwaste.com` / `Worker#123`
-- User: `user@smartwaste.com` / `User#123`
+- Worker: `worker@smartwaste.com` / `Worker#123` (use `/worker-console`)
+- User: `user@smartwaste.com` / `User#123` (use `/login`)
 
-Passwords created through signup or the Admin Console require at least 8 characters, one uppercase
-letter, and one special character.
+Passwords created through signup or admin account management require at least 8 characters, one
+uppercase letter, and one special character.
