@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { APP_TITLE } from '../core/constants';
 import { AppNotification, User } from '../models/types';
-import { AuthService } from '../services/auth.service';
 import { PortalService } from '../services/portal.service';
+import { SESSION_SERVICE } from '../services/session';
 import { RolePillComponent } from '../shared/role-pill.component';
+import { SHELL_NAVIGATION, ShellNavItem } from './shell-navigation';
 
 @Component({
   selector: 'app-shell',
@@ -28,22 +29,10 @@ export class ShellComponent implements OnInit {
   user: User | null = null;
   notifications: AppNotification[] = [];
   markingAllNotifications = false;
-
-  readonly navItems = [
-    { label: 'Admin Panel', path: '/admin-panel', roles: ['admin'] },
-    { label: 'Users', path: '/admin-panel/users', roles: ['admin'] },
-    { label: 'Workers', path: '/admin-panel/workers', roles: ['admin'] },
-    { label: 'Admin Activity', path: '/admin-activity', roles: ['admin'] },
-    { label: 'Dashboard', path: '/dashboard', roles: ['worker', 'user'] },
-    { label: 'Tickets', path: '/tickets', roles: ['admin', 'worker', 'user'] },
-    { label: 'Hire Worker', path: '/hire-worker', roles: ['admin', 'worker', 'user'] },
-    { label: 'Broadcast Desk', path: '/broadcast-desk', roles: ['admin'] },
-    { label: 'Profile', path: '/profile', roles: ['admin', 'worker', 'user'] },
-    { label: 'Settings', path: '/settings', roles: ['admin', 'worker', 'user'] },
-  ];
+  readonly navItems = inject(SHELL_NAVIGATION);
+  private readonly authService = inject(SESSION_SERVICE);
 
   constructor(
-    private readonly authService: AuthService,
     private readonly portalService: PortalService,
     private readonly router: Router,
   ) {}
@@ -129,10 +118,7 @@ export class ShellComponent implements OnInit {
     }
   }
 
-  navLabel(item: { label: string; path: string }) {
-    if (this.user?.role === 'admin' && item.path === '/hire-worker') {
-      return 'Assign Worker';
-    }
+  navLabel(item: ShellNavItem) {
     if (this.user?.role === 'worker' && item.path === '/hire-worker') {
       return 'Hired Task';
     }
@@ -140,38 +126,6 @@ export class ShellComponent implements OnInit {
   }
 
   get profileMenuItems() {
-    if (!this.user) {
-      return [];
-    }
-
-    const items: Array<{ label: string; path: string }> = [
-      {
-        label: this.user.role === 'admin' ? 'Admin Panel' : 'Dashboard',
-        path: this.user.role === 'admin' ? '/admin-panel' : '/dashboard',
-      },
-      { label: 'Profile', path: '/profile' },
-      { label: 'Settings', path: '/settings' },
-    ];
-
-    if (this.user.role === 'admin') {
-      items.splice(
-        1,
-        0,
-        { label: 'Users', path: '/admin-panel/users' },
-        { label: 'Workers', path: '/admin-panel/workers' },
-        { label: 'Assign Worker', path: '/hire-worker' },
-        { label: 'Admin Activity', path: '/admin-activity' },
-        { label: 'Broadcast Desk', path: '/broadcast-desk' },
-      );
-    } else {
-      items.splice(
-        1,
-        0,
-        { label: 'Tickets', path: '/tickets' },
-        { label: this.user.role === 'worker' ? 'Hired Task' : 'Hire Worker', path: '/hire-worker' },
-      );
-    }
-
-    return items;
+    return this.user ? this.navItems.filter((item) => this.canShow(item.roles)) : [];
   }
 }

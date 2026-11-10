@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable } from '@angular/core';
 
 import {
   AdminActivity,
@@ -8,11 +8,11 @@ import {
   Ticket,
   User,
 } from '../models/types';
-import { ApiService } from './api.service';
+import { API_CLIENT, ApiClient } from './api-client';
 
 @Injectable({ providedIn: 'root' })
 export class PortalService {
-  constructor(private readonly api: ApiService) {}
+  constructor(@Inject(API_CLIENT) private readonly api: ApiClient) {}
 
   getSummary() {
     return this.api.get<DashboardSummary>('/dashboard/summary');

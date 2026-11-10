@@ -3,9 +3,9 @@ import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@an
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Ticket, TicketPriority, TicketStatus } from '../../models/types';
-import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
+import { SESSION_SERVICE } from '../../services/session';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 
 @Component({
@@ -18,7 +18,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge.component';
 export class TicketsComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly portalService = inject(PortalService);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(SESSION_SERVICE);
   private readonly notificationService = inject(BrowserNotificationService);
 
   @ViewChild('cameraVideo') private readonly cameraVideo?: ElementRef<HTMLVideoElement>;

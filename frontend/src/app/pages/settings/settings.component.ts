@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, Inject } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
+import { SESSION_SERVICE, SessionService } from '../../services/session';
 import { ThemeService } from '../../services/theme.service';
 
 @Component({
@@ -19,7 +19,7 @@ export class SettingsComponent {
   constructor(
     private readonly themeService: ThemeService,
     private readonly notificationService: BrowserNotificationService,
-    private readonly authService: AuthService,
+    @Inject(SESSION_SERVICE) private readonly authService: SessionService,
     private readonly router: Router,
   ) {
     this.notificationPermission =

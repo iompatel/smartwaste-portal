@@ -3,8 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "node scripts/generate-runtime-config.mjs && ng build",
+    "start": "ng serve frontend",
+    "start:admin": "ng serve admin --port 4300",
+    "build": "node scripts/generate-runtime-config.mjs && ng build frontend",
+    "build:admin": "node scripts/generate-runtime-config.mjs && ng build admin",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
@@ -22,15 +24,15 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/common": "20.3.17",
-    "@angular/compiler": "20.3.17",
-    "@angular/core": "20.3.17",
-    "@angular/fire": "20.0.1",
-    "@angular/forms": "20.3.17",
-    "@angular/platform-browser": "20.3.17",
-    "@angular/platform-browser-dynamic": "20.3.17",
-    "@angular/router": "20.3.17",
-    "firebase": "^12.3.0",
+    "@angular/common": "20.3.35",
+    "@angular/compiler": "20.3.35",
+    "@angular/core": "20.3.35",
+    "@angular/fire": "20.1.1",
+    "@angular/forms": "20.3.35",
+    "@angular/platform-browser": "20.3.35",
+    "@angular/platform-browser-dynamic": "20.3.35",
+    "@angular/router": "20.3.35",
+    "firebase": "13.2.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "rxjs": "~7.8.0",
@@ -40,7 +42,7 @@
   "devDependencies": {
     "@angular/build": "^20.3.17",
     "@angular/cli": "^20.3.17",
-    "@angular/compiler-cli": "20.3.17",
+    "@angular/compiler-cli": "20.3.35",
     "@types/jasmine": "~5.1.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
@@ -49,5 +51,8 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.7"
   }
 }

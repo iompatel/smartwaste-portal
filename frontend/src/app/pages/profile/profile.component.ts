@@ -9,7 +9,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../services/auth.service';
+import { SESSION_SERVICE } from '../../services/session';
 
 function placeholderAddressValidator(control: AbstractControl): ValidationErrors | null {
   const value = String(control.value ?? '').trim().toLowerCase();
@@ -29,7 +29,7 @@ function placeholderAddressValidator(control: AbstractControl): ValidationErrors
 })
 export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(SESSION_SERVICE);
   private readonly route = inject(ActivatedRoute);
 
   loading = false;

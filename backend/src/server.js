@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 
 import {
@@ -17,6 +18,14 @@ import {
   canUseLoginPortal,
   isStrongPassword,
 } from './auth-policy.js';
+import {
+  adminCookieName,
+  adminSessionTtlMs,
+  createAdminSecret,
+  hashAdminSecret,
+  matchesAdminSecret,
+  readCookie,
+} from './admin-session.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -25,6 +34,41 @@ if (!JWT_SECRET) {
 
 const PORT = Number(process.env.PORT ?? 4000);
 const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/smart_waste_portal';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const SERVICE_MODE = process.env.SERVICE_MODE ?? (IS_PRODUCTION ? 'public' : 'combined');
+if (!['public', 'admin', 'combined'].includes(SERVICE_MODE)) {
+  throw new Error('SERVICE_MODE must be public, admin, or combined.');
+}
+const PUBLIC_AUTH_ENABLED = SERVICE_MODE !== 'admin';
+const ADMIN_AUTH_ENABLED = SERVICE_MODE !== 'public';
+const REQUIRE_CF_ACCESS = process.env.REQUIRE_CF_ACCESS === 'true';
+const CF_ACCESS_TEAM_DOMAIN = String(process.env.CF_ACCESS_TEAM_DOMAIN ?? '').replace(/\/$/, '');
+const CF_ACCESS_AUD = String(process.env.CF_ACCESS_AUD ?? '');
+const ADMIN_SESSION_TTL_MS = adminSessionTtlMs(process.env.ADMIN_SESSION_TTL_MINUTES);
+const ADMIN_SESSION_COOKIE = adminCookieName(IS_PRODUCTION);
+const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL ?? 'admin@smartwaste.com');
+const SEED_ADMIN_PASSWORD = String(process.env.SEED_ADMIN_PASSWORD ?? '');
+const SEED_DEMO_USERS = process.env.SEED_DEMO_USERS === 'true' || !IS_PRODUCTION;
+
+if (IS_PRODUCTION && PUBLIC_AUTH_ENABLED && !process.env.PUBLIC_FRONTEND_URL) {
+  throw new Error('PUBLIC_FRONTEND_URL is required by the public backend.');
+}
+if (IS_PRODUCTION && ADMIN_AUTH_ENABLED && !process.env.ADMIN_FRONTEND_URL) {
+  throw new Error('ADMIN_FRONTEND_URL is required by the admin backend.');
+}
+if (
+  IS_PRODUCTION &&
+  ADMIN_AUTH_ENABLED &&
+  REQUIRE_CF_ACCESS &&
+  (!CF_ACCESS_TEAM_DOMAIN || !CF_ACCESS_AUD)
+) {
+  throw new Error('CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD are required for Cloudflare Access.');
+}
+
+const cloudflareJwks =
+  REQUIRE_CF_ACCESS && CF_ACCESS_TEAM_DOMAIN
+    ? createRemoteJWKSet(new URL(`${CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`))
+    : null;
 
 const USER_ROLES = ['admin', 'worker', 'user'];
 const TICKET_STATUSES = ['pending', 'in_progress', 'completed'];
@@ -33,15 +77,14 @@ const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
 const DEMO_PASSWORDS = {
-  'admin@smartwaste.com': 'Admin#123',
   'worker@smartwaste.com': 'Worker#123',
   'user@smartwaste.com': 'User#123',
 };
 const LEGACY_DEMO_PASSWORDS = {
-  'admin@smartwaste.com': 'admin123',
   'worker@smartwaste.com': 'worker123',
   'user@smartwaste.com': 'user123',
 };
+const LEGACY_ADMIN_PASSWORDS = ['admin123', 'Admin#123'];
 
 async function hashPassword(value) {
   return bcrypt.hash(String(value), SALT_ROUNDS);
@@ -213,12 +256,28 @@ const hireRequestSchema = new mongoose.Schema(
   { versionKey: false, collection: 'hire_requests' },
 );
 
+const adminSessionSchema = new mongoose.Schema(
+  {
+    sessionHash: { type: String, required: true, unique: true, index: true },
+    csrfHash: { type: String, required: true },
+    userId: { type: Number, required: true, index: true },
+    ip: { type: String, default: null },
+    userAgent: { type: String, default: null },
+    zeroTrustSubject: { type: String, default: null },
+    zeroTrustEmail: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true, expires: 0 },
+  },
+  { versionKey: false, collection: 'admin_sessions' },
+);
+
 const Counter = mongoose.model('Counter', counterSchema);
 const User = mongoose.model('User', userSchema);
 const Ticket = mongoose.model('Ticket', ticketSchema);
 const Notification = mongoose.model('Notification', notificationSchema);
 const AdminActivity = mongoose.model('AdminActivity', adminActivitySchema);
 const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
+const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
 
 async function nextId(key) {
   const counter = await Counter.findOneAndUpdate(
@@ -481,6 +540,54 @@ async function upgradeLegacyDemoPasswords() {
   }
 }
 
+async function ensureSeedAdmin() {
+  if (!SEED_ADMIN_PASSWORD) {
+    if ((await User.countDocuments({ role: 'admin' })) === 0) {
+      // eslint-disable-next-line no-console
+      console.warn('No admin exists. Set SEED_ADMIN_PASSWORD once to bootstrap one.');
+    }
+    return null;
+  }
+
+  if (!isStrongPassword(SEED_ADMIN_PASSWORD)) {
+    throw new Error(`SEED_ADMIN_PASSWORD is invalid. ${PASSWORD_POLICY_MESSAGE}`);
+  }
+
+  const existing = await User.findOne({ email: SEED_ADMIN_EMAIL });
+  if (existing) {
+    if (existing.role !== 'admin') {
+      throw new Error('SEED_ADMIN_EMAIL already belongs to a non-admin account.');
+    }
+
+    for (const legacyPassword of LEGACY_ADMIN_PASSWORDS) {
+      if (await comparePassword(legacyPassword, existing.passwordHash)) {
+        existing.passwordHash = await hashPassword(SEED_ADMIN_PASSWORD);
+        existing.updatedAt = new Date();
+        await existing.save();
+        break;
+      }
+    }
+    return existing;
+  }
+
+  const now = new Date();
+  return User.create({
+    id: await nextId('users'),
+    firstName: 'System',
+    lastName: 'Admin',
+    gender: 'Other',
+    mobile: '0000000000',
+    email: SEED_ADMIN_EMAIL,
+    passwordHash: await hashPassword(SEED_ADMIN_PASSWORD),
+    role: 'admin',
+    address: 'Administration',
+    profileImage: null,
+    createdAt: now,
+    updatedAt: now,
+    lastLoginAt: null,
+  });
+}
+
 async function ensureUserExistsInFirebase(localUser) {
   if (!localUser || !isFirebaseEnabled()) {
     return;
@@ -500,11 +607,11 @@ async function ensureUserExistsInFirebase(localUser) {
 }
 
 async function syncDefaultDemoUsersToFirebase() {
-  if (!isFirebaseEnabled()) {
+  if (!PUBLIC_AUTH_ENABLED || !SEED_DEMO_USERS || !isFirebaseEnabled()) {
     return;
   }
 
-  const emails = ['admin@smartwaste.com', 'worker@smartwaste.com', 'user@smartwaste.com'];
+  const emails = ['worker@smartwaste.com', 'user@smartwaste.com'];
   for (const email of emails) {
     const localUser = await User.findOne({ email }).lean();
     if (!localUser) {
@@ -523,7 +630,12 @@ async function syncDefaultDemoUsersToFirebase() {
 async function seedData() {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
-    await upgradeLegacyDemoPasswords();
+    if (PUBLIC_AUTH_ENABLED) {
+      await upgradeLegacyDemoPasswords();
+    }
+    if (ADMIN_AUTH_ENABLED) {
+      await ensureSeedAdmin();
+    }
     await Promise.all([
       syncCounter('users', User),
       syncCounter('tickets', Ticket),
@@ -534,28 +646,16 @@ async function seedData() {
     return;
   }
 
+  if (ADMIN_AUTH_ENABLED) {
+    await ensureSeedAdmin();
+  }
+
+  if (!PUBLIC_AUTH_ENABLED || !SEED_DEMO_USERS) {
+    await syncCounter('users', User);
+    return;
+  }
+
   const now = new Date();
-
-  const adminPasswordHash = await hashPassword(DEMO_PASSWORDS['admin@smartwaste.com']);
-  const workerPasswordHash = await hashPassword(DEMO_PASSWORDS['worker@smartwaste.com']);
-  const citizenPasswordHash = await hashPassword(DEMO_PASSWORDS['user@smartwaste.com']);
-
-  const adminUser = {
-    id: await nextId('users'),
-    firstName: 'System',
-    lastName: 'Admin',
-    gender: 'Other',
-    mobile: '9999999999',
-    email: 'admin@smartwaste.com',
-    passwordHash: adminPasswordHash,
-    role: 'admin',
-    address: 'City Control Room',
-    profileImage: null,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-  };
-
   const workerUser = {
     id: await nextId('users'),
     firstName: 'Field',
@@ -563,7 +663,7 @@ async function seedData() {
     gender: 'Male',
     mobile: '8888888888',
     email: 'worker@smartwaste.com',
-    passwordHash: workerPasswordHash,
+    passwordHash: await hashPassword(DEMO_PASSWORDS['worker@smartwaste.com']),
     role: 'worker',
     address: 'North Sector',
     profileImage: null,
@@ -579,7 +679,7 @@ async function seedData() {
     gender: 'Female',
     mobile: '7777777777',
     email: 'user@smartwaste.com',
-    passwordHash: citizenPasswordHash,
+    passwordHash: await hashPassword(DEMO_PASSWORDS['user@smartwaste.com']),
     role: 'user',
     address: 'Lakeview Block',
     profileImage: null,
@@ -588,7 +688,7 @@ async function seedData() {
     lastLoginAt: null,
   };
 
-  await User.insertMany([adminUser, workerUser, citizenUser]);
+  await User.insertMany([workerUser, citizenUser]);
 
   await Ticket.insertMany([
     {
@@ -639,8 +739,69 @@ async function seedData() {
 }
 
 const app = express();
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
 app.use(helmet());
-app.use(cors());
+
+if (IS_PRODUCTION && ADMIN_AUTH_ENABLED && REQUIRE_CF_ACCESS) {
+  app.use(async (req, res, next) => {
+    if (req.method === 'OPTIONS' || ['/api/health', '/api/ready'].includes(req.path)) {
+      return next();
+    }
+
+    const assertion = req.get('Cf-Access-Jwt-Assertion');
+    if (!assertion || !cloudflareJwks) {
+      return res.status(403).json({ message: 'Zero Trust access is required.' });
+    }
+
+    try {
+      const { payload } = await jwtVerify(assertion, cloudflareJwks, {
+        audience: CF_ACCESS_AUD,
+        issuer: CF_ACCESS_TEAM_DOMAIN,
+      });
+      req.zeroTrustIdentity = {
+        subject: String(payload.sub ?? ''),
+        email: String(payload.email ?? ''),
+      };
+      return next();
+    } catch {
+      return res.status(403).json({ message: 'Invalid Zero Trust assertion.' });
+    }
+  });
+}
+
+const allowedOrigins = new Set(
+  [
+    PUBLIC_AUTH_ENABLED ? process.env.PUBLIC_FRONTEND_URL : null,
+    ADMIN_AUTH_ENABLED ? process.env.ADMIN_FRONTEND_URL : null,
+  ]
+    .flatMap((value) => String(value ?? '').split(','))
+    .map((value) => value.trim().replace(/\/$/, ''))
+    .filter(Boolean),
+);
+if (!IS_PRODUCTION) {
+  allowedOrigins.add('http://localhost:4200');
+  allowedOrigins.add('http://localhost:4300');
+}
+
+app.use((req, res, next) => {
+  const origin = String(req.headers.origin ?? '').replace(/\/$/, '');
+  if (origin && !allowedOrigins.has(origin)) {
+    return res.status(403).json({ message: 'Origin is not allowed.' });
+  }
+  return next();
+});
+app.use(
+  cors({
+    origin(origin, callback) {
+      const normalized = String(origin ?? '').replace(/\/$/, '');
+      callback(null, !origin || allowedOrigins.has(normalized));
+    },
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Admin-CSRF'],
+  }),
+);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -650,10 +811,93 @@ const authLimiter = rateLimit({
   message: { message: 'Too many requests, please try again later.' },
 });
 
+const adminAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many admin login attempts. Try again later.' },
+});
+
 app.use(express.json({ limit: '10mb' }));
+app.use('/api/auth', (req, res, next) => {
+  if (!ADMIN_AUTH_ENABLED && req.path === '/admin-login') {
+    return res.status(404).json({ message: 'Not found.' });
+  }
+  if (!PUBLIC_AUTH_ENABLED && !['/admin-login', '/logout'].includes(req.path)) {
+    return res.status(404).json({ message: 'Not found.' });
+  }
+  return next();
+});
+app.use('/api/auth/admin-login', adminAuthLimiter);
 app.use('/api/auth', authLimiter);
 
+function adminCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: IS_PRODUCTION ? 'none' : 'lax',
+    path: '/',
+  };
+}
+
+function clearAdminCookie(res) {
+  res.clearCookie(ADMIN_SESSION_COOKIE, adminCookieOptions());
+}
+
+async function authenticateAdminSession(req, res) {
+  if (!ADMIN_AUTH_ENABLED) {
+    return false;
+  }
+
+  const rawSession = readCookie(req.headers.cookie, ADMIN_SESSION_COOKIE);
+  if (!rawSession) {
+    return false;
+  }
+
+  const session = await AdminSession.findOne({
+    sessionHash: hashAdminSecret(rawSession),
+    expiresAt: { $gt: new Date() },
+  });
+  if (!session) {
+    clearAdminCookie(res);
+    return false;
+  }
+
+  const user = await User.findOne({ id: session.userId, role: 'admin' }).lean();
+  if (!user) {
+    await AdminSession.deleteOne({ _id: session._id });
+    clearAdminCookie(res);
+    return false;
+  }
+
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    const csrfToken = req.get('X-Admin-CSRF');
+    if (!csrfToken || !matchesAdminSecret(csrfToken, session.csrfHash)) {
+      res.status(403).json({ message: 'Invalid admin CSRF token.' });
+      return null;
+    }
+  }
+
+  req.user = sanitizeUser(user);
+  req.adminSessionId = session._id;
+  req.sessionLabel = `ADMIN-SESSION-${String(session._id).slice(-8)}`;
+  return true;
+}
+
 async function authMiddleware(req, res, next) {
+  const adminResult = await authenticateAdminSession(req, res);
+  if (adminResult === true) {
+    return next();
+  }
+  if (adminResult === null) {
+    return undefined;
+  }
+
+  if (!PUBLIC_AUTH_ENABLED) {
+    return res.status(401).json({ message: 'Admin session required.' });
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Missing auth token' });
@@ -666,6 +910,10 @@ async function authMiddleware(req, res, next) {
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid auth token' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(401).json({ message: 'Admin session required.' });
     }
 
     req.user = sanitizeUser(user);
@@ -690,18 +938,6 @@ async function sendLoginResponse(user, res) {
   await user.save();
 
   const token = generateToken(user);
-  const sessionLabel = buildSessionLabel(jwt.verify(token, JWT_SECRET));
-
-  if (user.role === 'admin') {
-    await createAdminActivity({
-      adminUser: user,
-      sessionLabel,
-      action: 'Admin Login',
-      targetType: 'session',
-      summary: 'Signed in to the Smart Waste admin portal.',
-    });
-  }
-
   return res.json({ token, user: sanitizeUser(user) });
 }
 
@@ -731,6 +967,72 @@ async function handlePasswordLogin(req, res, portal) {
   }
 
   return sendLoginResponse(user, res);
+}
+
+async function handleAdminLogin(req, res) {
+  const { email, password } = req.body ?? {};
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  if (
+    REQUIRE_CF_ACCESS &&
+    normalizeEmail(req.zeroTrustIdentity?.email) !== normalizedEmail
+  ) {
+    return res.status(403).json({ message: 'Admin identity does not match Zero Trust identity.' });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  const passwordValid = user
+    ? await comparePassword(String(password), user.passwordHash)
+    : false;
+  if (!user || user.role !== 'admin' || !passwordValid) {
+    return res.status(401).json({ message: 'Invalid admin credentials.' });
+  }
+
+  if (LEGACY_ADMIN_PASSWORDS.includes(String(password))) {
+    return res.status(403).json({
+      message: 'This public demo password is disabled. Set SEED_ADMIN_PASSWORD and restart once.',
+    });
+  }
+
+  const sessionToken = createAdminSecret();
+  const csrfToken = createAdminSecret();
+  const expiresAt = new Date(Date.now() + ADMIN_SESSION_TTL_MS);
+
+  // Hard-security default: a new admin login revokes all previous sessions.
+  await AdminSession.deleteMany({ userId: user.id });
+  const session = await AdminSession.create({
+    sessionHash: hashAdminSecret(sessionToken),
+    csrfHash: hashAdminSecret(csrfToken),
+    userId: user.id,
+    ip: req.ip ?? null,
+    userAgent: String(req.get('user-agent') ?? '').slice(0, 500) || null,
+    zeroTrustSubject: req.zeroTrustIdentity?.subject || null,
+    zeroTrustEmail: req.zeroTrustIdentity?.email || null,
+    createdAt: new Date(),
+    expiresAt,
+  });
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  res.cookie(ADMIN_SESSION_COOKIE, sessionToken, {
+    ...adminCookieOptions(),
+    maxAge: ADMIN_SESSION_TTL_MS,
+  });
+
+  await createAdminActivity({
+    adminUser: user,
+    sessionLabel: `ADMIN-SESSION-${String(session._id).slice(-8)}`,
+    action: 'Admin Login',
+    targetType: 'session',
+    summary: 'Signed in to the private Smart Waste admin portal.',
+  });
+
+  return res.json({ user: sanitizeUser(user), csrfToken, expiresAt });
 }
 
 app.get('/api/health', (_req, res) => {
@@ -814,7 +1116,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/admin-login', async (req, res) => {
-  return handlePasswordLogin(req, res, 'admin');
+  return handleAdminLogin(req, res);
 });
 
 app.post('/api/auth/worker-login', async (req, res) => {
@@ -935,6 +1237,8 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
       targetId: req.user.id,
       summary: 'Signed out from the Smart Waste admin portal.',
     });
+    await AdminSession.deleteOne({ _id: req.adminSessionId });
+    clearAdminCookie(res);
   }
 
   return res.json({ message: 'Logged out successfully.' });
@@ -1097,6 +1401,9 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
   existing.profileImage = req.body?.profileImage ?? existing.profileImage ?? null;
   existing.updatedAt = new Date();
   await existing.save();
+  if (previousRole === 'admin' && existing.role !== 'admin') {
+    await AdminSession.deleteMany({ userId: existing.id });
+  }
 
   await createAdminActivity({
     adminUser: req.user,
@@ -1144,6 +1451,7 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
       },
     ),
     Notification.deleteMany({ userId: id }),
+    AdminSession.deleteMany({ userId: id }),
   ]);
 
   await createAdminActivity({

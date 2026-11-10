@@ -4,9 +4,9 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { HireRequest, User } from '../../models/types';
-import { AuthService } from '../../services/auth.service';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
+import { SESSION_SERVICE } from '../../services/session';
 
 @Component({
   selector: 'app-hire-requests',
@@ -17,7 +17,7 @@ import { PortalService } from '../../services/portal.service';
 })
 export class HireRequestsComponent implements OnInit {
   private readonly portalService = inject(PortalService);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(SESSION_SERVICE);
   private readonly fb = inject(FormBuilder);
   private readonly notificationService = inject(BrowserNotificationService);
 

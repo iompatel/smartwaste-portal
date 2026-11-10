@@ -12,7 +12,7 @@
               <a
                 [routerLink]="item.path"
                 routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: item.path === '/admin-panel' }"
+                [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
                 ariaCurrentWhenActive="page"
               >
                 {{ navLabel(item) }}
@@ -30,7 +30,7 @@
             <a
               [routerLink]="item.path"
               routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: item.path === '/admin-panel' }"
+              [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
               ariaCurrentWhenActive="page"
             >
               {{ navLabel(item) }}

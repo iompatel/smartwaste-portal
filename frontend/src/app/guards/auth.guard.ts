@@ -19,11 +19,7 @@ export const authGuard: CanActivateFn = (
     return true;
   }
 
-  const adminRoute = /^\/(admin-panel(?:\/|$)|admin-console\/|admin-activity(?:\/|$)|broadcast-desk(?:\/|$))/.test(
-    state.url,
-  );
-
-  return router.createUrlTree([adminRoute ? '/admin-console' : '/login'], {
+  return router.createUrlTree(['/login'], {
     queryParams: { returnUrl: state.url },
   });
 };

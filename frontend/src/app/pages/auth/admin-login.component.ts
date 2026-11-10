@@ -1,21 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { APP_TITLE } from '../../core/constants';
-import { AuthService } from '../../services/auth.service';
+import { AdminAuthService } from '../../../admin/admin-auth.service';
 
 @Component({
   selector: 'app-admin-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './admin-login.component.html',
   styleUrl: './auth.component.scss',
 })
 export class AdminLoginComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(AdminAuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 

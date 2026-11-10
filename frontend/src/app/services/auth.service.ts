@@ -59,12 +59,6 @@ export class AuthService {
     );
   }
 
-  adminLogin(email: string, password: string) {
-    return this.api
-      .post<AuthResponse>('/auth/admin-login', { email, password }, false)
-      .pipe(tap((response) => this.persistSession(response)));
-  }
-
   workerLogin(email: string, password: string) {
     return this.api
       .post<AuthResponse>('/auth/worker-login', { email, password }, false)
@@ -72,9 +66,6 @@ export class AuthService {
   }
 
   loginPathForRole(role: User['role'] | undefined = this.currentUser?.role) {
-    if (role === 'admin') {
-      return '/admin-console';
-    }
     if (role === 'worker') {
       return '/worker-console';
     }
