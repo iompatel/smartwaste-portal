@@ -64,12 +64,11 @@ services:
         value: "false"
 
   - type: static
-    name: smartwaste-frontend
+    name: smartwasteportal
     plan: free
-    rootDir: frontend
     autoDeployTrigger: commit
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist/frontend/browser
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist/frontend/browser
     headers:
       - path: /index.html
         name: Cache-Control
