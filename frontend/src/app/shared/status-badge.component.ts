@@ -15,10 +15,11 @@ import { TicketStatus } from '../models/types';
         align-items: center;
         border: 1px solid transparent;
         border-radius: var(--radius-pill);
-        padding: 0.32rem 0.72rem;
+        min-height: 28px;
+        padding: 4px 12px;
         font-size: 12px;
         font-weight: 600;
-        letter-spacing: -0.01em;
+        letter-spacing: 0.01em;
         text-transform: capitalize;
       }
       .pending {

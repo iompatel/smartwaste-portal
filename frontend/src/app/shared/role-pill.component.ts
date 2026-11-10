@@ -14,22 +14,18 @@ import { UserRole } from '../models/types';
         text-transform: capitalize;
         border: 1px solid transparent;
         border-radius: var(--radius-pill);
-        padding: 0.32rem 0.72rem;
+        min-height: 28px;
+        padding: 4px 12px;
         font-size: 12px;
         font-weight: 600;
-        letter-spacing: -0.01em;
+        letter-spacing: 0.01em;
       }
-      .admin {
-        background: var(--danger-soft);
-        color: var(--danger);
-      }
-      .worker {
-        background: var(--accent-soft);
-        color: var(--accent-deep);
-      }
+      .admin,
+      .worker,
       .user {
-        background: var(--success-soft);
-        color: var(--success);
+        background: var(--bg);
+        border-color: var(--border);
+        color: var(--text);
       }
     `,
   ],

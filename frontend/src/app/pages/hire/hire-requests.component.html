@@ -1,20 +1,22 @@
-<section class="hire-page">
-  <article class="hero-panel">
-    <div>
+<section class="hire-page" aria-labelledby="hire-title">
+  <header class="hero-panel">
+    <div class="hero-copy">
       <span class="eyebrow">
         @if (isAdmin) { Admin Queue } @else if (isWorker) { Worker Portal } @else { User Portal }
       </span>
-      <h3>
-        @if (isAdmin) { Assign Worker } @else if (isWorker) { Hired Task } @else { Hire Worker (Personal Work) }
-      </h3>
+      <h1 id="hire-title">
+        @if (isAdmin) { Assign Worker } @else if (isWorker) { Hired Task } @else { Hire Worker }
+      </h1>
       @if (!isAdmin) {
         <p>
           @if (isWorker) {
-            View work assigned by the admin with requester details, address, and purpose.
+            View assigned work with requester details, the work address, and completion status.
           } @else {
-            Submit a hire request. Admin will assign a worker and you will see the worker details here.
+            Request help for personal work and follow the assignment from submission to completion.
           }
         </p>
+      } @else {
+        <p>Review personal work requests, assign available workers, and follow each task to completion.</p>
       }
     </div>
 
@@ -25,48 +27,79 @@
         <a routerLink="/dashboard">Back to Dashboard</a>
       }
     </div>
-  </article>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   @if (isUser) {
-    <article class="card hire-form">
-      <div class="card-head">
-        <div>
-          <h4>Request a Worker</h4>
-        </div>
+    <section class="hire-form" aria-labelledby="hire-form-title">
+      <div class="section-heading">
+        <span class="eyebrow">New request</span>
+        <h2 id="hire-form-title">Request a Worker</h2>
+        <p>Describe the job and confirm where the assigned worker should go.</p>
       </div>
 
       @if (needsProfileCompletion) {
-        <p class="loading">
+        <p class="profile-note" role="status">
           Your profile has placeholder mobile/address. Update it in Profile for accurate hiring details.
         </p>
       }
 
       <div class="form-grid">
-        <div>
-          <label>Hire Form Title</label>
+        <div class="field-control">
+          <label for="hire-title-input">Hire Form Title</label>
           <input
+            id="hire-title-input"
             type="text"
             [formControl]="form.controls.title"
+            [attr.aria-invalid]="form.controls.title.touched && form.controls.title.invalid"
+            aria-describedby="hire-title-error"
             placeholder="Example: Personal cleaning, Event setup..."
+            required
           />
+          @if (form.controls.title.touched && form.controls.title.hasError('required')) {
+            <p id="hire-title-error" class="field-error">Enter a title for the work.</p>
+          } @else if (form.controls.title.touched && form.controls.title.hasError('minlength')) {
+            <p id="hire-title-error" class="field-error">Use at least 3 characters for the title.</p>
+          }
         </div>
 
-        <div>
-          <label>Work Address</label>
-          <input type="text" [formControl]="form.controls.workAddress" placeholder="Address for the work" />
+        <div class="field-control">
+          <label for="hire-address">Work Address</label>
+          <input
+            id="hire-address"
+            type="text"
+            [formControl]="form.controls.workAddress"
+            [attr.aria-invalid]="form.controls.workAddress.touched && form.controls.workAddress.invalid"
+            aria-describedby="hire-address-error"
+            placeholder="Address for the work"
+            required
+          />
+          @if (form.controls.workAddress.touched && form.controls.workAddress.hasError('required')) {
+            <p id="hire-address-error" class="field-error">Enter the address where the work is needed.</p>
+          }
         </div>
 
-        <div class="full">
-          <label>Purpose</label>
+        <div class="field-control full">
+          <label for="hire-purpose">Purpose</label>
           <textarea
-            rows="2"
+            id="hire-purpose"
+            rows="3"
             [formControl]="form.controls.purpose"
+            [attr.aria-invalid]="form.controls.purpose.touched && form.controls.purpose.invalid"
+            aria-describedby="hire-purpose-error"
             placeholder="What do you need the worker for?"
+            required
           ></textarea>
+          @if (form.controls.purpose.touched && form.controls.purpose.hasError('required')) {
+            <p id="hire-purpose-error" class="field-error">Describe the work you need.</p>
+          } @else if (form.controls.purpose.touched && form.controls.purpose.hasError('minlength')) {
+            <p id="hire-purpose-error" class="field-error">
+              Use at least 4 characters to describe the work.
+            </p>
+          }
         </div>
       </div>
 
@@ -75,34 +108,48 @@
           {{ saving ? 'Submitting...' : 'Send Hire Request' }}
         </button>
       </div>
-    </article>
+    </section>
   }
 
-  <article class="card">
-    <div class="card-head">
-      <div>
-        <span class="eyebrow">Records</span>
-        <h4>
-          @if (isAdmin) { All Hire Requests } @else if (isWorker) { My Hired Tasks } @else { My Hire Requests }
-        </h4>
-      </div>
+  <section class="history-band" aria-labelledby="hire-history-title">
+    <div class="section-heading history-heading">
+      <span class="eyebrow">Assignment history</span>
+      <h2 id="hire-history-title">
+        @if (isAdmin) { All Hire Requests } @else if (isWorker) { My Hired Tasks } @else { My Hire Requests }
+      </h2>
+      <p>Requester, worker, location, and status details stay together with the relevant actions.</p>
     </div>
 
     @if (loading) {
-      <p class="loading">Loading hire requests...</p>
+      <p class="loading" aria-live="polite">Loading hire requests...</p>
     } @else {
       <div class="records-list">
         @for (request of requests; track request.id) {
-          <article class="record-row">
-            <div class="record-primary">
-              <h5>{{ request.requestCode }}</h5>
-              <p>{{ formatDate(request.createdAt) }}</p>
-            </div>
+          <article class="record-row" [attr.aria-labelledby]="'hire-request-' + request.id">
+            <header class="record-summary">
+              <div class="record-primary">
+                <h3 [id]="'hire-request-' + request.id">{{ request.requestCode }}</h3>
+                <p>{{ formatDate(request.createdAt) }}</p>
+              </div>
+
+              <div class="record-status">
+                <span>Status</span>
+                <strong class="chip" [ngClass]="request.status">{{ request.status }}</strong>
+              </div>
+            </header>
 
             <div class="record-fields">
-              <div class="field">
-                <span>Status</span>
-                <strong class="chip">{{ request.status }}</strong>
+              <div class="field full">
+                <span>Title</span>
+                <strong>{{ request.title ?? 'Personal Work' }}</strong>
+              </div>
+              <div class="field full">
+                <span>Purpose</span>
+                <strong>{{ request.purpose }}</strong>
+              </div>
+              <div class="field full">
+                <span>Work Address</span>
+                <strong>{{ request.workAddress }}</strong>
               </div>
               <div class="field">
                 <span>Requester</span>
@@ -117,24 +164,12 @@
                 <strong>{{ request.requesterEmail }}</strong>
               </div>
               <div class="field full">
-                <span>Title</span>
-                <strong>{{ request.title ?? 'Personal Work' }}</strong>
-              </div>
-              <div class="field full">
                 <span>Requester Address</span>
                 <strong>{{ request.requesterAddress }}</strong>
               </div>
-              <div class="field full">
-                <span>Purpose</span>
-                <strong>{{ request.purpose }}</strong>
-              </div>
-              <div class="field full">
-                <span>Work Address</span>
-                <strong>{{ request.workAddress }}</strong>
-              </div>
 
               @if (isUser && request.assignedWorker) {
-                <div class="field full">
+                <div class="field full assigned-worker">
                   <span>Assigned Worker</span>
                   <strong>
                     {{ request.assignedWorker.firstName }} {{ request.assignedWorker.lastName }}
@@ -144,7 +179,7 @@
               }
 
               @if (isAdmin) {
-                <div class="field full">
+                <div class="field full assigned-worker">
                   <span>Assigned Worker</span>
                   <strong>{{ workerLabel(request.assignedWorkerId) }}</strong>
                 </div>
@@ -155,17 +190,21 @@
               @if (isAdmin) {
                 <div class="record-actions">
                   @if (request.status === 'pending') {
-                    <select
-                      [value]="selectedWorkerId[request.id] ?? 0"
-                      (change)="onWorkerSelected(request.id, $event)"
-                    >
-                      <option [value]="0">
-                        {{ availableWorkers.length ? 'Select worker' : 'No available workers' }}
-                      </option>
-                      @for (worker of availableWorkers; track worker.id) {
-                        <option [value]="worker.id">{{ worker.firstName }} {{ worker.lastName }}</option>
-                      }
-                    </select>
+                    <div class="assignment-control">
+                      <label [for]="'worker-' + request.id">Worker</label>
+                      <select
+                        [id]="'worker-' + request.id"
+                        [value]="selectedWorkerId[request.id] ?? 0"
+                        (change)="onWorkerSelected(request.id, $event)"
+                      >
+                        <option [value]="0">
+                          {{ availableWorkers.length ? 'Select worker' : 'No available workers' }}
+                        </option>
+                        @for (worker of availableWorkers; track worker.id) {
+                          <option [value]="worker.id">{{ worker.firstName }} {{ worker.lastName }}</option>
+                        }
+                      </select>
+                    </div>
 
                     <button
                       type="button"
@@ -186,7 +225,7 @@
                 </div>
               } @else if (isWorker) {
                 <div class="record-actions">
-                  <button type="button" (click)="openDirections(request)">Directions</button>
+                  <button type="button" class="outline" (click)="openDirections(request)">Directions</button>
                   <button
                     type="button"
                     class="primary"
@@ -200,7 +239,11 @@
                 <div class="worker-meta">
                   <span>Status</span>
                   <strong>{{ request.status }}</strong>
-                  <small>{{ request.status === 'completed' ? formatDate(request.completedAt ?? request.updatedAt) : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}</small>
+                  <small>
+                    {{ request.status === 'completed'
+                      ? formatDate(request.completedAt ?? request.updatedAt)
+                      : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}
+                  </small>
                 </div>
               } @else {
                 @if (request.status === 'pending') {
@@ -219,7 +262,11 @@
                 <div class="user-meta">
                   <span>Status</span>
                   <strong>{{ request.status }}</strong>
-                  <small>{{ request.status === 'completed' ? formatDate(request.completedAt ?? request.updatedAt) : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}</small>
+                  <small>
+                    {{ request.status === 'completed'
+                      ? formatDate(request.completedAt ?? request.updatedAt)
+                      : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}
+                  </small>
                 </div>
               }
             </div>
@@ -229,5 +276,5 @@
         }
       </div>
     }
-  </article>
+  </section>
 </section>

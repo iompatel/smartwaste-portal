@@ -1,29 +1,33 @@
 <section class="activity-page">
-  <article class="hero-panel">
-    <div>
+  <header class="hero-panel">
+    <div class="hero-copy">
       <span class="eyebrow">Admin Activity</span>
-      <h3>Stored Admin Actions</h3>
-      <p>Review login, account management, notification, and ticket actions from one dedicated page.</p>
+      <h1>Stored Admin Actions</h1>
+      <p>Review login, account management, notification, and ticket actions from one timeline.</p>
     </div>
-  </article>
+
+    <button type="button" class="primary" [disabled]="loading" (click)="loadActivities()">
+      Refresh activity
+    </button>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   <article class="card">
     <div class="card-head">
       <div>
         <span class="eyebrow">Activity Log</span>
-        <h4>Admin Activity Stream</h4>
+        <h2>Admin Activity Stream</h2>
       </div>
     </div>
 
     @if (loading) {
-      <p class="loading">Loading admin activity...</p>
+      <p class="loading" role="status">Loading admin activity...</p>
     } @else {
-      <div class="activity-stream">
-        <div class="activity-headings">
+      <div class="activity-stream" role="list">
+        <div class="activity-headings" aria-hidden="true">
           <span>Time</span>
           <span>Admin</span>
           <span>Session</span>
@@ -31,14 +35,16 @@
         </div>
 
         @for (activity of activities; track activity.id) {
-          <div class="activity-line">
+          <div class="activity-line" role="listitem">
             <div class="activity-meta">
-              <span class="activity-part">
+              <span class="activity-part" data-label="Time">
                 <span class="activity-time">{{ activity.createdAt | date: 'dd MMM y, h:mm a' }}</span>
               </span>
-              <span class="activity-part">{{ activity.adminName }}</span>
-              <span class="activity-part">{{ activity.sessionLabel || 'SESSION-LIVE' }}</span>
-              <span class="activity-part">{{ activity.action }}</span>
+              <span class="activity-part" data-label="Admin">{{ activity.adminName }}</span>
+              <span class="activity-part" data-label="Session">
+                {{ activity.sessionLabel || 'SESSION-LIVE' }}
+              </span>
+              <span class="activity-part" data-label="Action">{{ activity.action }}</span>
             </div>
 
             <div class="activity-summary">

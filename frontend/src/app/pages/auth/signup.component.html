@@ -1,76 +1,112 @@
 <section class="auth-page single">
-  <form class="auth-card wide" [formGroup]="form" (ngSubmit)="submit()">
+  <div class="left-panel" aria-labelledby="signup-intro">
+    <div class="hero-copy">
+      <span class="eyebrow">Citizen Portal</span>
+      <h1 id="signup-intro">Create account</h1>
+      <p>Create waste tickets, follow progress, hire workers, and receive updates in one workspace.</p>
+    </div>
+  </div>
+
+  <form
+    class="auth-card wide"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-labelledby="signup-heading"
+  >
     <span class="eyebrow">New Workspace Access</span>
-    <h2>Create account</h2>
+    <h2 id="signup-heading">Create account</h2>
 
     @if (error) {
-      <p class="error">{{ error }}</p>
+      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
     }
 
     <div class="grid two">
       <div>
-        <label>First Name</label>
-        <input type="text" formControlName="firstName" />
+        <label for="first-name">First Name</label>
+        <input id="first-name" type="text" formControlName="firstName" />
       </div>
       <div>
-        <label>Last Name</label>
-        <input type="text" formControlName="lastName" />
+        <label for="last-name">Last Name</label>
+        <input id="last-name" type="text" formControlName="lastName" />
       </div>
       <div>
-        <label>Gender</label>
-        <select formControlName="gender">
+        <label for="gender">Gender</label>
+        <select id="gender" formControlName="gender">
           <option value="Male">Male</option>
           <option value="Female">Female</option>
           <option value="Other">Other</option>
         </select>
       </div>
       <div>
-        <label>Mobile Number</label>
-        <input type="text" formControlName="mobile" />
+        <label for="mobile">Mobile Number</label>
+        <input id="mobile" type="text" formControlName="mobile" />
       </div>
       <div>
-        <label>Email</label>
-        <input type="email" formControlName="email" />
+        <label for="signup-email">Email</label>
+        <input id="signup-email" type="email" formControlName="email" />
       </div>
       <div>
-        <label>Password</label>
+        <label for="signup-password">Password</label>
         <div class="password-row">
           <input
+            id="signup-password"
             [type]="showPassword ? 'text' : 'password'"
             formControlName="password"
             placeholder="Create a password"
             autocomplete="new-password"
+            aria-describedby="password-hint"
+            [attr.aria-invalid]="
+              form.controls.password.touched && form.controls.password.invalid ? 'true' : null
+            "
           />
-          <button type="button" (click)="showPassword = !showPassword">
+          <button
+            type="button"
+            (click)="showPassword = !showPassword"
+            aria-controls="signup-password"
+            [attr.aria-pressed]="showPassword"
+            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+          >
             {{ showPassword ? 'Hide' : 'Show' }}
           </button>
         </div>
-        <p class="field-hint">{{ passwordHint }}</p>
+        <p id="password-hint" class="field-hint">{{ passwordHint }}</p>
         @if (form.controls.password.touched && form.controls.password.invalid) {
-          <p class="field-error">{{ passwordHint }}</p>
+          <p class="field-error" role="alert" aria-live="assertive">{{ passwordHint }}</p>
         }
       </div>
       <div>
-        <label>Confirm Password</label>
+        <label for="confirm-password">Confirm Password</label>
         <div class="password-row">
           <input
+            id="confirm-password"
             [type]="showConfirmPassword ? 'text' : 'password'"
             formControlName="confirmPassword"
             placeholder="Re-enter password"
             autocomplete="new-password"
+            [attr.aria-invalid]="
+              form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid
+                ? 'true'
+                : null
+            "
           />
-          <button type="button" (click)="showConfirmPassword = !showConfirmPassword">
+          <button
+            type="button"
+            (click)="showConfirmPassword = !showConfirmPassword"
+            aria-controls="confirm-password"
+            [attr.aria-pressed]="showConfirmPassword"
+            [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'"
+          >
             {{ showConfirmPassword ? 'Hide' : 'Show' }}
           </button>
         </div>
         @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid) {
-          <p class="field-error">{{ passwordHint }}</p>
+          <p class="field-error" role="alert" aria-live="assertive">{{ passwordHint }}</p>
         }
       </div>
     </div>
 
-    <label>Address</label>
-    <textarea rows="2" formControlName="address"></textarea>
+    <label for="address">Address</label>
+    <textarea id="address" rows="2" formControlName="address"></textarea>
 
     <button type="submit" class="primary" [disabled]="loading">
       {{ loading ? 'Creating...' : 'Create Account' }}

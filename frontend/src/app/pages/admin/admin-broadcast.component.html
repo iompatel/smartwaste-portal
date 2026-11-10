@@ -1,67 +1,86 @@
 <section class="broadcast-page">
-  <article class="hero-panel">
-    <div>
+  <header class="hero-panel">
+    <div class="hero-copy">
       <span class="eyebrow">Broadcast Desk</span>
-      <h3>Command Broadcast Console</h3>
-      <p>Send polished admin notices from a dedicated page so the control flow stays cleaner.</p>
+      <h1>Command Broadcast Console</h1>
+      <p>Write and send a clear notice, then review the most recent dispatches.</p>
     </div>
 
-    <div class="hero-tags">
-      <span>Admin only</span>
-      <span>Preview ready</span>
-      <span>Quick dispatch</span>
-    </div>
-  </article>
+    <a class="primary-link" href="#compose-broadcast">Compose broadcast</a>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   @if (success) {
-    <p class="success">{{ success }}</p>
+    <p class="success" role="status">{{ success }}</p>
   }
 
-  <article class="card form-card">
-    <div class="card-head">
-      <div>
-        <span class="eyebrow">Compose</span>
-        <h4>Send Broadcast</h4>
+  <div class="broadcast-layout">
+    <article class="card form-card" id="compose-broadcast">
+      <div class="card-head">
+        <div>
+          <span class="eyebrow">Compose</span>
+          <h2>Send Broadcast</h2>
+        </div>
+        <p>Notices are delivered to portal users through the existing notification channel.</p>
       </div>
-    </div>
 
-    <div class="broadcast-form">
-      <input type="text" [formControl]="noticeForm.controls.title" placeholder="Notification title" />
-      <textarea rows="6" [formControl]="noticeForm.controls.message" placeholder="Message"></textarea>
-      <button type="button" class="primary" [disabled]="sending" (click)="sendNotification()">
-        {{ sending ? 'Sending...' : 'Send Notification' }}
-      </button>
-    </div>
-  </article>
+      <div class="broadcast-form">
+        <div class="form-field">
+          <label for="broadcast-title">Notification title</label>
+          <input
+            id="broadcast-title"
+            type="text"
+            [formControl]="noticeForm.controls.title"
+            placeholder="Notification title"
+          />
+        </div>
 
-  <article class="card history-card">
-    <div class="card-head">
-      <div>
-        <span class="eyebrow">Recent Dispatches</span>
-        <h4>Broadcast History</h4>
+        <div class="form-field">
+          <label for="broadcast-message">Message</label>
+          <textarea
+            id="broadcast-message"
+            rows="6"
+            [formControl]="noticeForm.controls.message"
+            placeholder="Message"
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="primary" [disabled]="sending" (click)="sendNotification()">
+            {{ sending ? 'Sending...' : 'Send Notification' }}
+          </button>
+        </div>
       </div>
-    </div>
+    </article>
 
-    @if (loading) {
-      <p class="loading">Loading broadcast history...</p>
-    } @else {
-      <div class="history-list">
-        @for (item of recentBroadcasts; track item.id) {
-          <div class="history-item">
-            <div>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.message }}</p>
+    <article class="card history-card">
+      <div class="card-head">
+        <div>
+          <span class="eyebrow">Recent Dispatches</span>
+          <h2>Broadcast History</h2>
+        </div>
+      </div>
+
+      @if (loading) {
+        <p class="loading" role="status">Loading broadcast history...</p>
+      } @else {
+        <div class="history-list">
+          @for (item of recentBroadcasts; track item.id) {
+            <div class="history-item">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.message }}</p>
+              </div>
+              <time>{{ item.createdAt | date: 'dd MMM y, h:mm a' }}</time>
             </div>
-            <span>{{ item.createdAt | date: 'dd MMM y, h:mm a' }}</span>
-          </div>
-        } @empty {
-          <p class="empty-state">No broadcasts sent yet.</p>
-        }
-      </div>
-    }
-  </article>
+          } @empty {
+            <p class="empty-state">No broadcasts sent yet.</p>
+          }
+        </div>
+      }
+    </article>
+  </div>
 </section>

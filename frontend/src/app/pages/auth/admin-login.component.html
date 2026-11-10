@@ -1,8 +1,8 @@
 <section class="auth-page console-admin">
-  <div class="left-panel">
+  <div class="left-panel" aria-labelledby="admin-login-intro">
     <div class="hero-copy">
       <span class="eyebrow">Restricted Administration</span>
-      <h1>{{ title }}</h1>
+      <h1 id="admin-login-intro">{{ title }}</h1>
       <p>Secure access for administrators managing accounts, assignments, broadcasts, and activity.</p>
     </div>
 
@@ -22,12 +22,17 @@
     </div>
   </div>
 
-  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+  <form
+    class="auth-card"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-labelledby="admin-login-heading"
+  >
     <span class="eyebrow">Admin Only</span>
-    <h2>Admin Console</h2>
+    <h2 id="admin-login-heading">Admin Console</h2>
 
     @if (error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
     }
 
     <label for="admin-email">Admin Email</label>
@@ -48,7 +53,13 @@
         placeholder="Enter admin password"
         autocomplete="current-password"
       />
-      <button type="button" (click)="showPassword = !showPassword">
+      <button
+        type="button"
+        (click)="showPassword = !showPassword"
+        aria-controls="admin-password"
+        [attr.aria-pressed]="showPassword"
+        [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+      >
         {{ showPassword ? 'Hide' : 'Show' }}
       </button>
     </div>

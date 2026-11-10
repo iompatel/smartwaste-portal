@@ -1,142 +1,92 @@
-<section class="dashboard">
-  <article class="hero">
+<section class="dashboard" aria-labelledby="dashboard-title">
+  <header class="hero">
     <div class="hero-copy">
-      <span class="eyebrow">City Command Center</span>
-      <h3>
+      <span class="eyebrow">City operations</span>
+      <h1 id="dashboard-title">
         @if (isWorker) { Worker Dashboard } @else { Users Dashboard }
-      </h3>
-
-      <div class="hero-chips">
-        <span class="ui-chip">Multi-role Portal</span>
-        <span class="ui-chip">Realtime Ticket Flow</span>
-        <span class="ui-chip">Notifications Ready</span>
-      </div>
+      </h1>
+      <p class="hero-lead">
+        @if (isWorker) {
+          Review assigned collections, recent updates, and hired tasks from one place.
+        } @else {
+          Track collection tickets, completed work, and personal worker requests at a glance.
+        }
+      </p>
     </div>
 
-    <div class="actions">
-      <button type="button" (click)="reload()">Refresh</button>
-      <a routerLink="/tickets" class="accent">Open Tickets</a>
+    <div class="hero-actions" aria-label="Dashboard actions">
+      <a routerLink="/tickets" class="primary-action">Open Tickets</a>
+      <button type="button" class="secondary-action" (click)="reload()">Refresh</button>
     </div>
-  </article>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   @if (loading) {
-    <p class="loading">Loading dashboard...</p>
+    <p class="loading" aria-live="polite">Loading dashboard...</p>
   } @else {
-    <div class="stats">
-      @if (isUser) {
-        <app-stat-card label="My Tickets" [value]="myTicketCount" hint="Tickets created by you" />
-        <app-stat-card label="Open Tickets" [value]="openTicketCount" hint="Pending or in progress" />
-        <app-stat-card label="Completed" [value]="completedTicketCount" hint="Resolved tickets" />
-        <app-stat-card label="Hire Requests" [value]="hireRequestCount" hint="Personal work requests" />
-      } @else {
-        <app-stat-card label="Assigned Tickets" [value]="myTicketCount" hint="Tickets assigned to you" />
-        <app-stat-card label="Open Tickets" [value]="openTicketCount" hint="Pending or in progress" />
-        <app-stat-card label="Completed" [value]="completedTicketCount" hint="Resolved tickets" />
-        @if (summary) {
-          <app-stat-card label="Workers" [value]="summary.totalWorkers" hint="Portal worker accounts" />
-        }
-      }
-    </div>
+    <section class="summary" aria-labelledby="dashboard-summary-title">
+      <div class="section-intro">
+        <span class="eyebrow">At a glance</span>
+        <h2 id="dashboard-summary-title">Current workload</h2>
+      </div>
 
-    <div class="grid">
-      <article class="card">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Tracking</span>
-            <h4>Ticket Status</h4>
-          </div>
-          <div class="section-actions">
-            <a routerLink="/tickets">View all</a>
-          </div>
-        </div>
-
-        @if (ticketsError) {
-          <p class="error">{{ ticketsError }}</p>
-        }
-
-        <div class="tracking-list">
-          @for (ticket of recentTickets; track ticket.id) {
-            <div class="tracking-row">
-              <div class="row-primary">
-                <strong>{{ ticket.ticketCode }}</strong>
-                <small>{{ ticket.wasteType }}</small>
-              </div>
-
-              <div class="row-meta">
-                <app-status-badge [status]="ticket.status" />
-                <span class="muted">Worker: {{ ticket.workerId ?? 'Pending' }}</span>
-              </div>
-
-              <div class="row-secondary">
-                <span class="muted">{{ ticket.locationAddress }}</span>
-                @if (!isUser) {
-                  <button
-                    type="button"
-                    class="ghost"
-                    (click)="openDirections(ticket.locationAddress)"
-                  >
-                    Directions
-                  </button>
-                }
-              </div>
-
-              <div class="row-time">
-                <span class="muted">{{ ticket.updatedAt | date: 'short' }}</span>
-              </div>
-            </div>
-          } @empty {
-            <p class="empty-state">No tickets yet.</p>
+      <div class="stats">
+        @if (isUser) {
+          <app-stat-card label="My Tickets" [value]="myTicketCount" hint="Tickets created by you" />
+          <app-stat-card label="Open Tickets" [value]="openTicketCount" hint="Pending or in progress" />
+          <app-stat-card label="Completed" [value]="completedTicketCount" hint="Resolved tickets" />
+          <app-stat-card label="Hire Requests" [value]="hireRequestCount" hint="Personal work requests" />
+        } @else {
+          <app-stat-card label="Assigned Tickets" [value]="myTicketCount" hint="Tickets assigned to you" />
+          <app-stat-card label="Open Tickets" [value]="openTicketCount" hint="Pending or in progress" />
+          <app-stat-card label="Completed" [value]="completedTicketCount" hint="Resolved tickets" />
+          @if (summary) {
+            <app-stat-card label="Workers" [value]="summary.totalWorkers" hint="Portal worker accounts" />
           }
-        </div>
-      </article>
+        }
+      </div>
+    </section>
 
-      @if (isUser) {
-        <article class="card">
+    <section class="activity-band" aria-label="Recent activity">
+      <div class="activity-grid">
+        <article class="activity-section">
           <div class="section-head">
             <div>
-              <span class="eyebrow">Tracking</span>
-              <h4>Hired Worker Requests</h4>
+              <span class="eyebrow">Recent activity</span>
+              <h2>Ticket Status</h2>
             </div>
             <div class="section-actions">
-              <a routerLink="/hire-worker">View all</a>
+              <a routerLink="/tickets">View all tickets</a>
             </div>
           </div>
 
-          @if (hireError) {
-            <p class="error">{{ hireError }}</p>
+          @if (ticketsError) {
+            <p class="error" role="alert">{{ ticketsError }}</p>
           }
 
           <div class="tracking-list">
-            @for (request of recentHireRequests; track request.id) {
-              <div class="tracking-row">
+            @for (ticket of recentTickets; track ticket.id) {
+              <article class="tracking-row">
                 <div class="row-primary">
-                  <strong>{{ request.requestCode }}</strong>
-                  <small>{{ request.title || 'Personal Work' }}</small>
+                  <strong>{{ ticket.ticketCode }}</strong>
+                  <small>{{ ticket.wasteType }}</small>
                 </div>
 
                 <div class="row-meta">
-                  <span class="hire-badge" [ngClass]="request.status">{{ request.status }}</span>
-                  @if (request.assignedWorker) {
-                    <span class="muted">
-                      {{ request.assignedWorker.firstName }} {{ request.assignedWorker.lastName }}
-                      ({{ request.assignedWorker.mobile }})
-                    </span>
-                  } @else {
-                    <span class="muted">Waiting for assignment</span>
-                  }
+                  <app-status-badge [status]="ticket.status" />
+                  <span class="muted">Worker: {{ ticket.workerId ?? 'Pending' }}</span>
                 </div>
 
                 <div class="row-secondary">
-                  <span class="muted">{{ request.workAddress }}</span>
+                  <span class="muted">{{ ticket.locationAddress }}</span>
                   @if (!isUser) {
                     <button
                       type="button"
                       class="ghost"
-                      (click)="openDirections(request.workAddress)"
+                      (click)="openDirections(ticket.locationAddress)"
                     >
                       Directions
                     </button>
@@ -144,64 +94,124 @@
                 </div>
 
                 <div class="row-time">
-                  <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
+                  <span class="muted">{{ ticket.updatedAt | date: 'short' }}</span>
                 </div>
-              </div>
+              </article>
             } @empty {
-              <p class="empty-state">No hire requests yet.</p>
+              <p class="empty-state">No tickets yet.</p>
             }
           </div>
         </article>
-      }
 
-      @if (isWorker) {
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <span class="eyebrow">Tracking</span>
-              <h4>Hired Task Details</h4>
-            </div>
-            <div class="section-actions">
-              <a routerLink="/hire-worker">View all</a>
-            </div>
-          </div>
-
-          @if (hireError) {
-            <p class="error">{{ hireError }}</p>
-          }
-
-          <div class="tracking-list">
-            @for (request of recentHireRequests; track request.id) {
-              <div class="tracking-row">
-                <div class="row-primary">
-                  <strong>{{ request.requestCode }}</strong>
-                  <small>{{ request.title || 'Personal Work' }}</small>
-                </div>
-
-                <div class="row-meta">
-                  <span class="hire-badge" [ngClass]="request.status">{{ request.status }}</span>
-                  <span class="muted">
-                    {{ request.requesterName }} ({{ request.requesterMobile }})
-                  </span>
-                </div>
-
-                <div class="row-secondary">
-                  <span class="muted">{{ request.workAddress }} | {{ request.purpose }}</span>
-                  <button type="button" class="ghost" (click)="openDirections(request.workAddress)">
-                    Directions
-                  </button>
-                </div>
-
-                <div class="row-time">
-                  <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
-                </div>
+        @if (isUser) {
+          <article class="activity-section">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Recent activity</span>
+                <h2>Hired Worker Requests</h2>
               </div>
-            } @empty {
-              <p class="empty-state">No hired tasks yet.</p>
+              <div class="section-actions">
+                <a routerLink="/hire-worker">View all requests</a>
+              </div>
+            </div>
+
+            @if (hireError) {
+              <p class="error" role="alert">{{ hireError }}</p>
             }
-          </div>
-        </article>
-      }
-    </div>
+
+            <div class="tracking-list">
+              @for (request of recentHireRequests; track request.id) {
+                <article class="tracking-row">
+                  <div class="row-primary">
+                    <strong>{{ request.requestCode }}</strong>
+                    <small>{{ request.title || 'Personal Work' }}</small>
+                  </div>
+
+                  <div class="row-meta">
+                    <span class="hire-badge" [ngClass]="request.status">{{ request.status }}</span>
+                    @if (request.assignedWorker) {
+                      <span class="muted">
+                        {{ request.assignedWorker.firstName }} {{ request.assignedWorker.lastName }}
+                        ({{ request.assignedWorker.mobile }})
+                      </span>
+                    } @else {
+                      <span class="muted">Waiting for assignment</span>
+                    }
+                  </div>
+
+                  <div class="row-secondary">
+                    <span class="muted">{{ request.workAddress }}</span>
+                    @if (!isUser) {
+                      <button
+                        type="button"
+                        class="ghost"
+                        (click)="openDirections(request.workAddress)"
+                      >
+                        Directions
+                      </button>
+                    }
+                  </div>
+
+                  <div class="row-time">
+                    <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
+                  </div>
+                </article>
+              } @empty {
+                <p class="empty-state">No hire requests yet.</p>
+              }
+            </div>
+          </article>
+        }
+
+        @if (isWorker) {
+          <article class="activity-section">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Recent activity</span>
+                <h2>Hired Task Details</h2>
+              </div>
+              <div class="section-actions">
+                <a routerLink="/hire-worker">View all tasks</a>
+              </div>
+            </div>
+
+            @if (hireError) {
+              <p class="error" role="alert">{{ hireError }}</p>
+            }
+
+            <div class="tracking-list">
+              @for (request of recentHireRequests; track request.id) {
+                <article class="tracking-row">
+                  <div class="row-primary">
+                    <strong>{{ request.requestCode }}</strong>
+                    <small>{{ request.title || 'Personal Work' }}</small>
+                  </div>
+
+                  <div class="row-meta">
+                    <span class="hire-badge" [ngClass]="request.status">{{ request.status }}</span>
+                    <span class="muted">
+                      {{ request.requesterName }} ({{ request.requesterMobile }})
+                    </span>
+                  </div>
+
+                  <div class="row-secondary">
+                    <span class="muted">{{ request.workAddress }} | {{ request.purpose }}</span>
+                    <button type="button" class="ghost" (click)="openDirections(request.workAddress)">
+                      Directions
+                    </button>
+                  </div>
+
+                  <div class="row-time">
+                    <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
+                  </div>
+                </article>
+              } @empty {
+                <p class="empty-state">No hired tasks yet.</p>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    </section>
   }
 </section>

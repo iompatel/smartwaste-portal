@@ -1,18 +1,22 @@
 <section class="settings-page">
-  <article class="card">
-    <h3>Settings Module</h3>
-    <p>Theme preferences, notification permissions, and secure session controls.</p>
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Preferences</span>
+      <h1>Settings</h1>
+      <p>Choose your appearance, notification permission, and session controls.</p>
+    </div>
 
-    <div class="row">
+    <div class="theme-control" aria-labelledby="theme-setting-title">
       <div>
-        <h4>Theme Mode</h4>
-        <p>Current theme: {{ currentTheme }}</p>
+        <span class="control-label" id="theme-setting-title">Appearance</span>
+        <span class="control-value">Current theme: {{ currentTheme }}</span>
       </div>
-      <div class="theme-toggle">
+      <div class="theme-toggle" role="group" aria-labelledby="theme-setting-title">
         <button
           type="button"
           class="theme-chip"
           [class.selected]="currentTheme === 'light'"
+          [attr.aria-pressed]="currentTheme === 'light'"
           (click)="currentTheme !== 'light' ? toggleTheme() : null"
         >
           Light
@@ -21,29 +25,39 @@
           type="button"
           class="theme-chip"
           [class.selected]="currentTheme === 'dark'"
+          [attr.aria-pressed]="currentTheme === 'dark'"
           (click)="currentTheme !== 'dark' ? toggleTheme() : null"
         >
           Dark
         </button>
       </div>
     </div>
+  </header>
 
-    <div class="row">
-      <div>
-        <h4>Browser Notifications</h4>
-        <p>Permission: {{ notificationPermission }}</p>
+  <article class="card" aria-label="Portal settings">
+    <section class="row" id="notifications" aria-labelledby="notification-setting-title">
+      <div class="row-copy">
+        <h2 id="notification-setting-title">Browser Notifications</h2>
+        <p id="notification-permission" aria-live="polite">
+          Permission: {{ notificationPermission }}
+        </p>
       </div>
-      <button type="button" class="btn-primary" (click)="enableNotifications()">
+      <button
+        type="button"
+        class="btn-primary"
+        aria-describedby="notification-permission"
+        (click)="enableNotifications()"
+      >
         Enable Notifications
       </button>
-    </div>
+    </section>
 
-    <div class="row danger-row">
-      <div>
-        <h4>Session</h4>
-        <p>Securely logout from portal.</p>
+    <section class="row danger-row" aria-labelledby="session-setting-title">
+      <div class="row-copy">
+        <h2 id="session-setting-title">Session</h2>
+        <p>Sign out of this portal on the current device.</p>
       </div>
       <button type="button" class="danger" (click)="logout()">Logout</button>
-    </div>
+    </section>
   </article>
 </section>

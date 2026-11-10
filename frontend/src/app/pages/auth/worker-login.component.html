@@ -1,8 +1,8 @@
 <section class="auth-page console-worker">
-  <div class="left-panel">
+  <div class="left-panel" aria-labelledby="worker-login-intro">
     <div class="hero-copy">
       <span class="eyebrow">Field Operations</span>
-      <h1>{{ title }}</h1>
+      <h1 id="worker-login-intro">{{ title }}</h1>
       <p>Dedicated access for workers resolving assigned tickets and personal-work requests.</p>
     </div>
 
@@ -22,12 +22,17 @@
     </div>
   </div>
 
-  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+  <form
+    class="auth-card"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-labelledby="worker-login-heading"
+  >
     <span class="eyebrow">Worker Only</span>
-    <h2>Worker Console</h2>
+    <h2 id="worker-login-heading">Worker Console</h2>
 
     @if (error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
     }
 
     <label for="worker-email">Worker Email</label>
@@ -48,7 +53,13 @@
         placeholder="Enter worker password"
         autocomplete="current-password"
       />
-      <button type="button" (click)="showPassword = !showPassword">
+      <button
+        type="button"
+        (click)="showPassword = !showPassword"
+        aria-controls="worker-password"
+        [attr.aria-pressed]="showPassword"
+        [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+      >
         {{ showPassword ? 'Hide' : 'Show' }}
       </button>
     </div>

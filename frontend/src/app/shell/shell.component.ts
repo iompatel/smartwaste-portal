@@ -111,6 +111,12 @@ export class ShellComponent implements OnInit {
     return this.authService.needsContactDetails(this.user);
   }
 
+  get currentPageLabel() {
+    const path = this.router.url.split(/[?#]/, 1)[0];
+    const item = this.navItems.find((navItem) => navItem.path === path);
+    return item ? this.navLabel(item) : 'Workspace';
+  }
+
   get userInitials() {
     const first = this.user?.firstName?.[0] ?? '';
     const last = this.user?.lastName?.[0] ?? '';

@@ -1,8 +1,8 @@
 <section class="auth-page">
-  <div class="left-panel">
+  <div class="left-panel" aria-labelledby="user-login-intro">
     <div class="hero-copy">
       <span class="eyebrow">Citizen Portal</span>
-      <h1>{{ title }}</h1>
+      <h1 id="user-login-intro">{{ title }}</h1>
       <p>Create waste tickets, follow progress, hire workers, and receive updates in one workspace.</p>
     </div>
 
@@ -22,12 +22,17 @@
     </div>
   </div>
 
-  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+  <form
+    class="auth-card"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-labelledby="user-login-heading"
+  >
     <span class="eyebrow">User Access</span>
-    <h2>User Login</h2>
+    <h2 id="user-login-heading">User Login</h2>
 
     @if (error) {
-      <p class="error">{{ error }}</p>
+      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
     }
 
     <label for="email">Email</label>
@@ -48,7 +53,13 @@
         placeholder="Enter password"
         autocomplete="current-password"
       />
-      <button type="button" (click)="showPassword = !showPassword">
+      <button
+        type="button"
+        (click)="showPassword = !showPassword"
+        aria-controls="password"
+        [attr.aria-pressed]="showPassword"
+        [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+      >
         {{ showPassword ? 'Hide' : 'Show' }}
       </button>
     </div>

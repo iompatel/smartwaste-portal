@@ -1,88 +1,118 @@
 .settings-page {
+  width: 100%;
+  max-width: 980px;
   display: grid;
+  gap: 24px;
 }
 
-/* Utility card: flat surface, hairline border, 18px radius, no shadow */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 24px;
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 24px 0 8px;
+}
 
-  h3 {
-    margin: 0;
-    font-size: clamp(24px, 3vw, 28px);
-    line-height: 1.19;
+.header-copy {
+  h1 {
+    margin: 6px 0 0;
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.1;
     letter-spacing: -0.02em;
   }
 
-  > p {
-    margin: 6px 0 8px;
+  p {
+    max-width: 680px;
+    margin: 8px 0 0;
     color: var(--text-muted);
     font-size: 17px;
     line-height: 1.47;
   }
 }
 
-/* Rows inside the card separate with hairlines */
-.row {
+.eyebrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.theme-control {
+  flex: 0 0 auto;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 16px;
-  padding: 16px 0;
+}
+
+.control-label,
+.control-value {
+  display: block;
+}
+
+.control-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.control-value {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.43;
+}
+
+.card {
+  padding: 0 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 24px 0;
 }
 
 .row + .row {
   border-top: 1px solid var(--border);
 }
 
-.row h4 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.012em;
+.row-copy {
+  min-width: 0;
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.24;
+    letter-spacing: -0.012em;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.43;
+  }
 }
 
-.row p {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.43;
-}
-
-/* Primary: solid blue pill */
-.btn-primary {
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  color: #ffffff;
-  border-radius: var(--radius-pill);
-  padding: 11px 22px;
-  font-size: 17px;
-  min-height: 44px;
-}
-
-/* Destructive: filled soft danger pill */
-.row button.danger {
-  background: var(--danger-soft);
-  border: 1px solid transparent;
-  color: var(--danger);
-  border-radius: var(--radius-pill);
-  padding: 11px 22px;
-  font-size: 17px;
-  min-height: 44px;
-}
-
-/* Theme toggle: two pill chips; selected gets the 2px Focus Blue ring */
 .theme-toggle {
+  flex: 0 0 auto;
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .theme-chip {
-  min-height: 44px;
-  padding: 10px 20px;
-  border: 1px solid var(--border);
+  height: 44px;
+  min-width: 88px;
+  padding: 0 20px;
+  border: 2px solid var(--border);
   border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--text);
@@ -90,12 +120,76 @@
 }
 
 .theme-chip.selected {
-  border: 2px solid var(--accent-focus);
+  border-color: var(--accent-focus);
 }
 
-@media (max-width: 860px) {
+.btn-primary,
+.row button.danger {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 11px 22px;
+  border-radius: var(--radius-pill);
+  font-size: 17px;
+}
+
+.btn-primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-primary);
+}
+
+/* Signing out is reversible, so it stays a neutral utility action rather than a danger state. */
+.row button.danger {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+@media (max-width: 833px) {
+  .page-header,
   .row {
-    flex-direction: column;
     align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-page {
+    gap: 20px;
+  }
+
+  .page-header {
+    padding-top: 16px;
+  }
+
+  .header-copy h1 {
+    font-size: 34px;
+  }
+
+  .card {
+    padding: 0 20px;
+  }
+
+  .theme-toggle,
+  .theme-control,
+  .btn-primary,
+  .row button.danger {
+    width: 100%;
+  }
+
+  .theme-control {
+    display: grid;
+  }
+
+  .theme-chip {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 419px) {
+  .header-copy h1 {
+    font-size: 28px;
   }
 }

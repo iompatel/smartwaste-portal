@@ -16,28 +16,27 @@ import { Component, Input } from '@angular/core';
         background: var(--surface);
         border: 1px solid var(--border-strong);
         border-radius: var(--radius-lg);
-        padding: 16px;
-        backdrop-filter: none;
-        box-shadow: none;
+        min-height: 148px;
+        padding: 24px;
       }
       .label {
         margin: 0;
         color: var(--text-muted);
-        font-size: 12px;
-        font-weight: 400;
-        letter-spacing: -0.01em;
+        font-size: 14px;
+        line-height: 1.43;
+        letter-spacing: 0;
       }
       h3 {
-        margin: 6px 0 0;
-        font-size: 28px;
+        margin: 12px 0 0;
+        font-size: 34px;
         font-weight: 600;
-        line-height: 1.14;
-        letter-spacing: -0.012em;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
       }
       .hint {
-        margin: 6px 0 0;
+        margin: 12px 0 0;
         color: var(--text-muted);
-        font-size: 12px;
+        font-size: 14px;
         line-height: 1.43;
       }
     `,

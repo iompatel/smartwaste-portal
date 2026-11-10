@@ -1,50 +1,51 @@
 <section class="admin-page">
-  <article class="hero-panel">
-    <div>
+  <header class="hero-panel">
+    <div class="hero-copy">
       <span class="eyebrow">Administration Console</span>
-      <h3>Admin Panel</h3>
+      <h1>Admin Panel</h1>
       <p>Maintain users, workers, tickets, reports, and activity notifications.</p>
     </div>
 
-    <div class="hero-meta">
-      <div>
+    <div class="hero-side">
+      <a class="primary-link" routerLink="/admin-panel/users">Manage accounts</a>
+      <div class="hero-meta">
         <span>Date & Time</span>
         <strong>{{ nowLabel }}</strong>
       </div>
     </div>
-  </article>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   @if (loading) {
-    <p class="loading">Loading admin data...</p>
+    <p class="loading" role="status">Loading admin data...</p>
   } @else {
-    <div class="stats">
+    <div class="stats" aria-label="Administration summary">
       <article>
         <span>Total Accounts</span>
-        <h4>{{ users.length }}</h4>
+        <h2>{{ users.length }}</h2>
         <p>All registered portal users</p>
       </article>
       <article>
         <span>Workers</span>
-        <h4>{{ workerCount }}</h4>
+        <h2>{{ workerCount }}</h2>
         <p>Field-ready sanitation staff</p>
       </article>
       <article>
         <span>Priority Load</span>
-        <h4>{{ highPriorityTickets }}</h4>
+        <h2>{{ highPriorityTickets }}</h2>
         <p>High priority tickets live now</p>
       </article>
       <article>
         <span>Pending Tickets</span>
-        <h4>{{ pendingTickets }}</h4>
+        <h2>{{ pendingTickets }}</h2>
         <p>Tickets waiting for action</p>
       </article>
     </div>
 
-    <article class="metrics-bar">
+    <article class="metrics-bar" aria-label="Ticket workload">
       <div class="metric">
         <span>Open Tickets</span>
         <strong>{{ activeTicketCount }}</strong>
@@ -64,7 +65,7 @@
         <div class="card-head">
           <div>
             <span class="eyebrow">Operations Snapshot</span>
-            <h4>Recent Tickets</h4>
+            <h2>Recent Tickets</h2>
           </div>
         </div>
 
@@ -73,10 +74,12 @@
             <div class="ticket-item">
               <div>
                 <strong>{{ ticket.ticketCode }}</strong>
-                <p>{{ ticket.wasteType }} | {{ ticket.priority }}</p>
+                <p>{{ ticket.wasteType }} · {{ ticket.priority }}</p>
               </div>
               <app-status-badge [status]="ticket.status" />
             </div>
+          } @empty {
+            <p class="empty-state">No recent tickets.</p>
           }
         </div>
       </article>
@@ -86,7 +89,7 @@
           <div class="card-head">
             <div>
               <span class="eyebrow">Assign Worker</span>
-              <h4>New Hire Requests</h4>
+              <h2>New Hire Requests</h2>
             </div>
             <a class="link" routerLink="/hire-worker">Open Assign Worker</a>
           </div>
@@ -137,6 +140,5 @@
         </article>
       }
     </div>
-
   }
 </section>

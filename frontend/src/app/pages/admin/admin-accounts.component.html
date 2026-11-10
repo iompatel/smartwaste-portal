@@ -1,89 +1,157 @@
 <section class="accounts-page">
-  <article class="hero-panel">
-    <div>
+  <header class="hero-panel">
+    <div class="hero-copy">
       <span class="eyebrow">Admin Directory</span>
-      <h3>{{ pageTitle }}</h3>
+      <h1>{{ pageTitle }}</h1>
       <p>{{ pageDescription }}</p>
     </div>
 
-    <div class="hero-actions">
-      <a routerLink="/dashboard">Back to Admin Panel</a>
+    <div class="hero-actions" aria-label="Directory actions">
+      <a class="back-link" routerLink="/dashboard">Back to Admin Panel</a>
+      <a class="primary-link" href="#create-account">Add {{ singularLabel }}</a>
     </div>
-  </article>
+  </header>
 
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <p class="error" role="alert">{{ error }}</p>
   }
 
   @if (loading) {
-    <p class="loading">Loading {{ singularLabel }} data...</p>
+    <p class="loading" role="status">Loading {{ singularLabel }} data...</p>
   } @else {
-    <div class="stats">
+    <div class="stats" aria-label="Account summary">
       <article>
         <span>{{ totalCountLabel }}</span>
-        <h4>{{ accounts.length }}</h4>
+        <h2>{{ accounts.length }}</h2>
         <p>Records available in this management view.</p>
       </article>
       <article>
         <span>{{ linkedTicketLabel }}</span>
-        <h4>{{ linkedTicketCount }}</h4>
+        <h2>{{ linkedTicketCount }}</h2>
         <p>Tickets linked with the current account set.</p>
       </article>
       <article>
         <span>Profile Gaps</span>
-        <h4>{{ incompleteProfiles }}</h4>
+        <h2>{{ incompleteProfiles }}</h2>
         <p>Accounts still missing strong contact details.</p>
       </article>
     </div>
 
     <div class="grid">
-      <article class="card">
+      <article class="card create-card" id="create-account">
         <div class="card-head">
           <div>
             <span class="eyebrow">Account Creation</span>
-            <h4>Create {{ pageTitle === 'Worker Management' ? 'Worker' : 'User' }}</h4>
+            <h2>Create {{ pageTitle === 'Worker Management' ? 'Worker' : 'User' }}</h2>
           </div>
+          <p>Enter the account details, then add the record to this directory.</p>
         </div>
 
         <div class="form-grid">
-          <input type="text" [formControl]="form.controls.firstName" placeholder="First Name" />
-          <input type="text" [formControl]="form.controls.lastName" placeholder="Last Name" />
-          <input type="text" [formControl]="form.controls.mobile" placeholder="Mobile" />
-          <input type="email" [formControl]="form.controls.email" placeholder="Email" />
-          <div class="password-row">
+          <div class="form-field">
+            <label for="account-first-name">First Name</label>
             <input
-              [type]="showCreatePassword ? 'text' : 'password'"
-              [formControl]="form.controls.password"
-              placeholder="Password"
-              autocomplete="new-password"
+              id="account-first-name"
+              type="text"
+              autocomplete="given-name"
+              [formControl]="form.controls.firstName"
+              placeholder="First Name"
             />
-            <button type="button" (click)="showCreatePassword = !showCreatePassword">
-              {{ showCreatePassword ? 'Hide' : 'Show' }}
-            </button>
           </div>
-          <p class="field-hint">{{ passwordHint }}</p>
-          @if (form.controls.password.touched && form.controls.password.invalid) {
-            <p class="field-error">{{ passwordHint }}</p>
-          }
-          <select [formControl]="form.controls.gender">
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-          <input class="full" type="text" [formControl]="form.controls.address" placeholder="Address" />
+
+          <div class="form-field">
+            <label for="account-last-name">Last Name</label>
+            <input
+              id="account-last-name"
+              type="text"
+              autocomplete="family-name"
+              [formControl]="form.controls.lastName"
+              placeholder="Last Name"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="account-mobile">Mobile</label>
+            <input
+              id="account-mobile"
+              type="tel"
+              autocomplete="tel"
+              [formControl]="form.controls.mobile"
+              placeholder="Mobile"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="account-email">Email</label>
+            <input
+              id="account-email"
+              type="email"
+              autocomplete="email"
+              [formControl]="form.controls.email"
+              placeholder="Email"
+            />
+          </div>
+
+          <div class="form-field password-field">
+            <label for="account-password">Password</label>
+            <div class="password-row">
+              <input
+                id="account-password"
+                [type]="showCreatePassword ? 'text' : 'password'"
+                [formControl]="form.controls.password"
+                placeholder="Password"
+                autocomplete="new-password"
+                aria-describedby="account-password-hint"
+              />
+              <button
+                type="button"
+                [attr.aria-label]="showCreatePassword ? 'Hide password' : 'Show password'"
+                (click)="showCreatePassword = !showCreatePassword"
+              >
+                {{ showCreatePassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            <p class="field-hint" id="account-password-hint">{{ passwordHint }}</p>
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <p class="field-error" role="alert">{{ passwordHint }}</p>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="account-gender">Gender</label>
+            <select id="account-gender" [formControl]="form.controls.gender">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-field full">
+            <label for="account-address">Address</label>
+            <input
+              id="account-address"
+              class="full"
+              type="text"
+              autocomplete="street-address"
+              [formControl]="form.controls.address"
+              placeholder="Address"
+            />
+          </div>
         </div>
 
-        <button type="button" class="primary" [disabled]="saving" (click)="createAccount()">
-          {{ saving ? 'Creating...' : 'Create ' + singularLabel }}
-        </button>
+        <div class="form-actions">
+          <button type="button" class="primary" [disabled]="saving" (click)="createAccount()">
+            {{ saving ? 'Creating...' : 'Create ' + singularLabel }}
+          </button>
+        </div>
       </article>
     </div>
 
-    <article class="card full">
+    <article class="card full directory-card">
       <div class="card-head">
         <div>
           <span class="eyebrow">Records Directory</span>
-          <h4>{{ pageTitle }} List</h4>
+          <h2>{{ pageTitle }} List</h2>
         </div>
       </div>
 
@@ -93,7 +161,7 @@
           <div class="search-input-wrap">
             <input
               id="directory-search"
-              type="text"
+              type="search"
               placeholder="Search by name, email, mobile, or address"
               [value]="searchTerm"
               (input)="searchTerm = $any($event.target).value"
@@ -105,7 +173,7 @@
           </div>
         </div>
 
-        <div class="search-summary">
+        <div class="search-summary" aria-live="polite">
           <strong>{{ filteredAccounts.length }}</strong>
           <span>showing</span>
           <small>out of {{ accounts.length }} total records</small>
@@ -120,12 +188,12 @@
         @for (user of filteredAccounts; track user.id) {
           <article class="record-row">
             <div class="record-primary">
-              <h5 class="name-line">
+              <h3 class="name-line">
                 <span>{{ user.firstName }} {{ user.lastName }}</span>
                 @if (managedRole === 'worker' && hasActiveHireAssignments(user)) {
                   <span class="assigned-pill">Assigned</span>
                 }
-              </h5>
+              </h3>
               <p>ID {{ user.id }}</p>
             </div>
 
@@ -153,6 +221,7 @@
 
               <div class="record-actions">
                 <select
+                  [attr.aria-label]="'Change role for ' + user.firstName + ' ' + user.lastName"
                   [value]="user.role"
                   (change)="updateRole(user, $any($event.target).value)"
                 >
