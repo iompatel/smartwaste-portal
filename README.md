@@ -139,6 +139,12 @@ remove `SEED_ADMIN_PASSWORD` from the environment. Existing data is not overwrit
 The admin deployment must be placed behind Cloudflare Access, Tailscale, a VPN, or another
 identity-aware proxy. A separate Render URL alone is still public.
 
+Cloudflare Access needs a hostname in a zone you control, so it cannot protect a bare
+`*.onrender.com` URL. Until a custom domain exists, the admin backend runs with
+`REQUIRE_CF_ACCESS=false` and is protected only by password auth, the login throttle, and the
+unlisted random-hostname URL. Set it back to `true` (and add `CF_ACCESS_TEAM_DOMAIN` /
+`CF_ACCESS_AUD`) as soon as a domain is available.
+
 ## Private Admin Deployment
 
 1. Deploy `smartwaste-admin-backend` and `smartwaste-admin` from `render.yaml`.
