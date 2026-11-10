@@ -54,4 +54,22 @@ backend/.env
 frontend/node_modules/
 frontend/.angular/
 frontend/dist/
+
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+
+# Agent tooling runtime (regenerable by `npx ruflo init`)
+.claude/
+.claude-flow/
+.swarm/
+.agents/
+*.pid
+*.log
+
+# Local DB dumps (contain user data — never publish)
 /backups/

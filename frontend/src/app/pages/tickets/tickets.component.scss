@@ -1,110 +1,116 @@
 .tickets-page {
   display: grid;
-  gap: 0.85rem;
-
-  h3 {
-    margin: 0;
-    font-size: clamp(1.65rem, 2.8vw, 2.2rem);
-    line-height: 1.03;
-    letter-spacing: -0.04em;
-  }
-
-  p {
-    margin: 0.35rem 0 0;
-    color: var(--text-muted);
-    line-height: 1.68;
-  }
+  gap: 20px;
 }
 
+/* Header sits flat on the page canvas — emphasis via surface change */
 .row {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
   align-items: center;
-  padding: 0.92rem 1.05rem;
-  border-radius: 26px;
-  border: 1px solid var(--glass-border);
-  background: var(--surface);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: saturate(180%) blur(20px);
+
+  h3 {
+    margin: 0;
+    font-size: clamp(22px, 2.5vw, 28px);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    line-height: 1.24;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    line-height: 1.47;
+  }
 }
 
-.primary,
-.outline,
+/* Buttons: tertiary pearl capsule by default, 44px touch target */
 button {
-  border-radius: 999px;
-  padding: 0.7rem 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.primary {
-  background: linear-gradient(180deg, #0a84ff, var(--accent));
-  border-color: var(--accent);
-  color: #fff;
-  box-shadow: 0 14px 28px rgba(0, 113, 227, 0.16);
-}
-
-.outline {
+  border-radius: var(--radius-md);
   background: var(--surface);
+  color: var(--text);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
 }
 
+/* Primary action: solid blue pill */
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.29;
+  border-radius: var(--radius-pill);
+  padding: 11px 22px;
+}
+
+/* Secondary: ghost pill */
+.outline {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+/* Destructive: solid danger pill */
 .danger {
-  background: linear-gradient(180deg, #f45b5b, var(--danger));
-  border-color: var(--danger);
-  color: #fff;
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
 }
 
-.error,
-.loading {
-  border-radius: 22px;
-  padding: 0.84rem 1rem;
-}
-
+/* Utility cards: flat surface, hairline border, 18px radius */
 .form-card,
 .ticket-card {
-  border: 1px solid var(--glass-border);
-  border-radius: 28px;
   background: var(--surface);
-  padding: 1.05rem;
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 24px;
 }
 
 .form-card {
   h4 {
     margin: 0;
-    font-size: 1.3rem;
-    letter-spacing: -0.03em;
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
   }
 
   label {
-    font-size: 0.74rem;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: -0.01em;
   }
 
+  /* Inputs inherit the global pill grammar (44px, 1px hairline, 17px) */
   input,
   select,
   textarea {
     width: 100%;
-    margin-top: 0.38rem;
-    border-radius: 18px;
-    padding: 0.72rem 0.8rem;
-    background: var(--surface-strong);
+    margin-top: 6px;
     color: var(--text);
   }
 
+  textarea {
+    resize: vertical;
+    border-radius: var(--radius-md);
+  }
+
   .grid {
-    margin-top: 0.82rem;
+    margin-top: 16px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.72rem;
+    gap: 16px;
   }
 
   .full {
@@ -112,30 +118,20 @@ button {
   }
 
   .media-row {
-    margin-top: 0.85rem;
+    margin-top: 16px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.7rem;
+    gap: 16px;
     align-items: end;
 
-    div {
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 0.8rem;
-      background: var(--bg);
-    }
-
     input {
-      margin-top: 0.55rem;
+      margin-top: 8px;
     }
 
     .camera-btn {
       width: 100%;
-      margin-top: 0.55rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.55rem;
+      margin-top: 8px;
+      gap: 8px;
     }
 
     .camera-icon {
@@ -153,7 +149,7 @@ button {
         top: 3px;
         width: 6px;
         height: 6px;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 2px solid currentColor;
       }
 
@@ -172,23 +168,24 @@ button {
   }
 
   .form-actions {
-    margin-top: 0.85rem;
+    margin-top: 16px;
     display: flex;
     justify-content: flex-end;
-    gap: 0.6rem;
+    gap: 8px;
   }
 }
 
+/* Ticket photo: radius 11px + the single permitted product drop-shadow */
 .preview {
-  margin-top: 0.72rem;
+  margin-top: 12px;
   width: min(100%, 320px);
-  border-radius: 20px;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-product);
 }
 
 .list {
   display: grid;
-  gap: 0.72rem;
+  gap: 20px;
 }
 
 .ticket-card {
@@ -196,83 +193,83 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.8rem;
-  }
+    gap: 16px;
 
-  h4 {
-    margin: 0;
-    font-size: 1.16rem;
-    letter-spacing: -0.02em;
+    h4 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
   }
 
   p {
-    margin-top: 0.55rem;
-  }
-
-  details {
-    margin-top: 0.88rem;
-
-    summary {
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--accent-deep);
-    }
-
-    iframe {
-      margin-top: 0.68rem;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      width: 100%;
-      height: 220px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    }
+    margin: 8px 0 0;
+    line-height: 1.47;
   }
 
   .actions {
-    margin-top: 0.85rem;
+    margin-top: 16px;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 8px;
   }
 }
 
+/* Camera overlay/modals float above the page: flat card, plain scrim, no blur */
 .camera-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 18, 0.55);
+  background: rgba(0, 0, 0, 0.4);
   display: grid;
   place-items: center;
-  padding: 1.2rem;
+  padding: 20px;
   z-index: 9999;
 }
 
 .camera-modal {
   width: min(96vw, 720px);
-  border-radius: 28px;
-  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-depth);
-  backdrop-filter: saturate(180%) blur(24px);
-  padding: 1rem;
+  padding: 20px;
 }
 
 .camera-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: 16px;
 
   h5 {
     margin: 0;
-    font-size: 1.08rem;
-    letter-spacing: -0.02em;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* Circular 44px utility control */
+  .outline {
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--glass-border);
+    color: var(--text);
+    font-size: 14px;
   }
 }
 
 .camera-video {
   width: 100%;
-  margin-top: 0.85rem;
-  border-radius: 22px;
+  margin-top: 16px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.9);
   aspect-ratio: 16 / 9;
@@ -284,7 +281,7 @@ button {
 }
 
 .camera-actions {
-  margin-top: 0.85rem;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }

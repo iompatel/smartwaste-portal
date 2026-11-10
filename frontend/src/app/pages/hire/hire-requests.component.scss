@@ -1,46 +1,46 @@
 .hire-page {
   display: grid;
-  gap: 0.72rem;
+  gap: 16px;
 
   h3 {
-    margin: 0.35rem 0 0;
-    font-size: clamp(1.8rem, 3.6vw, 2.6rem);
-    line-height: 1;
-    letter-spacing: -0.05em;
+    margin: 4px 0 0;
+    font-size: clamp(24px, 3vw, 28px);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    line-height: 1.24;
   }
 
   p {
-    margin: 0.45rem 0 0;
+    margin: 4px 0 0;
     color: var(--text-muted);
-    line-height: 1.68;
+    line-height: 1.47;
   }
 }
 
 .eyebrow {
   color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
+/* Utility cards: flat surface, hairline border, 18px radius */
 .hero-panel,
 .card {
-  border: 1px solid var(--glass-border);
   background: var(--surface);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 24px;
 }
 
 .hero-panel {
-  border-radius: 24px;
-  padding: 1.2rem;
   display: flex;
   justify-content: space-between;
-  gap: 0.72rem;
+  gap: 16px;
   align-items: flex-start;
 }
 
+/* "Back to Dashboard": secondary ghost pill */
 .hero-actions {
   display: flex;
   align-items: flex-start;
@@ -49,73 +49,45 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.5rem;
-    padding: 0.74rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--bg);
-    color: var(--text);
+    min-height: 44px;
+    padding: 11px 22px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 17px;
+    line-height: 1.29;
     text-decoration: none;
-    font-weight: 600;
+    border-radius: var(--radius-pill);
   }
-}
-
-.error,
-.loading {
-  border-radius: 18px;
-  padding: 0.84rem 1rem;
 }
 
 .card {
-  border-radius: 24px;
-  padding: 1.08rem;
-
   h4 {
-    margin: 0.3rem 0 0;
-    letter-spacing: -0.03em;
+    margin: 4px 0 0;
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
   }
 
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  /* Inputs inherit the global pill grammar (44px, 1px hairline, 17px) */
   input,
   select,
-  textarea,
-  button {
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 0.72rem 0.8rem;
-    font: inherit;
-    background: var(--surface-strong);
+  textarea {
     color: var(--text);
   }
 
   textarea {
     resize: vertical;
-  }
-
-  label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 0.4rem;
-  }
-
-  .primary {
-    background: linear-gradient(180deg, #0a84ff, var(--accent));
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 600;
-    border-radius: 999px;
-    box-shadow: 0 14px 28px rgba(0, 113, 227, 0.16);
-  }
-
-  .danger {
-    background: linear-gradient(180deg, #f45b5b, var(--danger));
-    color: #fff;
-    border-color: var(--danger);
-    cursor: pointer;
-    border-radius: 999px;
+    border-radius: var(--radius-md);
   }
 }
 
@@ -123,23 +95,18 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.8rem;
+  gap: 16px;
 }
 
 .form-grid {
-  margin-top: 0.82rem;
+  margin-top: 16px;
   display: grid;
-  gap: 0.65rem;
+  gap: 16px;
   grid-template-columns: minmax(0, 1fr);
 }
 
 .hire-form {
-  border-radius: 28px;
-  padding: 1.35rem;
-  background: linear-gradient(180deg, var(--surface-strong), var(--surface));
-
   .form-grid {
-    gap: 0.85rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -147,120 +114,77 @@
     grid-column: 1 / -1;
   }
 
-  label {
-    font-size: 0.8rem;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.5rem;
-  }
-
-  input,
   textarea {
-    width: 100%;
-    border-radius: 22px;
-    padding: 1rem 1.15rem;
-    font-size: 1.02rem;
-    background: var(--surface-strong);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  }
-
-  input {
-    min-height: 3.65rem;
-  }
-
-  textarea {
-    min-height: 11rem;
-    line-height: 1.55;
-  }
-
-  input:focus,
-  textarea:focus {
-    outline: none;
-    border-color: rgba(0, 113, 227, 0.28);
-    box-shadow:
-      0 0 0 4px rgba(0, 113, 227, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    min-height: 96px;
+    line-height: 1.47;
   }
 
   .form-actions {
-    margin-top: 1rem;
+    margin-top: 16px;
   }
-
-  .form-actions .primary {
-    min-height: 3.65rem;
-    padding: 0.98rem 1.3rem;
-    font-size: 1.05rem;
-  }
-}
-
-:host-context(.theme-dark) .hire-form {
-  input,
-  textarea {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-}
-
-:host-context(.theme-dark) .record-row {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .form-actions {
-  margin-top: 0.85rem;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
 
+/* Records: one card, rows separated by hairline dividers */
 .records-list {
-  margin-top: 0.82rem;
-  display: grid;
-  gap: 0.62rem;
+  margin-top: 8px;
 }
 
 .record-row {
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--surface);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  padding: 0.9rem;
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr) 240px;
-  gap: 0.8rem;
+  gap: 16px;
   align-items: start;
+}
+
+.record-row:first-child {
+  border-top: none;
 }
 
 .record-primary {
   h5 {
     margin: 0;
-    font-size: 1.02rem;
-    letter-spacing: -0.02em;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   p {
-    margin: 0.35rem 0 0;
-    font-size: 0.82rem;
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--text-muted);
   }
 }
 
 .record-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.6rem;
+  gap: 12px;
 }
 
 .field {
   display: grid;
-  gap: 0.18rem;
+  gap: 2px;
 
   span {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
     color: var(--text-muted);
-    font-weight: 700;
   }
 
   strong {
-    font-size: 0.9rem;
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: -0.01em;
+    line-height: 1.43;
   }
 
   &.full {
@@ -268,27 +192,32 @@
   }
 }
 
+/* Status chip: soft bg + colored text pill */
 .chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 113, 227, 0.2);
-  background: rgba(0, 113, 227, 0.08);
-  padding: 0.35rem 0.65rem;
+  gap: 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   width: fit-content;
 }
 
 .record-side {
   display: grid;
   justify-items: end;
-  gap: 0.6rem;
+  gap: 12px;
 }
 
 .record-actions {
   display: grid;
-  gap: 0.52rem;
+  gap: 8px;
   width: 100%;
 
   select {
@@ -300,41 +229,85 @@
   }
 }
 
+/* Assignment/status meta: flat text block, no nested box */
 .user-meta,
 .worker-meta {
   width: 100%;
-  padding: 0.7rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--surface);
   display: grid;
-  gap: 0.22rem;
+  gap: 2px;
   text-align: right;
 
   span {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
     color: var(--text-muted);
-    font-weight: 700;
   }
 
   strong {
-    font-size: 0.92rem;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   small {
+    font-size: 14px;
     color: var(--text-muted);
   }
 }
 
+/* All cards' buttons: 44px pill targets */
+.card button,
+.record-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* "Directions": secondary ghost pill */
+.record-row button:not(.primary):not(.danger) {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+/* Primary action: solid blue pill */
+.card .primary,
+.record-row .primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.29;
+  border-radius: var(--radius-pill);
+  padding: 11px 22px;
+}
+
+/* Destructive: solid danger pill */
+.card .danger,
+.record-row .danger {
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
 .empty-state {
-  margin: 0;
-  padding: 1rem;
-  border: 1px dashed var(--border);
-  border-radius: 22px;
+  margin: 8px 0 0;
+  padding: 16px 0;
   color: var(--text-muted);
   text-align: center;
+  font-size: 14px;
 }
 
 @media (max-width: 980px) {
@@ -352,6 +325,11 @@
 
   .record-side {
     justify-items: start;
+  }
+
+  .record-actions,
+  .record-row button {
+    width: auto;
   }
 
   .user-meta,

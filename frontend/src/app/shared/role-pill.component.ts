@@ -13,26 +13,23 @@ import { UserRole } from '../models/types';
       .pill {
         text-transform: capitalize;
         border: 1px solid transparent;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         padding: 0.32rem 0.72rem;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
       .admin {
-        background: rgba(216, 67, 67, 0.1);
-        border-color: rgba(216, 67, 67, 0.14);
-        color: #a92a2a;
+        background: var(--danger-soft);
+        color: var(--danger);
       }
       .worker {
-        background: rgba(0, 113, 227, 0.1);
-        border-color: rgba(0, 113, 227, 0.14);
+        background: var(--accent-soft);
         color: var(--accent-deep);
       }
       .user {
-        background: rgba(52, 199, 89, 0.1);
-        border-color: rgba(52, 199, 89, 0.14);
-        color: #19713a;
+        background: var(--success-soft);
+        color: var(--success);
       }
     `,
   ],

@@ -2,63 +2,95 @@
   display: grid;
 }
 
+/* Utility card: flat surface, hairline border, 18px radius, no shadow */
 .card {
-  border: 1px solid var(--glass-border);
-  border-radius: 28px;
   background: var(--surface);
-  padding: 1.05rem;
-  display: grid;
-  gap: 1rem;
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 24px;
 
   h3 {
     margin: 0;
-    font-size: clamp(1.65rem, 2.8vw, 2.1rem);
-    letter-spacing: -0.04em;
-  }
-
-  p {
-    margin: 0.4rem 0 0;
-    color: var(--text-muted);
-    line-height: 1.64;
-  }
-}
-
-.row {
-  border: 1px solid var(--border);
-  border-radius: 26px;
-  padding: 0.9rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  background: var(--surface);
-
-  h4 {
-    margin: 0;
+    font-size: clamp(24px, 3vw, 28px);
+    line-height: 1.19;
     letter-spacing: -0.02em;
   }
 
-  button {
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--bg);
-    color: var(--text);
-    padding: 0.7rem 0.95rem;
-    cursor: pointer;
-    font-weight: 600;
+  > p {
+    margin: 6px 0 8px;
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1.47;
   }
 }
 
-.danger-row {
-  border-color: rgba(216, 67, 67, 0.16);
+/* Rows inside the card separate with hairlines */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
 }
 
-button.danger {
-  border-color: var(--danger);
-  background: linear-gradient(180deg, #f45b5b, var(--danger));
-  color: #fff;
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.row h4 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.row p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.43;
+}
+
+/* Primary: solid blue pill */
+.btn-primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  padding: 11px 22px;
+  font-size: 17px;
+  min-height: 44px;
+}
+
+/* Destructive: filled soft danger pill */
+.row button.danger {
+  background: var(--danger-soft);
+  border: 1px solid transparent;
+  color: var(--danger);
+  border-radius: var(--radius-pill);
+  padding: 11px 22px;
+  font-size: 17px;
+  min-height: 44px;
+}
+
+/* Theme toggle: two pill chips; selected gets the 2px Focus Blue ring */
+.theme-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-chip {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.theme-chip.selected {
+  border: 2px solid var(--accent-focus);
 }
 
 @media (max-width: 860px) {

@@ -64,7 +64,7 @@
               }
 
               @for (item of notifications; track item.id) {
-                <li>
+                <li class="notification-row">
                   <button type="button" class="notification-item" (click)="markNotificationRead(item.id)">
                     <strong>{{ item.title }}</strong>
                     <p>{{ item.message }}</p>

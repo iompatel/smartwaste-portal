@@ -8,7 +8,24 @@
         <h4>Theme Mode</h4>
         <p>Current theme: {{ currentTheme }}</p>
       </div>
-      <button type="button" (click)="toggleTheme()">Toggle Theme</button>
+      <div class="theme-toggle">
+        <button
+          type="button"
+          class="theme-chip"
+          [class.selected]="currentTheme === 'light'"
+          (click)="currentTheme !== 'light' ? toggleTheme() : null"
+        >
+          Light
+        </button>
+        <button
+          type="button"
+          class="theme-chip"
+          [class.selected]="currentTheme === 'dark'"
+          (click)="currentTheme !== 'dark' ? toggleTheme() : null"
+        >
+          Dark
+        </button>
+      </div>
     </div>
 
     <div class="row">
@@ -16,7 +33,9 @@
         <h4>Browser Notifications</h4>
         <p>Permission: {{ notificationPermission }}</p>
       </div>
-      <button type="button" (click)="enableNotifications()">Enable Notifications</button>
+      <button type="button" class="btn-primary" (click)="enableNotifications()">
+        Enable Notifications
+      </button>
     </div>
 
     <div class="row danger-row">

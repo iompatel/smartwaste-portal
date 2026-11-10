@@ -14,31 +14,31 @@ import { Component, Input } from '@angular/core';
     `
       .card {
         background: var(--surface);
-        border: 1px solid var(--glass-border);
-        border-radius: 24px;
-        padding: 0.92rem;
-        box-shadow: var(--shadow-soft);
-        backdrop-filter: blur(18px);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        backdrop-filter: none;
+        box-shadow: none;
       }
       .label {
         margin: 0;
         color: var(--text-muted);
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
       }
       h3 {
-        margin: 0.48rem 0 0;
-        font-size: 1.95rem;
-        line-height: 1;
-        letter-spacing: -0.05em;
+        margin: 6px 0 0;
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.14;
+        letter-spacing: -0.012em;
       }
       .hint {
-        margin: 0.38rem 0 0;
+        margin: 6px 0 0;
         color: var(--text-muted);
-        font-size: 0.76rem;
-        line-height: 1.5;
+        font-size: 12px;
+        line-height: 1.43;
       }
     `,
   ],
