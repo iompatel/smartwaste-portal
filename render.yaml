@@ -106,7 +106,7 @@ services:
         value: noindex, nofollow, noarchive
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://smartwaste-admin-backend.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://admin-api.smartwaste.dpdns.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: no-referrer
@@ -131,4 +131,4 @@ services:
         destination: /index.html
     envVars:
       - key: API_BASE_URL
-        value: https://smartwaste-admin-backend.onrender.com/api
+        value: https://admin-api.smartwaste.dpdns.org/api
