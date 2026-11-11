@@ -17,6 +17,7 @@ import {
   PASSWORD_POLICY_MESSAGE,
   canUseLoginPortal,
   isStrongPassword,
+  tokenVersionMatches,
 } from './auth-policy.js';
 import {
   adminCookieName,
@@ -122,6 +123,7 @@ function sanitizeUser(user) {
 
   const safe = cleanRecord(user);
   delete safe.passwordHash;
+  delete safe.tokenVersion;
   return safe;
 }
 
@@ -131,6 +133,7 @@ function generateToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
+      tokenVersion: Number(user.tokenVersion ?? 0),
     },
     JWT_SECRET,
     { expiresIn: '7d' },
@@ -182,6 +185,7 @@ const userSchema = new mongoose.Schema(
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     lastLoginAt: { type: Date, default: null },
+    tokenVersion: { type: Number, default: 0 },
   },
   { versionKey: false, collection: 'users' },
 );
@@ -926,6 +930,10 @@ async function authMiddleware(req, res, next) {
     const user = await User.findOne({ id: payload.id }).lean();
 
     if (!user) {
+      return res.status(401).json({ message: 'Invalid auth token' });
+    }
+
+    if (!tokenVersionMatches(payload, user)) {
       return res.status(401).json({ message: 'Invalid auth token' });
     }
 

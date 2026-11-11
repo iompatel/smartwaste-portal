@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canUseLoginPortal, isStrongPassword } from '../src/auth-policy.js';
+import { canUseLoginPortal, isStrongPassword, tokenVersionMatches } from '../src/auth-policy.js';
 
 test('password policy requires length, uppercase, and a special character', () => {
   assert.equal(isStrongPassword('Strong#Pass9'), true);
@@ -19,4 +19,11 @@ test('each login portal accepts only its intended role', () => {
   assert.equal(canUseLoginPortal('user', 'worker'), false);
   assert.equal(canUseLoginPortal('worker', 'admin'), false);
   assert.equal(canUseLoginPortal('user', 'unknown'), false);
+});
+
+test('token versions revoke old sessions without invalidating legacy version-zero tokens', () => {
+  assert.equal(tokenVersionMatches({}, {}), true);
+  assert.equal(tokenVersionMatches({ tokenVersion: 0 }, { tokenVersion: 0 }), true);
+  assert.equal(tokenVersionMatches({}, { tokenVersion: 1 }), false);
+  assert.equal(tokenVersionMatches({ tokenVersion: 1 }, { tokenVersion: 1 }), true);
 });

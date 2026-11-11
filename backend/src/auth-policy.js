@@ -14,3 +14,7 @@ export function canUseLoginPortal(role, portal) {
 
   return roleByPortal[portal] === role;
 }
+
+export function tokenVersionMatches(payload, user) {
+  return Number(payload?.tokenVersion ?? 0) === Number(user?.tokenVersion ?? 0);
+}
