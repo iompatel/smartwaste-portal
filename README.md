@@ -201,3 +201,9 @@ Workers cannot sign up from the public portal. An administrator creates worker a
 The Worker Console is a separate Angular deployment but reuses the public API. Set the public
 backend's `WORKER_FRONTEND_URL=https://worker.smartwaste.dpdns.org` so browser requests from the
 worker origin pass CORS. The public frontend deliberately has no worker-login route or link.
+
+Render's card-free account tier permits only two custom domains, already used by the admin app and
+API. The worker hostname therefore uses the free `cloudflare/worker-portal` proxy: create a proxied
+`worker` CNAME pointing to `smartwaste-worker.onrender.com`, then deploy it with
+`cd cloudflare/worker-portal && npx wrangler deploy`. This proxy has no edge password; each worker
+authenticates with the account created for them by an administrator.
