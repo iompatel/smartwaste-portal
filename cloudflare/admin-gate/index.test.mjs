@@ -27,6 +27,12 @@ test('keeps the Basic credential at the edge', async () => {
   };
 
   try {
+    const misconfigured = await worker.fetch(
+      new Request('https://admin.smartwaste.dpdns.org/api/health'),
+      { BASIC_USER: 'admin' },
+    );
+    assert.equal(misconfigured.status, 503);
+
     const unauthorized = await worker.fetch(
       new Request('https://admin.smartwaste.dpdns.org/api/health'),
       { BASIC_USER: 'admin', BASIC_PASS: 'secret', EDGE_SECRET: 'edge' },

@@ -28,6 +28,9 @@ export default {
     const url = new URL(request.url);
     const origin = originFor(url);
     if (!origin) return new Response('Not found', { status: 404 });
+    if (!env.BASIC_USER || !env.BASIC_PASS || !env.EDGE_SECRET) {
+      return new Response('Admin gate is not configured', { status: 503 });
+    }
 
     // CORS preflights carry no credentials and no data.
     if (request.method !== 'OPTIONS') {
