@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,9 +29,9 @@ if (serviceAccountJson || serviceAccountBase64 || fs.existsSync(serviceAccountPa
       serviceAccount = JSON.parse(raw);
     }
 
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert(serviceAccount),
       });
     }
 
@@ -49,7 +50,7 @@ export async function verifyFirebaseIdToken(idToken) {
     throw new Error('Firebase Admin is not configured.');
   }
 
-  return admin.auth().verifyIdToken(idToken);
+  return getAuth().verifyIdToken(idToken);
 }
 
 export async function getFirebaseUserByEmail(email) {
@@ -58,7 +59,7 @@ export async function getFirebaseUserByEmail(email) {
   }
 
   try {
-    return await admin.auth().getUserByEmail(email);
+    return await getAuth().getUserByEmail(email);
   } catch (error) {
     if (error?.code === 'auth/user-not-found') {
       return null;
@@ -72,7 +73,7 @@ export async function createFirebaseUser({ email, password, displayName }) {
     throw new Error('Firebase Admin is not configured.');
   }
 
-  return admin.auth().createUser({
+  return getAuth().createUser({
     email,
     password,
     displayName,
