@@ -149,9 +149,10 @@ remove `SEED_ADMIN_PASSWORD` from the environment. Existing data is not overwrit
 The admin deployment must be placed behind Cloudflare Access, Tailscale, a VPN, or another
 identity-aware proxy. A separate Render URL alone is still public.
 
-The reference deployment uses `smartwaste.dpdns.org`: `admin.smartwaste.dpdns.org` for the console
-and `admin-api.smartwaste.dpdns.org` for its backend. Both are proxied by Cloudflare and fronted by
-`cloudflare/admin-gate`, a Worker that requires HTTP Basic auth before forwarding to Render. The
+The reference deployment uses `smartwaste.dpdns.org`: `admin.smartwaste.dpdns.org` serves the
+console and proxies `/api/*` to the admin backend on the same authenticated hostname.
+`admin-api.smartwaste.dpdns.org` remains available for diagnostics. Both are proxied by Cloudflare
+and fronted by `cloudflare/admin-gate`, a Worker that requires HTTP Basic auth before forwarding. The
 backend therefore runs with `REQUIRE_CF_ACCESS=false`; its own session auth and login throttle stay
 in force behind the gate. If Cloudflare Access becomes available (it needs a payment method on the
 free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`, and add
@@ -160,7 +161,7 @@ free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`,
 ## Private Admin Deployment
 
 1. Deploy `smartwaste-admin-backend` and `smartwaste-admin` from `render.yaml`.
-2. Point the admin app's `API_BASE_URL` to the admin backend, and set that backend's
+2. Point the admin app's `API_BASE_URL` to `https://admin.example.com/api`, and set the backend's
    `ADMIN_FRONTEND_URL` to the exact admin-app origin.
 3. Give public and admin backends the same `MONGO_URI`. Their `SERVICE_MODE` values are pinned to
    `public` and `admin` in `render.yaml`.
@@ -180,8 +181,8 @@ free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`,
    the Worker routes, and remove `ADMIN_EDGE_SECRET_HASH`. The backend verifies Cloudflare's signed
    assertion, so its direct Render origin cannot bypass Access.
 
-Using `app.example.com`, `api.example.com`, `admin.example.com`, and `admin-api.example.com` under
-one parent domain avoids third-party-cookie restrictions. Replace the `dpdns.org` hostnames in
+Using `app.example.com`, `api.example.com`, and `admin.example.com` under one parent domain avoids
+third-party-cookie restrictions. Replace the `dpdns.org` hostnames in
 `cloudflare/admin-gate/wrangler.toml`, the admin backend's `ADMIN_FRONTEND_URL`, and the admin
 service's `API_BASE_URL` + Content Security Policy together. If the admin-backend hostname changes,
 also update the admin service's Content Security Policy in `render.yaml`.

@@ -1,7 +1,16 @@
-const ORIGINS = {
-  'admin.smartwaste.dpdns.org': 'https://smartwaste-admin.onrender.com',
-  'admin-api.smartwaste.dpdns.org': 'https://smartwaste-admin-backend.onrender.com',
-};
+const ADMIN_HOST = 'admin.smartwaste.dpdns.org';
+const ADMIN_API_HOST = 'admin-api.smartwaste.dpdns.org';
+const ADMIN_ORIGIN = 'https://smartwaste-admin.onrender.com';
+const ADMIN_API_ORIGIN = 'https://smartwaste-admin-backend.onrender.com';
+
+export function originFor(url) {
+  if (url.hostname === ADMIN_HOST) {
+    return url.pathname === '/api' || url.pathname.startsWith('/api/')
+      ? ADMIN_API_ORIGIN
+      : ADMIN_ORIGIN;
+  }
+  return url.hostname === ADMIN_API_HOST ? ADMIN_API_ORIGIN : null;
+}
 
 function timingSafeEqual(a, b) {
   const x = new TextEncoder().encode(a);
@@ -17,7 +26,7 @@ function timingSafeEqual(a, b) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const origin = ORIGINS[url.hostname];
+    const origin = originFor(url);
     if (!origin) return new Response('Not found', { status: 404 });
 
     // CORS preflights carry no credentials and no data.
