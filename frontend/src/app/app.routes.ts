@@ -14,12 +14,6 @@ import { ShellComponent } from './shell/shell.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
-  {
-    path: 'worker-console',
-    pathMatch: 'full',
-    loadComponent: () =>
-      import('./pages/auth/worker-login.component').then((module) => module.WorkerLoginComponent),
-  },
   { path: 'signup', component: SignupComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   {

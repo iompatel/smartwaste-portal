@@ -1,12 +1,12 @@
 # Smart Waste Management System (Web Portal)
 
 This project is a complete **web portal** implementation with:
-- Separate public and private-admin Angular builds (`frontend/`)
+- Separate public, worker, and private-admin Angular builds (`frontend/`)
 - Node.js + Express + MongoDB backend (`backend/`)
 
 ## Current Portal Features
 
-- Public User/Worker portal and separately deployed private Admin Console
+- Public user portal, separately deployed Worker Console, and private Admin Console
 - Firebase email-password + Google login bridge for public user accounts
 - Role-based dashboards (Admin, Worker, User)
 - Named routes with route guards
@@ -96,10 +96,19 @@ npm run start:admin
 
 Admin runs on `http://localhost:4300`.
 
+Run the worker build separately:
+
+```bash
+cd frontend
+npm run start:worker
+```
+
+Worker Console runs on `http://localhost:4400`.
+
 Login routes:
 
 - User: `http://localhost:4200/login`
-- Worker: `http://localhost:4200/worker-console`
+- Worker: `http://localhost:4400/worker-console`
 - Admin: `http://localhost:4300/admin-console`
 
 ## Build Frontend
@@ -108,6 +117,7 @@ Login routes:
 cd frontend
 npm run build
 npm run build:admin
+npm run build:worker
 ```
 
 ## API Quick Check
@@ -183,3 +193,11 @@ accepts no public or worker bearer tokens.
 
 Passwords created through signup or admin account management require at least 8 characters, one
 uppercase letter, and one special character.
+
+## Worker Portal Deployment
+
+Workers cannot sign up from the public portal. An administrator creates worker accounts in
+**Admin Console → Workers**, and workers sign in only at `https://worker.smartwaste.dpdns.org`.
+The Worker Console is a separate Angular deployment but reuses the public API. Set the public
+backend's `WORKER_FRONTEND_URL=https://worker.smartwaste.dpdns.org` so browser requests from the
+worker origin pass CORS. The public frontend deliberately has no worker-login route or link.

@@ -5,8 +5,10 @@
     "ng": "ng",
     "start": "ng serve frontend",
     "start:admin": "ng serve admin --port 4300",
+    "start:worker": "ng serve worker --port 4400",
     "build": "node scripts/generate-runtime-config.mjs && ng build frontend",
     "build:admin": "node scripts/generate-runtime-config.mjs && ng build admin",
+    "build:worker": "node scripts/generate-runtime-config.mjs && ng build worker",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

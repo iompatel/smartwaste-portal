@@ -777,6 +777,7 @@ if (IS_PRODUCTION && ADMIN_AUTH_ENABLED && REQUIRE_CF_ACCESS) {
 const allowedOrigins = new Set(
   [
     PUBLIC_AUTH_ENABLED ? process.env.PUBLIC_FRONTEND_URL : null,
+    PUBLIC_AUTH_ENABLED ? process.env.WORKER_FRONTEND_URL : null,
     ADMIN_AUTH_ENABLED ? process.env.ADMIN_FRONTEND_URL : null,
   ]
     .flatMap((value) => String(value ?? '').split(','))
@@ -786,6 +787,7 @@ const allowedOrigins = new Set(
 if (!IS_PRODUCTION) {
   allowedOrigins.add('http://localhost:4200');
   allowedOrigins.add('http://localhost:4300');
+  allowedOrigins.add('http://localhost:4400');
 }
 
 app.use((req, res, next) => {

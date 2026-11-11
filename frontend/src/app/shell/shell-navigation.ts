@@ -10,11 +10,11 @@ export interface ShellNavItem {
 }
 
 export const PUBLIC_SHELL_NAVIGATION: ShellNavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', roles: ['worker', 'user'] },
-  { label: 'Tickets', path: '/tickets', roles: ['worker', 'user'] },
-  { label: 'Hire Worker', path: '/hire-worker', roles: ['worker', 'user'] },
-  { label: 'Profile', path: '/profile', roles: ['worker', 'user'] },
-  { label: 'Settings', path: '/settings', roles: ['worker', 'user'] },
+  { label: 'Dashboard', path: '/dashboard', roles: ['user'] },
+  { label: 'Tickets', path: '/tickets', roles: ['user'] },
+  { label: 'Hire Worker', path: '/hire-worker', roles: ['user'] },
+  { label: 'Profile', path: '/profile', roles: ['user'] },
+  { label: 'Settings', path: '/settings', roles: ['user'] },
 ];
 
 export const SHELL_NAVIGATION = new InjectionToken<ShellNavItem[]>('SHELL_NAVIGATION', {

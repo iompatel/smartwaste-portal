@@ -1,17 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
-import { APP_TITLE } from '../../core/constants';
-import { AuthService } from '../../services/auth.service';
+import { APP_TITLE } from '../app/core/constants';
+import { AuthService } from '../app/services/auth.service';
 
 @Component({
-  selector: 'app-worker-login',
+  selector: 'worker-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './worker-login.component.html',
-  styleUrl: './auth.component.scss',
+  styleUrl: '../app/pages/auth/auth.component.scss',
 })
 export class WorkerLoginComponent {
   private readonly fb = inject(FormBuilder);
