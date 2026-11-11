@@ -51,7 +51,8 @@ services:
       - key: ADMIN_SESSION_TTL_MINUTES
         value: "30"
       - key: REQUIRE_CF_ACCESS
-        value: "true"
+        # The reference deployment uses the Worker gate in cloudflare/admin-gate.
+        value: "false"
       - key: CF_ACCESS_TEAM_DOMAIN
         sync: false
       - key: CF_ACCESS_AUD

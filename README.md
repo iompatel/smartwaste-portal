@@ -139,11 +139,13 @@ remove `SEED_ADMIN_PASSWORD` from the environment. Existing data is not overwrit
 The admin deployment must be placed behind Cloudflare Access, Tailscale, a VPN, or another
 identity-aware proxy. A separate Render URL alone is still public.
 
-Cloudflare Access needs a hostname in a zone you control, so it cannot protect a bare
-`*.onrender.com` URL. Until a custom domain exists, the admin backend runs with
-`REQUIRE_CF_ACCESS=false` and is protected only by password auth, the login throttle, and the
-unlisted random-hostname URL. Set it back to `true` (and add `CF_ACCESS_TEAM_DOMAIN` /
-`CF_ACCESS_AUD`) as soon as a domain is available.
+The reference deployment uses `smartwaste.dpdns.org`: `admin.smartwaste.dpdns.org` for the console
+and `admin-api.smartwaste.dpdns.org` for its backend. Both are proxied by Cloudflare and fronted by
+`cloudflare/admin-gate`, a Worker that requires HTTP Basic auth before forwarding to Render. The
+backend therefore runs with `REQUIRE_CF_ACCESS=false`; its own session auth and login throttle stay
+in force behind the gate. If Cloudflare Access becomes available (it needs a payment method on the
+free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`, and add
+`CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD`.
 
 ## Private Admin Deployment
 
@@ -155,12 +157,19 @@ unlisted random-hostname URL. Set it back to `true` (and add `CF_ACCESS_TEAM_DOM
 4. Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` on the admin backend for its first
    startup.
 5. Confirm the admin account exists, then remove `SEED_ADMIN_PASSWORD` from Render.
-6. Create Cloudflare Access applications for both admin hostnames with MFA. Set the admin backend's
-   `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` values from that Access application. The backend
-   verifies Cloudflare's signed assertion, so its direct Render origin cannot bypass Access.
+6. Gate the admin hostnames at the edge. Both are proxied records in Cloudflare; deploy the Worker
+   with `cd cloudflare/admin-gate && npx wrangler deploy`, then set its password with
+   `npx wrangler secret put BASIC_PASS`. The Worker routes must match the custom domains, and it
+   strips the Basic credential before forwarding to Render.
+   To use Cloudflare Access instead, create one Access application for both hostnames with MFA,
+   set the backend's `REQUIRE_CF_ACCESS=true`, `CF_ACCESS_TEAM_DOMAIN`, and `CF_ACCESS_AUD`, and
+   remove the Worker routes. The backend verifies Cloudflare's signed assertion, so its direct
+   Render origin cannot bypass Access.
 
 Using `app.example.com`, `api.example.com`, `admin.example.com`, and `admin-api.example.com` under
-one parent domain avoids third-party-cookie restrictions. If the admin-backend hostname changes,
+one parent domain avoids third-party-cookie restrictions. Replace the `dpdns.org` hostnames in
+`cloudflare/admin-gate/wrangler.toml`, the admin backend's `ADMIN_FRONTEND_URL`, and the admin
+service's `API_BASE_URL` + Content Security Policy together. If the admin-backend hostname changes,
 also update the admin service's Content Security Policy in `render.yaml`.
 
 MongoDB creates the `admin_sessions` collection and its expiry index automatically. The migration

@@ -1,0 +1,13 @@
+name = "smartwaste-admin-gate"
+main = "index.js"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+# Keep in sync with the custom domains of the two admin Render services.
+routes = [
+  { pattern = "admin.smartwaste.dpdns.org/*", zone_name = "smartwaste.dpdns.org" },
+  { pattern = "admin-api.smartwaste.dpdns.org/*", zone_name = "smartwaste.dpdns.org" },
+]
+
+[vars]
+BASIC_USER = "admin"

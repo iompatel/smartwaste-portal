@@ -73,3 +73,5 @@ frontend/dist/
 
 # Local DB dumps (contain user data — never publish)
 /backups/
+
+.wrangler/
