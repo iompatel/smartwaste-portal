@@ -46,6 +46,9 @@ const CF_ACCESS_TEAM_DOMAIN = String(process.env.CF_ACCESS_TEAM_DOMAIN ?? '').re
 const CF_ACCESS_AUD = String(process.env.CF_ACCESS_AUD ?? '');
 const ADMIN_SESSION_TTL_MS = adminSessionTtlMs(process.env.ADMIN_SESSION_TTL_MINUTES);
 const ADMIN_SESSION_COOKIE = adminCookieName(IS_PRODUCTION);
+// SHA-256 of the header value that only the Cloudflare edge gate can add. When
+// set, direct hits on the Render origin are rejected even if the host is known.
+const ADMIN_EDGE_SECRET_HASH = String(process.env.ADMIN_EDGE_SECRET_HASH ?? '');
 const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL ?? 'admin@smartwaste.com');
 const SEED_ADMIN_PASSWORD = String(process.env.SEED_ADMIN_PASSWORD ?? '');
 const SEED_DEMO_USERS = process.env.SEED_DEMO_USERS === 'true' || !IS_PRODUCTION;
@@ -789,6 +792,18 @@ app.use((req, res, next) => {
   const origin = String(req.headers.origin ?? '').replace(/\/$/, '');
   if (origin && !allowedOrigins.has(origin)) {
     return res.status(403).json({ message: 'Origin is not allowed.' });
+  }
+  return next();
+});
+app.use((req, res, next) => {
+  if (!ADMIN_EDGE_SECRET_HASH || !ADMIN_AUTH_ENABLED || !IS_PRODUCTION) {
+    return next();
+  }
+  if (req.path === '/api/health') {
+    return next();
+  }
+  if (!matchesAdminSecret(req.get('X-Admin-Edge') ?? '', ADMIN_EDGE_SECRET_HASH)) {
+    return res.status(404).json({ message: 'Not found.' });
   }
   return next();
 });

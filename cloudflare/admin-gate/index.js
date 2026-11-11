@@ -38,6 +38,8 @@ export default {
     // The Basic credential is for the edge only; never forward it to Render.
     const headers = new Headers(request.headers);
     headers.delete('Authorization');
+    // Proves to the admin backend that this request came through the gate.
+    if (env.EDGE_SECRET) headers.set('X-Admin-Edge', env.EDGE_SECRET);
     return fetch(
       new Request(origin + url.pathname + url.search, {
         method: request.method,

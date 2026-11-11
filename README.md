@@ -158,13 +158,17 @@ free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`,
    startup.
 5. Confirm the admin account exists, then remove `SEED_ADMIN_PASSWORD` from Render.
 6. Gate the admin hostnames at the edge. Both are proxied records in Cloudflare; deploy the Worker
-   with `cd cloudflare/admin-gate && npx wrangler deploy`, then set its password with
-   `npx wrangler secret put BASIC_PASS`. The Worker routes must match the custom domains, and it
-   strips the Basic credential before forwarding to Render.
+   with `cd cloudflare/admin-gate && npx wrangler deploy`, then set its secrets with
+   `npx wrangler secret put BASIC_PASS` and `npx wrangler secret put EDGE_SECRET` (use
+   `openssl rand -base64 32`). The Worker routes must match the custom domains, and it strips the
+   Basic credential before forwarding to Render.
+   To make the Render origin unusable directly, also set `ADMIN_EDGE_SECRET_HASH` on the admin
+   backend to the SHA-256 hex of the same `EDGE_SECRET` value. The backend then returns 404 for any
+   request that did not come through the Worker (`/api/health` stays open for health checks).
    To use Cloudflare Access instead, create one Access application for both hostnames with MFA,
-   set the backend's `REQUIRE_CF_ACCESS=true`, `CF_ACCESS_TEAM_DOMAIN`, and `CF_ACCESS_AUD`, and
-   remove the Worker routes. The backend verifies Cloudflare's signed assertion, so its direct
-   Render origin cannot bypass Access.
+   set the backend's `REQUIRE_CF_ACCESS=true`, `CF_ACCESS_TEAM_DOMAIN`, and `CF_ACCESS_AUD`, remove
+   the Worker routes, and remove `ADMIN_EDGE_SECRET_HASH`. The backend verifies Cloudflare's signed
+   assertion, so its direct Render origin cannot bypass Access.
 
 Using `app.example.com`, `api.example.com`, `admin.example.com`, and `admin-api.example.com` under
 one parent domain avoids third-party-cookie restrictions. Replace the `dpdns.org` hostnames in
