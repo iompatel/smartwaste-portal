@@ -112,8 +112,6 @@ body {
   background: var(--bg) linear-gradient(180deg, var(--bg-start), var(--bg-end) 100vh) no-repeat;
   color: var(--text);
   font-family:
-    -apple-system,
-    BlinkMacSystemFont,
     'Inter',
     system-ui,
     'Helvetica Neue',
@@ -129,7 +127,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Display type: weight 600 with Apple-tight tracking */
+/* Display type: weight 600 with tight tracking */
 h1,
 h2,
 h3,

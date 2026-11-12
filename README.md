@@ -23,7 +23,7 @@ This project is a complete **web portal** implementation with:
 - Camera / Gallery upload support for tickets
 - Location integration + Google Maps preview / tracking
 - Browser notifications integration
-- Apple-inspired design system across auth, shell, dashboard, admin, and ticket flows
+- Environmental operations design system (forest/teal/lime) across auth, shell, dashboard, admin, and ticket flows
 
 ## Tech Stack
 

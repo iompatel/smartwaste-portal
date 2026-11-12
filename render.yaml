@@ -77,7 +77,7 @@ services:
     headers:
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com https://*.googleapis.com https://apis.google.com https://accounts.google.com; frame-src https://smartwaste-98f9a.firebaseapp.com https://accounts.google.com https://www.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com https://*.googleapis.com https://apis.google.com https://accounts.google.com; frame-src https://smartwaste-98f9a.firebaseapp.com https://accounts.google.com https://www.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
@@ -120,7 +120,7 @@ services:
         value: noindex, nofollow, noarchive
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: no-referrer
@@ -160,7 +160,7 @@ services:
         value: noindex, nofollow, noarchive
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src https://www.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src https://www.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: no-referrer
