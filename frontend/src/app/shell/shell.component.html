@@ -1,37 +1,39 @@
 <div class="layout-shell">
-  <header class="global-nav">
+  <header class="global-nav" role="banner">
     <div class="global-nav-inner">
-      <details class="mobile-nav">
-        <summary aria-label="Navigation menu">
-          <span class="menu-glyph" aria-hidden="true">☰</span>
-        </summary>
+      <button
+        class="mobile-menu-btn"
+        (click)="mobileMenuOpen = !mobileMenuOpen"
+        aria-label="Toggle navigation menu"
+        aria-expanded="{{ mobileMenuOpen }}"
+        aria-controls="mobile-nav-menu"
+      >
+        <span class="menu-icon" [innerHTML]="mobileMenuOpen ? closeIcon : menuIcon"></span>
+      </button>
 
-        <nav class="mobile-nav-menu" aria-label="Mobile primary navigation">
-          @for (item of navItems; track item.label + ':' + item.path) {
-            @if (canShow(item.roles)) {
-              <a
-                [routerLink]="item.path"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-                ariaCurrentWhenActive="page"
-              >
-                {{ navLabel(item) }}
-              </a>
-            }
-          }
-        </nav>
-      </details>
-
-      <span class="global-brand">{{ title }}</span>
+      <a routerLink="/dashboard" class="global-brand" aria-label="SmartWaste Home">
+        <svg class="brand-icon" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+          <defs>
+            <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#10B981;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" rx="20" fill="url(#brandGrad)"/>
+          <path d="M30 50 L45 65 L70 35" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.95"/>
+        </svg>
+        <span class="brand-text">SmartWaste</span>
+      </a>
 
       <nav class="desktop-nav" aria-label="Primary navigation">
-        @for (item of navItems; track item.label + ':' + item.path) {
+        @for (item of navItems; track item.path) {
           @if (canShow(item.roles)) {
             <a
               [routerLink]="item.path"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
               ariaCurrentWhenActive="page"
+              class="nav-link"
             >
               {{ navLabel(item) }}
             </a>
@@ -40,131 +42,218 @@
       </nav>
 
       <div class="global-utility">
-        @if (user) {
-          <span class="global-user">{{ user.firstName }} {{ user.lastName }}</span>
+        @if (user()) {
+          <app-avatar
+            [src]="user()?.profileImage || ''"
+            [name]="(user()?.firstName || '') + ' ' + (user()?.lastName || '')"
+            [size]="'sm'"
+            class="user-avatar"
+          ></app-avatar>
         }
-        <button type="button" class="global-logout" (click)="logout()">Logout</button>
+        <button type="button" class="btn btn-ghost global-logout" (click)="logout()" aria-label="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span class="logout-text">Logout</span>
+        </button>
       </div>
     </div>
+
+    @if (mobileMenuOpen) {
+      <div class="mobile-nav-backdrop" (click)="mobileMenuOpen = false" aria-hidden="true"></div>
+      <nav id="mobile-nav-menu" class="mobile-nav-menu" aria-label="Mobile navigation">
+        @for (item of navItems; track item.path) {
+          @if (canShow(item.roles)) {
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+              ariaCurrentWhenActive="page"
+              class="mobile-nav-link"
+              (click)="mobileMenuOpen = false"
+            >
+              {{ navLabel(item) }}
+            </a>
+          }
+        }
+        @if (user()) {
+          <div class="mobile-nav-divider"></div>
+          <div class="mobile-user-info">
+            <app-avatar [src]="user()?.profileImage || ''" [name]="(user()?.firstName || '') + ' ' + (user()?.lastName || '')" [size]="'md'"></app-avatar>
+            <div class="mobile-user-details">
+              <strong>{{ user()?.firstName }} {{ user()?.lastName }}</strong>
+              <small>{{ user()?.role }}</small>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline mobile-logout" (click)="logout(); mobileMenuOpen = false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+          </button>
+        }
+      </nav>
+    }
   </header>
 
-  <header class="workspace-nav">
+  <header class="workspace-nav" role="navigation" aria-label="Workspace">
     <div class="workspace-nav-inner">
       <div class="workspace-context">
-        <span>{{ title }}</span>
-        <strong>{{ currentPageLabel }}</strong>
+        <span class="workspace-title">{{ title }}</span>
+        <strong class="workspace-page">{{ currentPageLabel }}</strong>
       </div>
 
       <div class="workspace-actions">
-        @if (user) {
-          <app-role-pill [role]="user.role" />
+        @if (user()) {
+          <app-role-pill [role]="user()?.role || 'user'" />
         }
-        @if (user?.role === 'worker' && user?.workerOnline) {
-          <span class="location-status" [class.sharing]="workerLocationStatus === 'sharing'">
-            GPS {{ workerLocationStatus }}
+        @if (user()?.role === 'worker' && user()?.workerOnline) {
+          <span class="location-status" [class.online]="workerLocationStatus() === 'sharing'" [class.offline]="workerLocationStatus() === 'off'" [class.requesting]="workerLocationStatus() === 'requesting'" [class.blocked]="workerLocationStatus() === 'blocked'">
+            <span class="status-dot"></span>
+            <span>GPS {{ workerLocationStatus() }}</span>
           </span>
         }
 
-        <details #notificationMenu class="notifications">
-          <summary>
-            <span class="notification-label">Notifications</span>
-            <strong>{{ notifications.length }}</strong>
-          </summary>
-          <ul aria-label="Unread notifications">
-            @if (notifications.length) {
-              <li class="notification-controls">
-                <button
-                  type="button"
-                  class="notification-control"
-                  [disabled]="markingAllNotifications"
-                  (click)="markAllNotificationsRead()"
-                >
-                  {{ markingAllNotifications ? 'Marking...' : 'Mark all as read' }}
-                </button>
-              </li>
+        <div class="notifications-wrapper">
+          <button
+            type="button"
+            class="btn btn-ghost icon-btn notifications-trigger"
+            (click)="toggleNotifications()"
+            [attr.aria-expanded]="notificationsOpen"
+            aria-label="Notifications"
+            aria-haspopup="true"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            @if (unreadCount() > 0) {
+              <span class="notification-badge">{{ unreadCount() > 9 ? '9+' : unreadCount() }}</span>
             }
+          </button>
 
-            @for (item of notifications; track item.id) {
-              <li class="notification-row">
-                <button
-                  type="button"
-                  class="notification-item"
-                  (click)="markNotificationRead(item.id)"
-                >
-                  <strong>{{ item.title }}</strong>
-                  <p>{{ item.message }}</p>
-                </button>
-              </li>
-            } @empty {
-              <li class="notification-empty">
-                <strong>No recent notifications</strong>
-                <p>System updates will appear here.</p>
-              </li>
-            }
-          </ul>
-        </details>
-
-        @if (user) {
-          <details class="profile-menu">
-            <summary class="profile-chip">
-              @if (user.profileImage) {
-                <img class="avatar avatar-image" [src]="user.profileImage" alt="Profile photo" />
-              } @else {
-                <span class="avatar">{{ userInitials }}</span>
-              }
-              <span class="profile-identity">
-                <strong>{{ user.firstName }} {{ user.lastName }}</strong>
-                <small>{{ user.role }}</small>
-              </span>
-              <span class="menu-caret" aria-hidden="true">▾</span>
-            </summary>
-
-            <div class="profile-dropdown">
-              <div class="profile-menu-head">
-                @if (user.profileImage) {
-                  <img class="avatar avatar-image" [src]="user.profileImage" alt="Profile photo" />
-                } @else {
-                  <span class="avatar">{{ userInitials }}</span>
+          @if (notificationsOpen) {
+            <div class="notifications-panel" role="region" aria-label="Notifications">
+              <div class="notifications-header">
+                <h3>Notifications</h3>
+                @if (notifications().length) {
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="markAllNotificationsRead()" [disabled]="markingAllNotifications">
+                    {{ markingAllNotifications ? 'Marking...' : 'Mark all read' }}
+                  </button>
                 }
-                <div>
-                  <strong>{{ user.firstName }} {{ user.lastName }}</strong>
-                  <p>{{ user.email }}</p>
-                  <small>{{ user.role }} access</small>
+              </div>
+              <ul class="notifications-list" aria-label="Unread notifications">
+                @for (item of notifications(); track item.id) {
+                  <li class="notification-item" (click)="markNotificationRead(item.id)">
+                    <div class="notification-content">
+                      <strong>{{ item.title }}</strong>
+                      <p>{{ item.message }}</p>
+                    </div>
+                    @if (!item.read) {
+                      <span class="notification-unread-dot"></span>
+                    }
+                  </li>
+                } @empty {
+                  <li class="notification-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <p>No notifications</p>
+                    <small>You're all caught up!</small>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+
+        <div class="profile-menu-wrapper">
+          <button
+            type="button"
+            class="btn btn-ghost profile-trigger"
+            (click)="profileMenuOpen = !profileMenuOpen"
+            [attr.aria-expanded]="profileMenuOpen"
+            aria-haspopup="true"
+            aria-label="Profile menu"
+          >
+            <app-avatar
+              [src]="user()?.profileImage || ''"
+              [name]="(user()?.firstName || '') + ' ' + (user()?.lastName || '')"
+              [size]="'sm'"
+              [status]="user()?.role === 'worker' && user()?.workerOnline ? 'online' : undefined"
+            ></app-avatar>
+            <span class="profile-name">{{ user()?.firstName }} {{ user()?.lastName }}</span>
+            <svg class="menu-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          @if (profileMenuOpen) {
+            <div class="profile-dropdown" role="menu">
+              <div class="profile-dropdown-header">
+                <app-avatar
+                  [src]="user()?.profileImage || ''"
+                  [name]="(user()?.firstName || '') + ' ' + (user()?.lastName || '')"
+                  [size]="'lg'"
+                ></app-avatar>
+                <div class="profile-dropdown-info">
+                  <strong>{{ user()?.firstName }} {{ user()?.lastName }}</strong>
+                  <p>{{ user()?.email }}</p>
+                  <small>{{ user()?.role }} access</small>
                 </div>
               </div>
-
-              <nav class="profile-menu-links" aria-label="Profile navigation">
-                @for (item of profileMenuItems; track item.path) {
-                  <a [routerLink]="item.path">{{ item.label }}</a>
+              <nav class="profile-dropdown-nav" aria-label="Profile navigation">
+                @for (item of profileMenuItems(); track item.path) {
+                  <a [routerLink]="item.path" class="profile-dropdown-link" (click)="profileMenuOpen = false" role="menuitem">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="link-icon" [innerHTML]="getLinkIcon(item.path)"></svg>
+                    {{ item.label }}
+                  </a>
                 }
               </nav>
-
-              <button type="button" class="profile-logout" (click)="logout()">Logout</button>
+              <button type="button" class="btn btn-outline profile-logout" (click)="logout()" role="menuitem">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Logout
+              </button>
             </div>
-          </details>
-        }
+          }
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="content">
+  <main class="content" role="main">
     <div class="content-frame">
       @if (needsProfileCompletion) {
-        <div class="profile-completion-banner">
-          <div>
-            <strong>Complete your mobile number and address</strong>
-            <p>
-              Your Google account is signed in, but contact details are still incomplete.
-              Update profile now to avoid future ticket or notification issues.
-            </p>
+        <div class="profile-completion-banner" role="alert">
+          <div class="banner-content">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="banner-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div>
+              <strong>Complete your profile</strong>
+              <p>Your mobile number and address are required for ticket updates and worker coordination.</p>
+            </div>
           </div>
-          <a routerLink="/profile" [queryParams]="{ completeProfile: '1' }">Complete Profile</a>
+          <a routerLink="/profile" [queryParams]="{ completeProfile: '1' }" class="btn btn-primary">Complete Profile</a>
         </div>
       }
 
-      <section class="page">
+      <section class="page page-enter">
         <router-outlet />
       </section>
     </div>
   </main>
+
+  <app-toast-container />
 </div>

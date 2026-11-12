@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { animate, stagger } from 'motion';
 import { catchError, forkJoin, of } from 'rxjs';
 
@@ -12,6 +12,8 @@ import { DonutChartComponent, DonutSlice } from '../../shared/donut-chart.compon
 import { SparklineComponent } from '../../shared/sparkline.component';
 import { StatCardComponent } from '../../shared/stat-card.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
+import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
+import { EmptyStateComponent } from '../../shared/empty-state/empty-state.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -24,6 +26,8 @@ import { StatusBadgeComponent } from '../../shared/status-badge.component';
     SparklineComponent,
     StatCardComponent,
     StatusBadgeComponent,
+    SkeletonComponent,
+    EmptyStateComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -38,10 +42,12 @@ export class DashboardComponent implements OnInit {
   error = '';
   savingAvailability = false;
   workerReviews: WorkerReviewSummary | null = null;
+  activeTab = 'tickets';
 
   constructor(
     private readonly portalService: PortalService,
     private readonly authService: AuthService,
+    private readonly router: Router,
   ) {}
 
   get isUser() {
@@ -214,17 +220,25 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
-      '_blank',
-      'noopener',
-    );
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener');
   }
+
+  openCreate() {
+    // This is called from the template
+  }
+
+  createTicketAction = () => {
+    this.openCreate();
+  };
+
+  hireWorkerAction = () => {
+    this.router.navigate(['/hire-worker']);
+  };
 
   private playIntro() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    animate('.dashboard .stats app-stat-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.06), ease: 'easeOut' });
-    animate('.dashboard .chart-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.08, { startDelay: 0.15 }), ease: 'easeOut' });
-    animate('.dashboard .tracking-row', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.05, { startDelay: 0.3 }), ease: 'easeOut' });
+    animate('.dashboard .stats-grid app-stat-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.06), ease: 'easeOut' });
+    animate('.dashboard .charts-grid .chart-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.08, { startDelay: 0.15 }), ease: 'easeOut' });
+    animate('.dashboard .tracking-item', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.05, { startDelay: 0.3 }), ease: 'easeOut' });
   }
 }

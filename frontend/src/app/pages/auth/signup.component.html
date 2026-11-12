@@ -1,119 +1,184 @@
-<section class="auth-page single">
-  <div class="left-panel" aria-labelledby="signup-intro">
-    <div class="hero-copy">
-      <span class="eyebrow">Citizen Portal</span>
-      <h1 id="signup-intro">Create account</h1>
-      <p>Create waste tickets, follow progress, hire workers, and receive updates in one workspace.</p>
+<section class="auth-page single page-enter" aria-labelledby="signup-heading">
+  <div class="auth-hero" aria-hidden="true">
+    <div class="auth-hero-content">
+      <div class="auth-hero-badge">
+        <span class="badge badge-primary">Citizen Portal</span>
+      </div>
+      <h1>Create your account</h1>
+      <p>Join SmartWaste to report issues, track progress, and hire workers.</p>
+    </div>
+    <div class="auth-hero-illustration" aria-hidden="true">
+      <svg viewBox="0 0 400 400" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="illGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#059669;stop-opacity:0.15" />
+            <stop offset="100%" style="stop-color:#10B981;stop-opacity:0.05" />
+          </linearGradient>
+          <linearGradient id="illGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:0.1" />
+            <stop offset="100%" style="stop-color:#FBBF24;stop-opacity:0" />
+          </linearGradient>
+        </defs>
+        <circle cx="120" cy="100" r="80" fill="url(#illGrad1)" />
+        <circle cx="300" cy="300" r="100" fill="url(#illGrad2)" />
+        <rect x="80" y="180" width="240" height="120" rx="20" fill="var(--brand-light)" opacity="0.5" />
+        <rect x="100" y="200" width="200" height="10" rx="5" fill="var(--brand)" />
+        <rect x="100" y="225" width="150" height="8" rx="4" fill="var(--brand-lighter)" />
+        <rect x="100" y="245" width="180" height="8" rx="4" fill="var(--brand-lighter)" />
+        <rect x="100" y="265" width="120" height="8" rx="4" fill="var(--brand-lighter)" />
+        <circle cx="300" cy="240" r="20" fill="var(--brand)" opacity="0.2" />
+        <path d="M300 240 L300 200 L280 220 M300 240 L300 200 L320 220" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" fill="none" />
+        <circle cx="150" cy="320" r="12" fill="var(--brand)" />
+        <circle cx="250" cy="320" r="12" fill="var(--brand-lighter)" />
+        <path d="M150 320 L150 300 M250 320 L250 280" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" fill="none" />
+      </svg>
     </div>
   </div>
 
-  <form
-    class="auth-card wide"
-    [formGroup]="form"
-    (ngSubmit)="submit()"
-    aria-labelledby="signup-heading"
-  >
-    <span class="eyebrow">New Workspace Access</span>
-    <h2 id="signup-heading">Create account</h2>
+  <div class="auth-card-wrapper">
+    <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="signup-heading">
+      <div class="auth-card-header">
+        <span class="auth-badge">New Workspace Access</span>
+        <h2 id="signup-heading">Create account</h2>
+        <p>Fill in your details to get started</p>
+      </div>
 
-    @if (error) {
-      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
-    }
-
-    <div class="grid two">
-      <div>
-        <label for="first-name">First Name</label>
-        <input id="first-name" type="text" formControlName="firstName" />
-      </div>
-      <div>
-        <label for="last-name">Last Name</label>
-        <input id="last-name" type="text" formControlName="lastName" />
-      </div>
-      <div>
-        <label for="gender">Gender</label>
-        <select id="gender" formControlName="gender">
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label for="mobile">Mobile Number</label>
-        <input id="mobile" type="text" formControlName="mobile" />
-      </div>
-      <div>
-        <label for="signup-email">Email</label>
-        <input id="signup-email" type="email" formControlName="email" />
-      </div>
-      <div>
-        <label for="signup-password">Password</label>
-        <div class="password-row">
-          <input
-            id="signup-password"
-            [type]="showPassword ? 'text' : 'password'"
-            formControlName="password"
-            placeholder="Create a password"
-            autocomplete="new-password"
-            aria-describedby="password-hint"
-            [attr.aria-invalid]="
-              form.controls.password.touched && form.controls.password.invalid ? 'true' : null
-            "
-          />
-          <button
-            type="button"
-            (click)="showPassword = !showPassword"
-            aria-controls="signup-password"
-            [attr.aria-pressed]="showPassword"
-            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
-          >
-            {{ showPassword ? 'Hide' : 'Show' }}
-          </button>
+      @if (error) {
+        <div class="alert alert-danger" role="alert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+          {{ error }}
         </div>
-        <p id="password-hint" class="field-hint">{{ passwordHint }}</p>
-        @if (form.controls.password.touched && form.controls.password.invalid) {
-          <p class="field-error" role="alert" aria-live="assertive">{{ passwordHint }}</p>
-        }
+      }
+
+      <div class="form-row two">
+        <div class="form-group">
+          <label for="first-name">First Name</label>
+          <input id="first-name" type="text" formControlName="firstName" placeholder="John" />
+          @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+            <p class="field-error">First name is required</p>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="last-name">Last Name</label>
+          <input id="last-name" type="text" formControlName="lastName" placeholder="Doe" />
+          @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+            <p class="field-error">Last name is required</p>
+          }
+        </div>
       </div>
-      <div>
+
+      <div class="form-row two">
+        <div class="form-group">
+          <label for="gender">Gender</label>
+          <select id="gender" formControlName="gender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="mobile">Mobile Number</label>
+          <input id="mobile" type="tel" formControlName="mobile" placeholder="+1 (555) 000-0000" />
+          @if (form.controls.mobile.touched && form.controls.mobile.invalid) {
+            <p class="field-error">Valid mobile number is required</p>
+          }
+        </div>
+      </div>
+
+      <div class="form-row two">
+        <div class="form-group">
+          <label for="signup-email">Email</label>
+          <input id="signup-email" type="email" formControlName="email" placeholder="you@example.com" autocomplete="email" />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p class="field-error">Please enter a valid email address</p>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <div class="password-field">
+            <input
+              id="signup-password"
+              [type]="showPassword ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="Create a strong password"
+              autocomplete="new-password"
+              aria-describedby="password-hint"
+              [class.invalid]="form.controls.password.touched && form.controls.password.invalid"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              [attr.aria-pressed]="showPassword"
+            >
+              @if (showPassword) {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>
+              } @else {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              }
+            </button>
+          </div>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p class="field-error">Password must be at least 8 characters with uppercase and special character</p>
+          }
+          <p id="password-hint" class="field-hint">{{ passwordHint }}</p>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label for="confirm-password">Confirm Password</label>
-        <div class="password-row">
+        <div class="password-field">
           <input
             id="confirm-password"
             [type]="showConfirmPassword ? 'text' : 'password'"
             formControlName="confirmPassword"
             placeholder="Re-enter password"
             autocomplete="new-password"
-            [attr.aria-invalid]="
-              form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid
-                ? 'true'
-                : null
-            "
+            [class.invalid]="form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid"
           />
           <button
             type="button"
+            class="password-toggle"
             (click)="showConfirmPassword = !showConfirmPassword"
-            aria-controls="confirm-password"
-            [attr.aria-pressed]="showConfirmPassword"
             [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showConfirmPassword"
           >
-            {{ showConfirmPassword ? 'Hide' : 'Show' }}
+            @if (showConfirmPassword) {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>
+            } @else {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            }
           </button>
         </div>
         @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid) {
-          <p class="field-error" role="alert" aria-live="assertive">{{ passwordHint }}</p>
+          <p class="field-error">Passwords do not match</p>
         }
       </div>
-    </div>
 
-    <label for="address">Address</label>
-    <textarea id="address" rows="2" formControlName="address"></textarea>
+      <div class="form-group">
+        <label for="address">Address</label>
+        <textarea id="address" rows="3" formControlName="address" placeholder="Your full address"></textarea>
+        @if (form.controls.address.touched && form.controls.address.invalid) {
+          <p class="field-error">Address is required</p>
+        }
+      </div>
 
-    <button type="submit" class="primary" [disabled]="loading">
-      {{ loading ? 'Creating...' : 'Create Account' }}
-    </button>
+      <button type="submit" class="btn btn-primary btn-lg btn-full" [disabled]="loading">
+        @if (loading) {
+          <span class="btn-loading"></span>
+          Creating account...
+        } @else {
+          Create Account
+        }
+      </button>
 
-    <div class="links">
-      <a routerLink="/login">Already have account? Login</a>
-    </div>
-  </form>
+      <div class="auth-links">
+        <a routerLink="/login">Already have an account? Sign in</a>
+      </div>
+    </form>
+  </div>
 </section>

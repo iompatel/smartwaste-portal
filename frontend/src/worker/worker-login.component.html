@@ -1,71 +1,108 @@
-<section class="auth-page console-worker">
-  <div class="left-panel" aria-labelledby="worker-login-intro">
-    <div class="hero-copy">
-      <span class="eyebrow">Field Operations</span>
-      <h1 id="worker-login-intro">{{ title }}</h1>
-      <p>Dedicated access for workers resolving assigned tickets and personal-work requests.</p>
+<section class="auth-page console-worker page-enter" aria-labelledby="worker-login-heading">
+  <div class="auth-hero" aria-hidden="true">
+    <div class="auth-hero-content">
+      <div class="auth-hero-badge">
+        <span class="badge badge-primary">Field Operations</span>
+      </div>
+      <h1>Worker Console</h1>
+      <p>Dedicated access for workers managing assigned tickets and personal work requests.</p>
     </div>
-
-    <div class="feature-grid">
-      <article>
-        <strong>Assigned tickets</strong>
-        <p>See only the work assigned to your account.</p>
-      </article>
-      <article>
-        <strong>Directions ready</strong>
-        <p>Open work locations without searching manually.</p>
-      </article>
-      <article>
-        <strong>Clear completion flow</strong>
-        <p>Update completed work and notify the requester.</p>
-      </article>
+    <div class="auth-hero-illustration" aria-hidden="true">
+      <svg viewBox="0 0 400 400" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="illGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#059669;stop-opacity:0.15" />
+            <stop offset="100%" style="stop-color:#10B981;stop-opacity:0.05" />
+          </linearGradient>
+          <linearGradient id="illGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0.1" />
+            <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:0" />
+          </linearGradient>
+        </defs>
+        <circle cx="120" cy="100" r="80" fill="url(#illGrad1)" />
+        <circle cx="300" cy="300" r="100" fill="url(#illGrad2)" />
+        <rect x="80" y="180" width="240" height="120" rx="20" fill="var(--brand-light)" opacity="0.5" />
+        <rect x="100" y="200" width="200" height="10" rx="5" fill="var(--brand)" />
+        <rect x="100" y="225" width="150" height="8" rx="4" fill="var(--brand-lighter)" />
+        <rect x="100" y="245" width="180" height="8" rx="4" fill="var(--brand-lighter)" />
+        <rect x="100" y="265" width="120" height="8" rx="4" fill="var(--brand-lighter)" />
+        <circle cx="300" cy="240" r="20" fill="var(--brand)" opacity="0.2" />
+        <path d="M300 240 L300 200 L280 220 M300 240 L300 200 L320 220" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" fill="none" />
+        <circle cx="150" cy="320" r="12" fill="var(--brand)" />
+        <circle cx="250" cy="320" r="12" fill="var(--brand-lighter)" />
+        <path d="M150 320 L150 300 M250 320 L250 280" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" fill="none" />
+      </svg>
     </div>
   </div>
 
-  <form
-    class="auth-card"
-    [formGroup]="form"
-    (ngSubmit)="submit()"
-    aria-labelledby="worker-login-heading"
-  >
-    <span class="eyebrow">Worker Only</span>
-    <h2 id="worker-login-heading">Worker Console</h2>
+  <div class="auth-card-wrapper">
+    <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="worker-login-heading">
+      <div class="auth-card-header">
+        <span class="auth-badge">Worker Only</span>
+        <h2 id="worker-login-heading">Worker Console</h2>
+        <p>Enter your worker credentials to access your dashboard</p>
+      </div>
 
-    @if (error) {
-      <p class="error" role="alert" aria-live="assertive">{{ error }}</p>
-    }
+      @if (error) {
+        <div class="alert alert-danger" role="alert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+          {{ error }}
+        </div>
+      }
 
-    <label for="worker-email">Worker Email</label>
-    <input
-      id="worker-email"
-      type="email"
-      formControlName="email"
-      placeholder="worker@example.com"
-      autocomplete="username"
-    />
+      <div class="form-group">
+        <label for="worker-email">Worker Email</label>
+        <input
+          id="worker-email"
+          type="email"
+          formControlName="email"
+          placeholder="worker@smartwaste.com"
+          autocomplete="username"
+          [class.invalid]="form.controls.email.touched && form.controls.email.invalid"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <p class="field-error">Please enter a valid email</p>
+        }
+      </div>
 
-    <label for="worker-password">Password</label>
-    <div class="password-row">
-      <input
-        id="worker-password"
-        [type]="showPassword ? 'text' : 'password'"
-        formControlName="password"
-        placeholder="Enter worker password"
-        autocomplete="current-password"
-      />
-      <button
-        type="button"
-        (click)="showPassword = !showPassword"
-        aria-controls="worker-password"
-        [attr.aria-pressed]="showPassword"
-        [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
-      >
-        {{ showPassword ? 'Hide' : 'Show' }}
+      <div class="form-group">
+        <label for="worker-password">Password</label>
+        <div class="password-field">
+          <input
+            id="worker-password"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Enter worker password"
+            autocomplete="current-password"
+            [class.invalid]="form.controls.password.touched && form.controls.password.invalid"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            (click)="showPassword = !showPassword"
+            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword"
+          >
+            @if (showPassword) {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>
+            } @else {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            }
+          </button>
+        </div>
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <p class="field-error">Password is required</p>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-full" [disabled]="loading">
+        @if (loading) {
+          <span class="btn-loading"></span>
+          Verifying...
+        } @else {
+          Enter Worker Console
+        }
       </button>
-    </div>
-
-    <button type="submit" class="primary" [disabled]="loading">
-      {{ loading ? 'Verifying...' : 'Enter Worker Console' }}
-    </button>
-  </form>
+    </form>
+  </div>
 </section>
