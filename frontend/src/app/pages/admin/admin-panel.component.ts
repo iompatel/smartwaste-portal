@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { animate, stagger } from 'animejs';
 import { forkJoin } from 'rxjs';
 
 import { HireRequest, Ticket, User } from '../../models/types';
@@ -54,6 +55,7 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         this.tickets = tickets;
         this.hireRequests = hireRequests;
         this.loading = false;
+        setTimeout(() => this.playIntro());
       },
       error: (err) => {
         this.loading = false;
@@ -103,5 +105,13 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   private refreshNowLabel() {
     // Keep a stable binding value to avoid ExpressionChangedAfterItHasBeenCheckedError in dev mode.
     this.nowLabel = new Date().toLocaleString();
+  }
+
+  private playIntro() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate('.admin-page .hero-panel', { opacity: [0, 1], translateY: [-10, 0], duration: 400, ease: 'out(3)' });
+    animate('.stats article', { opacity: [0, 1], translateY: [14, 0], duration: 450, delay: stagger(60), ease: 'out(3)' });
+    animate('.metrics-bar .metric', { opacity: [0, 1], translateY: [14, 0], duration: 450, delay: stagger(60, { start: 150 }), ease: 'out(3)' });
+    animate('.panel-grid .card', { opacity: [0, 1], translateY: [14, 0], duration: 450, delay: stagger(80, { start: 250 }), ease: 'out(3)' });
   }
 }

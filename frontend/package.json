@@ -34,9 +34,11 @@
     "@angular/platform-browser": "20.3.35",
     "@angular/platform-browser-dynamic": "20.3.35",
     "@angular/router": "20.3.35",
+    "animejs": "^4.5.0",
     "firebase": "13.2.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
+    "motion": "^14.12.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

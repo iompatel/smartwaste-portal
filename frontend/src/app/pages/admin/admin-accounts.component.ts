@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { animate, stagger } from 'motion';
 import autoTable from 'jspdf-autotable';
 import jsPDF from 'jspdf';
 import { HireRequest, Ticket, User } from '../../models/types';
@@ -33,6 +34,7 @@ export class AdminAccountsComponent implements OnInit {
   error = '';
   searchTerm = '';
   showCreatePassword = false;
+  private introPlayed = false;
 
   readonly managedRole: ManagedRole =
     this.route.snapshot.data['accountRole'] === 'worker' ? 'worker' : 'user';
@@ -71,6 +73,10 @@ export class AdminAccountsComponent implements OnInit {
         this.tickets = tickets;
         this.hireRequests = hireRequests;
         this.loading = false;
+        if (!this.introPlayed) {
+          this.introPlayed = true;
+          setTimeout(() => this.playIntro());
+        }
       },
       error: (err) => {
         this.loading = false;
@@ -297,5 +303,13 @@ export class AdminAccountsComponent implements OnInit {
     }
 
     doc.save(`user-${user.id}.pdf`);
+  }
+
+  private playIntro() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate('.accounts-page .stats article', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.06), ease: 'easeOut' });
+    animate('.accounts-page .create-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: 0.12, ease: 'easeOut' });
+    animate('.accounts-page .directory-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: 0.18, ease: 'easeOut' });
+    animate('.accounts-page .record-row', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.04, { startDelay: 0.25 }), ease: 'easeOut' });
   }
 }
