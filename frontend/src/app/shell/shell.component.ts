@@ -19,6 +19,7 @@ import { AppNotification, User } from '../models/types';
 import { PortalService } from '../services/portal.service';
 import { SESSION_SERVICE } from '../services/session';
 import { ThemeService } from '../services/theme.service';
+import { AnimationService } from '../services/animation.service';
 import { RolePillComponent } from '../shared/role-pill.component';
 import { AvatarComponent } from '../shared/avatar/avatar.component';
 import { SHELL_NAVIGATION, ShellNavItem } from './shell-navigation';
@@ -41,6 +42,9 @@ import { ToastContainerComponent } from '../shared/toast/toast.component';
 })
 export class ShellComponent implements OnInit, OnDestroy {
   @ViewChild('notificationMenu') notificationMenu?: ElementRef<HTMLDetailsElement>;
+  @ViewChild('mobileDrawer') mobileDrawer?: ElementRef<HTMLDivElement>;
+  @ViewChild('mobileBackdrop') mobileBackdrop?: ElementRef<HTMLDivElement>;
+  @ViewChild('hamburgerBtn') hamburgerBtn?: ElementRef<HTMLButtonElement>;
 
   readonly title = APP_TITLE;
   user = signal<User | null>(null);
@@ -55,6 +59,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly themeService = inject(ThemeService);
+  private readonly animationService = inject(AnimationService);
 
   mobileMenuOpen = false;
   notificationsOpen = false;
@@ -119,6 +124,22 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.stopWorkerLocationTracking();
   }
 
+  toggleMobileMenu() {
+    this.mobileMenuOpen = !this.mobileMenuOpen;
+    if (this.mobileMenuOpen) {
+      this.animationService.openDrawer(
+        this.mobileDrawer!.nativeElement,
+        this.mobileBackdrop!.nativeElement
+      );
+    } else {
+      this.animationService.closeDrawer(
+        this.mobileDrawer!.nativeElement,
+        this.mobileBackdrop!.nativeElement
+      );
+    }
+    this.animationService.toggleHamburger(this.hamburgerBtn!.nativeElement, this.mobileMenuOpen);
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -128,13 +149,20 @@ export class ShellComponent implements OnInit, OnDestroy {
     if (!target.closest('.profile-menu-wrapper')) {
       this.profileMenuOpen = false;
     }
+    if (!target.closest('.mobile-drawer') && !target.closest('.mobile-menu-btn')) {
+      if (this.mobileMenuOpen) {
+        this.toggleMobileMenu();
+      }
+    }
   }
 
   @HostListener('document:keydown.escape')
   onEscape() {
     this.notificationsOpen = false;
     this.profileMenuOpen = false;
-    this.mobileMenuOpen = false;
+    if (this.mobileMenuOpen) {
+      this.toggleMobileMenu();
+    }
   }
 
   canShow(roles: string[]) {

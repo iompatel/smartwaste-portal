@@ -4,6 +4,8 @@ export { ConfirmDialogComponent, type ConfirmDialogData } from './confirm-dialog
 export { SkeletonComponent } from './skeleton/skeleton.component';
 export { EmptyStateComponent, type EmptyStateAction } from './empty-state/empty-state.component';
 export { AvatarComponent } from './avatar/avatar.component';
+export { AnimatedButtonComponent, type ButtonVariant, type ButtonSize } from './animated-button/animated-button.component';
+export { AnimationService } from '../services/animation.service';
 
 // Re-export existing shared components
 export { StatCardComponent } from './stat-card.component';
