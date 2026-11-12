@@ -193,6 +193,34 @@
               </div>
             }
 
+            @if (!isWorker && ['accepted', 'in_progress'].includes(ticket.status)) {
+              <section class="live-location" aria-label="Assigned worker live location">
+                <div class="live-location-head">
+                  <div>
+                    <span class="eyebrow">Live worker location</span>
+                    <strong>{{ ticket.assignedWorker?.firstName }} {{ ticket.assignedWorker?.lastName }}</strong>
+                  </div>
+                  <span class="live-dot">Live</span>
+                </div>
+                @if (workerMapUrls[ticket.id]; as mapUrl) {
+                  <iframe
+                    [src]="mapUrl"
+                    [title]="'Live location for ' + ticket.ticketCode"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                  ></iframe>
+                  <p>
+                    Updated {{ workerLocations[ticket.id]?.updatedAt | date: 'mediumTime' }} ·
+                    Accuracy ±{{ workerLocations[ticket.id]?.accuracy | number: '1.0-0' }} m
+                  </p>
+                } @else {
+                  <p class="location-waiting">
+                    Waiting for fresh GPS. The worker must be online and allow location access.
+                  </p>
+                }
+              </section>
+            }
+
             @if (isAdmin && ['pending', 'assigned'].includes(ticket.status)) {
               <div class="dispatch-control">
                 <label [for]="'ticket-worker-' + ticket.id">Dispatch worker</label>

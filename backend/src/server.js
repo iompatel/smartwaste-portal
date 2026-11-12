@@ -37,6 +37,11 @@ import {
   isValidImageData,
   ticketSlaHours,
 } from './ticket-policy.js';
+import {
+  WORKER_LOCATION_TTL_MS,
+  isFreshWorkerLocation,
+  normalizeWorkerLocation,
+} from './location-policy.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -342,6 +347,18 @@ const reviewSchema = new mongoose.Schema(
   { versionKey: false, collection: 'reviews' },
 );
 
+const workerLocationSchema = new mongoose.Schema(
+  {
+    workerId: { type: Number, required: true, unique: true, index: true },
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    accuracy: { type: Number, required: true },
+    updatedAt: { type: Date, required: true, default: Date.now },
+    expiresAt: { type: Date, required: true, expires: 0 },
+  },
+  { versionKey: false, collection: 'worker_locations' },
+);
+
 const Counter = mongoose.model('Counter', counterSchema);
 const User = mongoose.model('User', userSchema);
 const Ticket = mongoose.model('Ticket', ticketSchema);
@@ -351,6 +368,7 @@ const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
 const TicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
 const Review = mongoose.model('Review', reviewSchema);
+const WorkerLocation = mongoose.model('WorkerLocation', workerLocationSchema);
 
 async function nextId(key) {
   const counter = await Counter.findOneAndUpdate(
@@ -1508,10 +1526,13 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
     await AdminSession.deleteOne({ _id: req.adminSessionId });
     clearAdminCookie(res);
   } else if (req.user.role === 'worker') {
-    await User.updateOne(
-      { id: req.user.id, role: 'worker' },
-      { $set: { workerOnline: false, workerLastSeenAt: null } },
-    );
+    await Promise.all([
+      User.updateOne(
+        { id: req.user.id, role: 'worker' },
+        { $set: { workerOnline: false, workerLastSeenAt: null } },
+      ),
+      WorkerLocation.deleteOne({ workerId: req.user.id }),
+    ]);
   }
 
   return res.json({ message: 'Logged out successfully.' });
@@ -1585,6 +1606,8 @@ app.put(
     );
     if (online) {
       await autoAssignUnassignedTickets(25);
+    } else {
+      await WorkerLocation.deleteOne({ workerId: req.user.id });
     }
     return res.json(sanitizeUser(user));
   },
@@ -1596,6 +1619,68 @@ app.post('/api/workers/me/heartbeat', authMiddleware, requireRoles('worker'), as
     { $set: { workerLastSeenAt: new Date() } },
   );
   return res.json({ online: result.matchedCount === 1 });
+});
+
+app.put('/api/workers/me/location', authMiddleware, requireRoles('worker'), async (req, res) => {
+  const location = normalizeWorkerLocation(req.body ?? {});
+  if (!location) {
+    return res.status(400).json({ message: 'Valid latitude, longitude, and accuracy are required.' });
+  }
+  const worker = await User.findOne(
+    { id: req.user.id, role: 'worker', workerOnline: true },
+    { id: 1 },
+  ).lean();
+  if (!worker) {
+    await WorkerLocation.deleteOne({ workerId: req.user.id });
+    return res.status(409).json({ message: 'Go online before sharing live location.' });
+  }
+  const now = new Date();
+  const record = await WorkerLocation.findOneAndUpdate(
+    { workerId: req.user.id },
+    {
+      $set: {
+        ...location,
+        updatedAt: now,
+        expiresAt: new Date(now.getTime() + WORKER_LOCATION_TTL_MS),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+  await User.updateOne(
+    { id: req.user.id, role: 'worker', workerOnline: true },
+    { $set: { workerLastSeenAt: now } },
+  );
+  return res.json({
+    available: true,
+    latitude: record.latitude,
+    longitude: record.longitude,
+    accuracy: record.accuracy,
+    updatedAt: record.updatedAt,
+  });
+});
+
+app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+  const ticket = await Ticket.findOne({ id }).lean();
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+  if (!canAccessTicket(req.user, ticket)) {
+    return res.status(403).json({ message: 'No permission to view worker location.' });
+  }
+  if (!ticket.workerId || !['accepted', 'in_progress'].includes(ticket.status)) {
+    return res.json({ available: false });
+  }
+  const location = await WorkerLocation.findOne({ workerId: ticket.workerId }).lean();
+  if (!location || !isFreshWorkerLocation(location.updatedAt)) {
+    return res.json({ available: false });
+  }
+  return res.json({
+    available: true,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    accuracy: location.accuracy,
+    updatedAt: location.updatedAt,
+  });
 });
 
 app.get('/api/dashboard/summary', authMiddleware, async (_req, res) => {
@@ -1855,6 +1940,7 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
         ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : []),
       ],
     }),
+    WorkerLocation.deleteOne({ workerId: id }),
   ]);
 
   await createAdminActivity({

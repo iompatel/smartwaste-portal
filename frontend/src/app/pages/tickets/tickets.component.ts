@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { forkJoin } from 'rxjs';
 
 import {
@@ -9,6 +10,7 @@ import {
   TicketPriority,
   TicketStatus,
   User,
+  WorkerLocation,
 } from '../../models/types';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
@@ -27,6 +29,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   private readonly portalService = inject(PortalService);
   private readonly authService = inject(SESSION_SERVICE);
   private readonly notificationService = inject(BrowserNotificationService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   @ViewChild('cameraVideo') private readonly cameraVideo?: ElementRef<HTMLVideoElement>;
   @ViewChild('cameraCanvas') private readonly cameraCanvas?: ElementRef<HTMLCanvasElement>;
@@ -53,9 +56,12 @@ export class TicketsComponent implements OnInit, OnDestroy {
   messages: Partial<Record<number, TicketMessage[]>> = {};
   reviewRating: Partial<Record<number, number>> = {};
   reviewComment: Partial<Record<number, string>> = {};
+  workerLocations: Partial<Record<number, WorkerLocation>> = {};
+  workerMapUrls: Partial<Record<number, SafeResourceUrl>> = {};
 
   private cameraStream: MediaStream | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
+  private locationTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly statuses: TicketStatus[] = [
     'pending',
@@ -122,11 +128,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.refreshTimer = setInterval(() => {
       if (!this.isFormOpen && !this.cameraOpen) this.loadData(true);
     }, 20_000);
+    this.locationTimer = setInterval(() => this.refreshLiveLocations(), 10_000);
   }
 
   ngOnDestroy() {
     this.stopCameraStream();
     if (this.refreshTimer) clearInterval(this.refreshTimer);
+    if (this.locationTimer) clearInterval(this.locationTimer);
   }
 
   loadData(silent = false) {
@@ -144,6 +152,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
           this.tickets = tickets;
           this.workers = users.filter((user) => user.role === 'worker');
           this.loading = false;
+          this.refreshLiveLocations();
         },
         error: onError,
       });
@@ -154,6 +163,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.tickets = tickets;
         this.workers = [];
         this.loading = false;
+        this.refreshLiveLocations();
       },
       error: onError,
     });
@@ -411,5 +421,42 @@ export class TicketsComponent implements OnInit, OnDestroy {
     return ticket.statusHistory?.length
       ? ticket.statusHistory
       : [{ status: ticket.status, actorId: null, actorRole: null, note: null, createdAt: ticket.updatedAt }];
+  }
+
+  private refreshLiveLocations() {
+    if (this.isWorker) return;
+    const activeIds = new Set(
+      this.tickets
+        .filter((ticket) => ['accepted', 'in_progress'].includes(ticket.status) && ticket.workerId)
+        .map((ticket) => ticket.id),
+    );
+    for (const id of Object.keys(this.workerLocations).map(Number)) {
+      if (!activeIds.has(id)) {
+        delete this.workerLocations[id];
+        delete this.workerMapUrls[id];
+      }
+    }
+    for (const ticketId of activeIds) {
+      this.portalService.getWorkerLocation(ticketId).subscribe({
+        next: (location) => {
+          this.workerLocations[ticketId] = location;
+          if (location.available && location.latitude !== undefined && location.longitude !== undefined) {
+            const lat = location.latitude;
+            const lng = location.longitude;
+            const delta = 0.005;
+            const src =
+              `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}` +
+              `&layer=mapnik&marker=${lat}%2C${lng}`;
+            this.workerMapUrls[ticketId] = this.sanitizer.bypassSecurityTrustResourceUrl(src);
+          } else {
+            delete this.workerMapUrls[ticketId];
+          }
+        },
+        error: () => {
+          this.workerLocations[ticketId] = { available: false };
+          delete this.workerMapUrls[ticketId];
+        },
+      });
+    }
   }
 }

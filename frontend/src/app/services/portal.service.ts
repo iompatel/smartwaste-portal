@@ -10,6 +10,7 @@ import {
   TicketMessage,
   User,
   WorkerReviewSummary,
+  WorkerLocation,
 } from '../models/types';
 import { API_CLIENT, ApiClient } from './api-client';
 
@@ -90,6 +91,14 @@ export class PortalService {
 
   sendWorkerHeartbeat() {
     return this.api.post<{ online: boolean }>('/workers/me/heartbeat', {});
+  }
+
+  updateWorkerLocation(payload: { latitude: number; longitude: number; accuracy: number }) {
+    return this.api.put<WorkerLocation>('/workers/me/location', payload);
+  }
+
+  getWorkerLocation(ticketId: number) {
+    return this.api.get<WorkerLocation>(`/tickets/${ticketId}/worker-location`);
   }
 
   getHireRequests() {

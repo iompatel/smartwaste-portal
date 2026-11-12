@@ -102,6 +102,14 @@ export interface WorkerReviewSummary {
   reviews: Review[];
 }
 
+export interface WorkerLocation {
+  available: boolean;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  updatedAt?: string;
+}
+
 export interface HireRequest {
   id: number;
   requestCode: string;

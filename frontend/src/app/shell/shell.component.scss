@@ -227,6 +227,21 @@ summary::-webkit-details-marker {
   gap: 8px;
 }
 
+.location-status {
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.location-status.sharing {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 .notifications,
 .profile-menu {
   position: relative;

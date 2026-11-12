@@ -59,6 +59,11 @@
         @if (user) {
           <app-role-pill [role]="user.role" />
         }
+        @if (user?.role === 'worker' && user?.workerOnline) {
+          <span class="location-status" [class.sharing]="workerLocationStatus === 'sharing'">
+            GPS {{ workerLocationStatus }}
+          </span>
+        }
 
         <details #notificationMenu class="notifications">
           <summary>

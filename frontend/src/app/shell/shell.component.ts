@@ -29,10 +29,13 @@ export class ShellComponent implements OnInit, OnDestroy {
   user: User | null = null;
   notifications: AppNotification[] = [];
   markingAllNotifications = false;
+  workerLocationStatus: 'off' | 'requesting' | 'sharing' | 'blocked' = 'off';
   readonly navItems = inject(SHELL_NAVIGATION);
   private readonly authService = inject(SESSION_SERVICE);
   private notificationTimer: ReturnType<typeof setInterval> | null = null;
   private workerHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private locationWatchId: number | null = null;
+  private lastLocationSentAt = 0;
 
   constructor(
     private readonly portalService: PortalService,
@@ -42,6 +45,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.authService.currentUser$.subscribe((user) => {
       this.user = user;
+      this.syncWorkerLocationTracking();
       if (user) {
         this.loadNotifications();
       } else {
@@ -61,6 +65,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.notificationTimer) clearInterval(this.notificationTimer);
     if (this.workerHeartbeatTimer) clearInterval(this.workerHeartbeatTimer);
+    this.stopWorkerLocationTracking();
   }
 
   canShow(roles: string[]) {
@@ -142,5 +147,45 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   get profileMenuItems() {
     return this.user ? this.navItems.filter((item) => this.canShow(item.roles)) : [];
+  }
+
+  private syncWorkerLocationTracking() {
+    const shouldTrack = this.user?.role === 'worker' && this.user.workerOnline;
+    if (!shouldTrack) {
+      this.stopWorkerLocationTracking();
+      return;
+    }
+    if (this.locationWatchId !== null) return;
+    if (!navigator.geolocation) {
+      this.workerLocationStatus = 'blocked';
+      return;
+    }
+    this.workerLocationStatus = 'requesting';
+    this.locationWatchId = navigator.geolocation.watchPosition(
+      (position) => {
+        this.workerLocationStatus = 'sharing';
+        const now = Date.now();
+        if (now - this.lastLocationSentAt < 10_000) return;
+        this.lastLocationSentAt = now;
+        this.portalService
+          .updateWorkerLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          })
+          .subscribe({ error: () => {} });
+      },
+      () => (this.workerLocationStatus = 'blocked'),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
+  }
+
+  private stopWorkerLocationTracking() {
+    if (this.locationWatchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(this.locationWatchId);
+    }
+    this.locationWatchId = null;
+    this.lastLocationSentAt = 0;
+    this.workerLocationStatus = 'off';
   }
 }

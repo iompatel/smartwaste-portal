@@ -142,8 +142,7 @@ button {
   grid-column: 1 / -1;
 }
 
-.field-control label,
-.control-label {
+.field-control label {
   display: block;
   color: var(--text-muted);
   font-size: 14px;
@@ -181,15 +180,10 @@ button {
   padding: 8px 12px;
 }
 
-.field-error,
 .field-hint {
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.4;
-}
-
-.field-error {
-  color: var(--danger);
 }
 
 .field-hint {
@@ -208,38 +202,6 @@ button {
   width: 100%;
   margin-top: 8px;
   gap: 8px;
-}
-
-.camera-icon {
-  position: relative;
-  display: inline-block;
-  width: 18px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-radius: var(--radius-sm);
-}
-
-.camera-icon::before {
-  position: absolute;
-  top: 3px;
-  left: 4px;
-  width: 6px;
-  height: 6px;
-  border: 2px solid currentColor;
-  border-radius: var(--radius-pill);
-  content: '';
-}
-
-.camera-icon::after {
-  position: absolute;
-  top: -5px;
-  left: 3px;
-  width: 8px;
-  height: 5px;
-  border: 2px solid currentColor;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  content: '';
 }
 
 .media-preview {
@@ -489,6 +451,63 @@ button {
   letter-spacing: 0.18em;
 }
 
+.live-location {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--utility-surface);
+}
+
+.live-location-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.live-location-head strong,
+.live-location p {
+  display: block;
+  margin: 4px 0 0;
+}
+
+.live-dot {
+  position: relative;
+  padding-left: 14px;
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.live-dot::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  content: '';
+  transform: translateY(-50%);
+}
+
+.live-location iframe {
+  width: 100%;
+  height: 260px;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.live-location p,
+.location-waiting {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .chat-messages {
   display: grid;
   gap: 8px;
@@ -585,12 +604,6 @@ button {
   display: none;
 }
 
-.camera-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
-
 @media (max-width: 1068px) {
   .page-hero {
     padding: 48px;
@@ -667,15 +680,13 @@ button {
   }
 
   .form-actions,
-  .ticket-actions,
-  .camera-actions {
+  .ticket-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
   .form-actions > button,
-  .ticket-actions > button,
-  .camera-actions > button {
+  .ticket-actions > button {
     width: 100%;
   }
 

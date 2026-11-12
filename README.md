@@ -16,6 +16,7 @@ This project is a complete **web portal** implementation with:
 - Online worker heartbeat, hybrid auto/admin dispatch, and SLA-overdue indicators
 - In-app completion OTP with required after-photo proof
 - Ticket-scoped user/worker/admin chat and in-app notifications
+- Privacy-scoped worker live location with a free OpenStreetMap view during active work
 - Post-completion worker ratings, reviews, filters, and repeat requests
 - Profile management
 - Settings page (theme, logout, notifications)
@@ -193,11 +194,16 @@ service's `API_BASE_URL` + Content Security Policy together. If the admin-backen
 also update the admin service's Content Security Policy in `render.yaml`.
 
 MongoDB creates the `admin_sessions` collection and its expiry index automatically. The migration
-also creates `ticket_messages` and `reviews` automatically. Existing ticket and user documents need
+also creates `ticket_messages`, `reviews`, and `worker_locations` automatically. Existing ticket and user documents need
 no manual MongoDB edits: Mongoose supplies defaults, assigned legacy tickets are moved into the
 tracked lifecycle, and active legacy tickets receive a completion code on public-backend startup.
 Existing admin bearer tokens are rejected after deployment; the public backend has no admin-login
 endpoint, and the admin backend accepts no public or worker bearer tokens.
+
+Worker live location is stored only as the latest GPS point in `worker_locations`. It is visible
+only to the assigned requester, worker, and admin while a ticket is accepted or in progress, and it
+expires automatically after two minutes. Workers must explicitly go online and grant browser
+location permission; no location history is retained.
 
 Passwords created through signup or admin account management require at least 8 characters, one
 uppercase letter, and one special character.
