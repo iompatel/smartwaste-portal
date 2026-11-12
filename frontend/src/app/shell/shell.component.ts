@@ -36,6 +36,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   private workerHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private locationWatchId: number | null = null;
   private lastLocationSentAt = 0;
+  private lastWorkerPosition: { latitude: number; longitude: number; accuracy: number } | null = null;
 
   constructor(
     private readonly portalService: PortalService,
@@ -56,7 +57,11 @@ export class ShellComponent implements OnInit, OnDestroy {
       if (this.user) this.loadNotifications();
     }, 30_000);
     this.workerHeartbeatTimer = setInterval(() => {
-      if (this.user?.role === 'worker' && this.user.workerOnline) {
+      if (this.user?.role !== 'worker' || !this.user.workerOnline) return;
+      if (this.lastWorkerPosition) {
+        // Re-send the last fix so a stationary worker's live location does not expire.
+        this.portalService.updateWorkerLocation(this.lastWorkerPosition).subscribe({ error: () => {} });
+      } else {
         this.portalService.sendWorkerHeartbeat().subscribe({ error: () => {} });
       }
     }, 60_000);
@@ -164,16 +169,15 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.locationWatchId = navigator.geolocation.watchPosition(
       (position) => {
         this.workerLocationStatus = 'sharing';
+        this.lastWorkerPosition = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        };
         const now = Date.now();
         if (now - this.lastLocationSentAt < 10_000) return;
         this.lastLocationSentAt = now;
-        this.portalService
-          .updateWorkerLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          })
-          .subscribe({ error: () => {} });
+        this.portalService.updateWorkerLocation(this.lastWorkerPosition).subscribe({ error: () => {} });
       },
       () => (this.workerLocationStatus = 'blocked'),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
@@ -186,6 +190,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
     this.locationWatchId = null;
     this.lastLocationSentAt = 0;
+    this.lastWorkerPosition = null;
     this.workerLocationStatus = 'off';
   }
 }
