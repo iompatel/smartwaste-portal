@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 
 import { THEME_KEY } from '../core/constants';
 
@@ -10,24 +10,26 @@ export function storedTheme(value: string | null): ThemeMode {
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  private mode: ThemeMode = storedTheme(localStorage.getItem(THEME_KEY));
+  private readonly _mode = signal<ThemeMode>(storedTheme(localStorage.getItem(THEME_KEY)));
+  readonly currentMode = computed(() => this._mode());
 
   constructor() {
-    this.apply(this.mode);
+    this.apply(this._mode());
   }
 
-  get currentMode() {
-    return this.mode;
+  toggle(): ThemeMode {
+    const newMode = this._mode() === 'light' ? 'dark' : 'light';
+    this._mode.set(newMode);
+    this.apply(newMode);
+    return newMode;
   }
 
-  toggle() {
-    this.mode = this.mode === 'light' ? 'dark' : 'light';
-    this.apply(this.mode);
-    return this.mode;
+  setMode(mode: ThemeMode): void {
+    this._mode.set(mode);
+    this.apply(mode);
   }
 
-  apply(mode: ThemeMode) {
-    this.mode = mode;
+  private apply(mode: ThemeMode): void {
     document.body.classList.toggle('theme-dark', mode === 'dark');
     localStorage.setItem(THEME_KEY, mode);
   }

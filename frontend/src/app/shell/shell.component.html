@@ -214,6 +214,30 @@
                     {{ item.label }}
                   </a>
                 }
+                <div class="profile-dropdown-divider"></div>
+                <div class="theme-toggle-item" role="group" aria-label="Theme">
+                  <span class="theme-toggle-label">Theme</span>
+                  <div class="theme-toggle-chips">
+                    <button
+                      type="button"
+                      class="theme-chip"
+                      [class.selected]="themeService.currentMode() === 'light'"
+                      [attr.aria-pressed]="themeService.currentMode() === 'light'"
+                      (click)="themeService.setMode('light')"
+                    >
+                      Light
+                    </button>
+                    <button
+                      type="button"
+                      class="theme-chip"
+                      [class.selected]="themeService.currentMode() === 'dark'"
+                      [attr.aria-pressed]="themeService.currentMode() === 'dark'"
+                      (click)="themeService.setMode('dark')"
+                    >
+                      Dark
+                    </button>
+                  </div>
+                </div>
               </nav>
               <button type="button" class="btn btn-outline profile-logout" (click)="logout()" role="menuitem">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

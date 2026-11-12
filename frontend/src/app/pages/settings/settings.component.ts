@@ -17,21 +17,13 @@ export class SettingsComponent {
   notificationPermission = 'default';
 
   constructor(
-    private readonly themeService: ThemeService,
+    public readonly themeService: ThemeService,
     private readonly notificationService: BrowserNotificationService,
     @Inject(SESSION_SERVICE) private readonly authService: SessionService,
     private readonly router: Router,
   ) {
     this.notificationPermission =
       typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
-  }
-
-  get currentTheme() {
-    return this.themeService.currentMode;
-  }
-
-  toggleTheme() {
-    this.themeService.toggle();
   }
 
   async enableNotifications() {

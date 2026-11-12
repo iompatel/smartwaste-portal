@@ -9,24 +9,24 @@
     <div class="theme-control" aria-labelledby="theme-setting-title">
       <div>
         <span class="control-label" id="theme-setting-title">Appearance</span>
-        <span class="control-value">Current theme: {{ currentTheme }}</span>
+        <span class="control-value">Current theme: {{ themeService.currentMode() }}</span>
       </div>
       <div class="theme-toggle" role="group" aria-labelledby="theme-setting-title">
         <button
           type="button"
           class="theme-chip"
-          [class.selected]="currentTheme === 'light'"
-          [attr.aria-pressed]="currentTheme === 'light'"
-          (click)="currentTheme !== 'light' ? toggleTheme() : null"
+          [class.selected]="themeService.currentMode() === 'light'"
+          [attr.aria-pressed]="themeService.currentMode() === 'light'"
+          (click)="themeService.setMode('light')"
         >
           Light
         </button>
         <button
           type="button"
           class="theme-chip"
-          [class.selected]="currentTheme === 'dark'"
-          [attr.aria-pressed]="currentTheme === 'dark'"
-          (click)="currentTheme !== 'dark' ? toggleTheme() : null"
+          [class.selected]="themeService.currentMode() === 'dark'"
+          [attr.aria-pressed]="themeService.currentMode() === 'dark'"
+          (click)="themeService.setMode('dark')"
         >
           Dark
         </button>
