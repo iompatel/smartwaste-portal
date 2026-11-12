@@ -18,7 +18,10 @@
   align-content: center;
   gap: 64px;
   padding: clamp(48px, 5.5vw, 80px);
-  background: var(--surface-dark);
+  background:
+    radial-gradient(52rem 30rem at 12% -10%, rgba(163, 230, 53, 0.14), transparent 60%),
+    radial-gradient(40rem 26rem at 110% 110%, rgba(20, 184, 166, 0.16), transparent 62%),
+    linear-gradient(158deg, #123023, #0f231b 55%, #081410);
   color: var(--on-dark);
 }
 
@@ -67,6 +70,8 @@
 
 .feature-grid article {
   min-width: 0;
+  padding-top: 16px;
+  border-top: 2px solid rgba(163, 230, 53, 0.55);
 }
 
 .feature-grid strong {
@@ -90,6 +95,42 @@
   justify-self: center;
   width: min(calc(100% - 96px), 480px);
   padding-block: clamp(48px, 7vw, 80px);
+  animation: auth-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-copy {
+  animation: auth-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.feature-grid article {
+  animation: auth-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.feature-grid article:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.feature-grid article:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+@keyframes auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .hero-copy,
+  .feature-grid article {
+    animation: none;
+  }
 }
 
 .auth-card h2 {

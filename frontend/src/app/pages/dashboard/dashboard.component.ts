@@ -1,18 +1,30 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { animate, stagger } from 'motion';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { DashboardSummary, HireRequest, Ticket, WorkerReviewSummary } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { PortalService } from '../../services/portal.service';
+import { BarChartComponent, BarDatum } from '../../shared/bar-chart.component';
+import { DonutChartComponent, DonutSlice } from '../../shared/donut-chart.component';
+import { SparklineComponent } from '../../shared/sparkline.component';
 import { StatCardComponent } from '../../shared/stat-card.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, StatCardComponent, StatusBadgeComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    BarChartComponent,
+    DonutChartComponent,
+    SparklineComponent,
+    StatCardComponent,
+    StatusBadgeComponent,
+  ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -82,6 +94,47 @@ export class DashboardComponent implements OnInit {
       .slice(0, 6);
   }
 
+  get statusBreakdown(): DonutSlice[] {
+    const open = this.tickets.filter(
+      (ticket) => !['completed', 'cancelled'].includes(ticket.status),
+    ).length;
+    return [
+      { label: 'Open', value: open, color: 'var(--chart-2)' },
+      { label: 'Completed', value: this.completedTicketCount, color: 'var(--chart-1)' },
+      {
+        label: 'Cancelled',
+        value: this.tickets.filter((ticket) => ticket.status === 'cancelled').length,
+        color: 'var(--chart-5)',
+      },
+    ];
+  }
+
+  get weeklyTrend(): number[] {
+    const days = [0, 0, 0, 0, 0, 0, 0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const ticket of this.tickets) {
+      const created = new Date(ticket.createdAt);
+      created.setHours(0, 0, 0, 0);
+      const age = Math.floor((today.getTime() - created.getTime()) / 86400000);
+      if (age >= 0 && age < 7) {
+        days[6 - age]++;
+      }
+    }
+    return days;
+  }
+
+  get wasteTypeBreakdown(): BarDatum[] {
+    const counts = new Map<string, number>();
+    for (const ticket of this.tickets) {
+      counts.set(ticket.wasteType, (counts.get(ticket.wasteType) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }
+
   ngOnInit() {
     this.reload();
   }
@@ -121,6 +174,7 @@ export class DashboardComponent implements OnInit {
         this.tickets = tickets;
         this.hireRequests = hireRequests;
         this.loading = false;
+        setTimeout(() => this.playIntro());
         if (this.isWorker && this.authService.currentUser) {
           this.portalService.getWorkerReviews(this.authService.currentUser.id).subscribe({
             next: (reviews) => (this.workerReviews = reviews),
@@ -161,5 +215,12 @@ export class DashboardComponent implements OnInit {
     }
 
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
+  }
+
+  private playIntro() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate('.dashboard .stats app-stat-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.06), ease: 'easeOut' });
+    animate('.dashboard .chart-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.08, { startDelay: 0.15 }), ease: 'easeOut' });
+    animate('.dashboard .tracking-row', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.05, { startDelay: 0.3 }), ease: 'easeOut' });
   }
 }

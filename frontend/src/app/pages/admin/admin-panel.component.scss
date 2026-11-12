@@ -149,6 +149,29 @@
   border-left: 1px solid var(--border);
 }
 
+.charts {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chart-card {
+  min-width: 0;
+}
+
+.chart-head h2 {
+  margin: 4px 0 0;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.19;
+  letter-spacing: -0.015em;
+}
+
+.chart-head .eyebrow {
+  color: var(--accent);
+}
+
 .panel-grid {
   min-width: 0;
   display: grid;
@@ -321,6 +344,10 @@
 @media (max-width: 1068px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .charts {
+    grid-template-columns: 1fr;
   }
 }
 

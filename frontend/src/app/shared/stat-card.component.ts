@@ -18,6 +18,12 @@ import { Component, Input } from '@angular/core';
         border-radius: var(--radius-lg);
         min-height: 148px;
         padding: 24px;
+        box-shadow: var(--shadow-soft);
+        transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        border-color: var(--accent);
       }
       .label {
         margin: 0;

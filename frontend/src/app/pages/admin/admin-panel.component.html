@@ -68,6 +68,40 @@
       </div>
     </article>
 
+    <div class="charts" aria-label="Operations analytics">
+      <article class="card chart-card">
+        <div class="chart-head">
+          <span class="eyebrow">Breakdown</span>
+          <h2>Ticket Status</h2>
+        </div>
+        @if (statusBreakdown.length) {
+          <app-donut-chart [slices]="statusBreakdown" label="Ticket status breakdown" />
+        } @else {
+          <p class="empty-state">No tickets yet.</p>
+        }
+      </article>
+
+      <article class="card chart-card">
+        <div class="chart-head">
+          <span class="eyebrow">Trend</span>
+          <h2>Tickets This Week</h2>
+        </div>
+        <app-sparkline [data]="weeklyTrend" label="Tickets created per day over the last 7 days" />
+      </article>
+
+      <article class="card chart-card">
+        <div class="chart-head">
+          <span class="eyebrow">Mix</span>
+          <h2>Waste Types</h2>
+        </div>
+        @if (wasteTypeBreakdown.length) {
+          <app-bar-chart [data]="wasteTypeBreakdown" label="Ticket count by waste type" />
+        } @else {
+          <p class="empty-state">No tickets yet.</p>
+        }
+      </article>
+    </div>
+
     <div class="panel-grid" [class.single]="pendingHireRequests === 0">
       <article class="card">
         <div class="card-head">
