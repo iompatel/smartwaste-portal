@@ -58,6 +58,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   reviewComment: Partial<Record<number, string>> = {};
   workerLocations: Partial<Record<number, WorkerLocation>> = {};
   workerMapUrls: Partial<Record<number, SafeResourceUrl>> = {};
+  workerMapKeys: Partial<Record<number, string>> = {};
 
   private cameraStream: MediaStream | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -434,6 +435,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
       if (!activeIds.has(id)) {
         delete this.workerLocations[id];
         delete this.workerMapUrls[id];
+        delete this.workerMapKeys[id];
       }
     }
     for (const ticketId of activeIds) {
@@ -443,6 +445,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
           if (location.available && location.latitude !== undefined && location.longitude !== undefined) {
             const lat = location.latitude;
             const lng = location.longitude;
+            // Only rebuild the iframe when the marker moves ~100 m, otherwise it reloads every poll.
+            const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+            if (this.workerMapKeys[ticketId] === key) return;
+            this.workerMapKeys[ticketId] = key;
             const delta = 0.005;
             const src =
               `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}` +
@@ -450,11 +456,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
             this.workerMapUrls[ticketId] = this.sanitizer.bypassSecurityTrustResourceUrl(src);
           } else {
             delete this.workerMapUrls[ticketId];
+            delete this.workerMapKeys[ticketId];
           }
         },
         error: () => {
           this.workerLocations[ticketId] = { available: false };
           delete this.workerMapUrls[ticketId];
+          delete this.workerMapKeys[ticketId];
         },
       });
     }
