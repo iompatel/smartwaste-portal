@@ -37,13 +37,22 @@ export default {
       const expected = `Basic ${btoa(`${env.BASIC_USER}:${env.BASIC_PASS}`)}`;
       const provided = request.headers.get('Authorization') ?? '';
       if (!timingSafeEqual(provided, expected)) {
-        return new Response('Authentication required', {
+        const isApiRequest = url.pathname === '/api' || url.pathname.startsWith('/api/');
+        return new Response(
+          isApiRequest
+            ? JSON.stringify({ message: 'Admin gateway authentication required.' })
+            : 'Authentication required',
+          {
           status: 401,
           headers: {
             'WWW-Authenticate': 'Basic realm="SmartWaste Admin", charset="UTF-8"',
             'Cache-Control': 'no-store',
+            'Content-Type': isApiRequest
+              ? 'application/json; charset=UTF-8'
+              : 'text/plain; charset=UTF-8',
           },
-        });
+          },
+        );
       }
     }
 

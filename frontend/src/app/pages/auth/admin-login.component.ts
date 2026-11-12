@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { APP_TITLE } from '../../core/constants';
+import { loginErrorMessage } from '../../core/auth-errors';
 import { AdminAuthService } from '../../../admin/admin-auth.service';
 
 @Component({
@@ -41,6 +42,7 @@ export class AdminLoginComponent {
   }
 
   submit() {
+    if (this.loading) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -48,7 +50,9 @@ export class AdminLoginComponent {
 
     this.loading = true;
     this.error = '';
-    const { email, password } = this.form.getRawValue();
+    const value = this.form.getRawValue();
+    const email = value.email.trim().toLowerCase();
+    const password = value.password;
 
     this.authService.adminLogin(email, password).subscribe({
       next: () => {
@@ -57,7 +61,7 @@ export class AdminLoginComponent {
       },
       error: (error) => {
         this.loading = false;
-        this.error = error?.error?.message ?? 'Unable to access the Admin Console.';
+        this.error = loginErrorMessage(error, 'admin');
       },
     });
   }

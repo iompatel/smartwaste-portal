@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
@@ -12,6 +12,7 @@ import { environment } from '../environments/environment';
 import { API_CLIENT } from '../app/services/api-client';
 import { ApiService } from '../app/services/api.service';
 import { AuthService } from '../app/services/auth.service';
+import { sessionInterceptor } from '../app/services/session.interceptor';
 import { SESSION_SERVICE } from '../app/services/session';
 import { SHELL_NAVIGATION, ShellNavItem } from '../app/shell/shell-navigation';
 import { workerRoutes } from './worker.routes';
@@ -28,7 +29,7 @@ export const workerConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([sessionInterceptor])),
     provideRouter(workerRoutes),
     provideFirebaseApp(() => initializeApp(environment.firebase)),
     provideAuth(() => getAuth()),

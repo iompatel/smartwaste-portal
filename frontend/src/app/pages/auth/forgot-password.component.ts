@@ -35,7 +35,7 @@ export class ForgotPasswordComponent implements OnDestroy {
   }
 
   submit() {
-    if (this.cooldownSeconds > 0) {
+    if (this.loading || this.cooldownSeconds > 0) {
       return;
     }
 

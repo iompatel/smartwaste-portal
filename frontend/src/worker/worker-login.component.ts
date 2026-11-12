@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { APP_TITLE } from '../app/core/constants';
+import { loginErrorMessage } from '../app/core/auth-errors';
 import { AuthService } from '../app/services/auth.service';
 
 @Component({
@@ -39,6 +40,7 @@ export class WorkerLoginComponent {
   }
 
   submit() {
+    if (this.loading) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -46,7 +48,9 @@ export class WorkerLoginComponent {
 
     this.loading = true;
     this.error = '';
-    const { email, password } = this.form.getRawValue();
+    const value = this.form.getRawValue();
+    const email = value.email.trim().toLowerCase();
+    const password = value.password;
 
     this.authService.workerLogin(email, password).subscribe({
       next: () => {
@@ -55,7 +59,7 @@ export class WorkerLoginComponent {
       },
       error: (error) => {
         this.loading = false;
-        this.error = error?.error?.message ?? 'Unable to access the Worker Console.';
+        this.error = loginErrorMessage(error, 'worker');
       },
     });
   }

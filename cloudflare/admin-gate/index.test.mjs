@@ -38,6 +38,10 @@ test('keeps the Basic credential at the edge', async () => {
       { BASIC_USER: 'admin', BASIC_PASS: 'secret', EDGE_SECRET: 'edge' },
     );
     assert.equal(unauthorized.status, 401);
+    assert.equal(unauthorized.headers.get('content-type'), 'application/json; charset=UTF-8');
+    assert.deepEqual(await unauthorized.json(), {
+      message: 'Admin gateway authentication required.',
+    });
 
     const authorized = await worker.fetch(
       new Request('https://admin.smartwaste.dpdns.org/api/health', {

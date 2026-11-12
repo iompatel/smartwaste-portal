@@ -12,6 +12,7 @@ import {
 import { BehaviorSubject, catchError, from, map, of, switchMap, tap, throwError } from 'rxjs';
 
 import { SESSION_TOKEN_KEY, SESSION_USER_KEY } from '../core/constants';
+import { shouldFallbackToPasswordLogin } from '../core/auth-errors';
 import { AuthResponse, User } from '../models/types';
 import { ApiService } from './api.service';
 
@@ -32,6 +33,10 @@ export class AuthService {
   }
 
   login(email: string, password: string) {
+    const localLogin$ = this.api
+      .post<AuthResponse>('/auth/login', { email, password }, false)
+      .pipe(tap((response) => this.persistSession(response)));
+
     return from(signInWithEmailAndPassword(this.firebaseAuth, email, password)).pipe(
       switchMap((credential) => from(credential.user.getIdToken())),
       switchMap((idToken) =>
@@ -44,17 +49,8 @@ export class AuthService {
         ),
       ),
       tap((response) => this.persistSession(response)),
-      catchError(() =>
-        this.api
-          .post<AuthResponse>(
-            '/auth/login',
-            {
-              email,
-              password,
-            },
-            false,
-          )
-          .pipe(tap((response) => this.persistSession(response))),
+      catchError((error) =>
+        shouldFallbackToPasswordLogin(error) ? localLogin$ : throwError(() => error),
       ),
     );
   }
@@ -235,6 +231,10 @@ export class AuthService {
       },
     });
     void signOut(this.firebaseAuth);
+    this.clearSession();
+  }
+
+  clearSession() {
     localStorage.removeItem(SESSION_TOKEN_KEY);
     localStorage.removeItem(SESSION_USER_KEY);
     this.userSubject.next(null);
@@ -255,6 +255,7 @@ export class AuthService {
     try {
       return JSON.parse(raw) as User;
     } catch {
+      localStorage.removeItem(SESSION_TOKEN_KEY);
       localStorage.removeItem(SESSION_USER_KEY);
       return null;
     }

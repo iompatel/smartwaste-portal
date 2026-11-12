@@ -214,7 +214,11 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+      '_blank',
+      'noopener',
+    );
   }
 
   private playIntro() {

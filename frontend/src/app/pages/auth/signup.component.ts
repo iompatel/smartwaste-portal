@@ -40,6 +40,7 @@ export class SignupComponent {
   readonly passwordHint = PASSWORD_HINT;
 
   submit() {
+    if (this.loading) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

@@ -1,5 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { APP_TITLE } from '../core/constants';
@@ -32,6 +41,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   workerLocationStatus: 'off' | 'requesting' | 'sharing' | 'blocked' = 'off';
   readonly navItems = inject(SHELL_NAVIGATION);
   private readonly authService = inject(SESSION_SERVICE);
+  private readonly destroyRef = inject(DestroyRef);
   private notificationTimer: ReturnType<typeof setInterval> | null = null;
   private workerHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private locationWatchId: number | null = null;
@@ -44,15 +54,17 @@ export class ShellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.authService.currentUser$.subscribe((user) => {
-      this.user = user;
-      this.syncWorkerLocationTracking();
-      if (user) {
-        this.loadNotifications();
-      } else {
-        this.notifications = [];
-      }
-    });
+    this.authService.currentUser$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((user) => {
+        this.user = user;
+        this.syncWorkerLocationTracking();
+        if (user) {
+          this.loadNotifications();
+        } else {
+          this.notifications = [];
+        }
+      });
     this.notificationTimer = setInterval(() => {
       if (this.user) this.loadNotifications();
     }, 30_000);

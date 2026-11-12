@@ -206,6 +206,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   saveTicket() {
+    if (this.saving) return;
     if (!this.canCreateTickets || this.form.invalid) {
       this.form.markAllAsTouched();
       return;

@@ -105,10 +105,6 @@ const DEMO_PASSWORDS = {
   'worker@smartwaste.com': 'Worker#123',
   'user@smartwaste.com': 'User#123',
 };
-const LEGACY_DEMO_PASSWORDS = {
-  'worker@smartwaste.com': 'worker123',
-  'user@smartwaste.com': 'user123',
-};
 const LEGACY_ADMIN_PASSWORDS = ['admin123', 'Admin#123'];
 
 async function hashPassword(value) {
@@ -163,7 +159,7 @@ function generateToken(user) {
 
 function parseNumericId(value) {
   const id = Number(value);
-  return Number.isFinite(id) && id > 0 ? id : null;
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 function buildSessionLabel(payload) {
@@ -728,11 +724,50 @@ function defaultPasswordForKnownDemoUsers(email) {
   );
 }
 
-async function upgradeLegacyDemoPasswords() {
-  for (const [email, legacyPassword] of Object.entries(LEGACY_DEMO_PASSWORDS)) {
-    const user = await User.findOne({ email });
-    if (user && (await comparePassword(legacyPassword, user.passwordHash))) {
-      user.passwordHash = await hashPassword(DEMO_PASSWORDS[email]);
+async function ensureDemoUsers() {
+  const records = [
+    {
+      email: 'worker@smartwaste.com',
+      role: 'worker',
+      firstName: 'Field',
+      lastName: 'Worker',
+      gender: 'Male',
+      mobile: '8888888888',
+      address: 'North Sector',
+      workerOnline: true,
+    },
+    {
+      email: 'user@smartwaste.com',
+      role: 'user',
+      firstName: 'Citizen',
+      lastName: 'User',
+      gender: 'Female',
+      mobile: '7777777777',
+      address: 'Lakeview Block',
+      workerOnline: false,
+    },
+  ];
+
+  for (const record of records) {
+    let user = await User.findOne({ email: record.email });
+    if (user && user.role !== record.role) {
+      throw new Error(`${record.email} belongs to the wrong role for demo mode.`);
+    }
+    if (!user) {
+      const now = new Date();
+      user = await User.create({
+        id: await nextId('users'),
+        ...record,
+        passwordHash: await hashPassword(DEMO_PASSWORDS[record.email]),
+        profileImage: null,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: null,
+      });
+      continue;
+    }
+    if (!(await comparePassword(DEMO_PASSWORDS[record.email], user.passwordHash))) {
+      user.passwordHash = await hashPassword(DEMO_PASSWORDS[record.email]);
       user.updatedAt = new Date();
       await user.save();
     }
@@ -829,14 +864,14 @@ async function syncDefaultDemoUsersToFirebase() {
 async function seedData() {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
+    await syncCounter('users', User);
     if (PUBLIC_AUTH_ENABLED && SEED_DEMO_USERS) {
-      await upgradeLegacyDemoPasswords();
+      await ensureDemoUsers();
     }
     if (ADMIN_AUTH_ENABLED) {
       await ensureSeedAdmin();
     }
     await Promise.all([
-      syncCounter('users', User),
       syncCounter('tickets', Ticket),
       syncCounter('hireRequests', HireRequest),
       syncCounter('notifications', Notification),
@@ -2026,13 +2061,11 @@ app.get('/api/hire-requests', authMiddleware, async (req, res) => {
 
 app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req, res) => {
   const { title, purpose, workAddress } = req.body ?? {};
-
-  if (!title || !String(title).trim()) {
-    return res.status(400).json({ message: 'Title is required.' });
-  }
-
-  if (!purpose || !String(purpose).trim()) {
-    return res.status(400).json({ message: 'Purpose is required.' });
+  const cleanTitle = cleanBoundedText(title, 150);
+  const cleanPurpose = cleanBoundedText(purpose, 1_000);
+  const cleanWorkAddress = cleanBoundedText(workAddress ?? req.user.address, 500);
+  if (!cleanTitle || !cleanPurpose || !cleanWorkAddress) {
+    return res.status(400).json({ message: 'Hire request fields are invalid or too long.' });
   }
 
   const now = new Date();
@@ -2050,9 +2083,9 @@ app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req,
     requesterMobile: String(req.user.mobile ?? '').trim(),
     requesterEmail: normalizeEmail(req.user.email),
     requesterAddress: String(req.user.address ?? '').trim(),
-    title: String(title).trim(),
-    purpose: String(purpose).trim(),
-    workAddress: String(workAddress ?? req.user.address ?? '').trim(),
+    title: cleanTitle,
+    purpose: cleanPurpose,
+    workAddress: cleanWorkAddress,
     status: 'pending',
     assignedWorkerId: null,
     assignedByAdminId: null,
@@ -2067,9 +2100,7 @@ app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req,
       createNotification({
         userId: admin.id,
         title: 'New Worker Hire Request',
-        message: `${requestCode} "${String(title).trim()}" from ${requesterName} (${req.user.mobile}). Purpose: ${String(
-          purpose,
-        ).trim()}.`,
+        message: `${requestCode} "${cleanTitle}" from ${requesterName} (${req.user.mobile}). Purpose: ${cleanPurpose}.`,
       }),
     ),
   );
@@ -2778,6 +2809,7 @@ app.get('/api/notifications', authMiddleware, async (req, res) => {
     notifications.map((item) => {
       const record = cleanRecord(item);
       const readBy = Array.isArray(record.readBy) ? record.readBy : [];
+      delete record.readBy;
       return {
         ...record,
         read: readBy.includes(req.user.id),
@@ -2788,18 +2820,24 @@ app.get('/api/notifications', authMiddleware, async (req, res) => {
 
 app.post('/api/notifications', authMiddleware, requireRoles('admin'), async (req, res) => {
   const { title, message, userId = null } = req.body ?? {};
-  if (!title || !message) {
-    return res.status(400).json({ message: 'Title and message are required.' });
+  const cleanTitle = cleanBoundedText(title, 200);
+  const cleanMessage = cleanBoundedText(message, 1_000);
+  const targetUserId = userId === null || userId === '' ? null : parseNumericId(userId);
+  if (!cleanTitle || !cleanMessage || (userId !== null && userId !== '' && !targetUserId)) {
+    return res.status(400).json({ message: 'Notification fields are invalid or too long.' });
+  }
+  if (targetUserId && !(await User.exists({ id: targetUserId }))) {
+    return res.status(404).json({ message: 'Notification recipient not found.' });
   }
 
-  await createNotification({ title, message, userId });
+  await createNotification({ title: cleanTitle, message: cleanMessage, userId: targetUserId });
   await createAdminActivity({
     adminUser: req.user,
     sessionLabel: req.sessionLabel,
     action: 'Notification Sent',
-    targetType: userId ? 'targeted-notification' : 'broadcast-notification',
-    targetId: userId ? Number(userId) : null,
-    summary: `Sent notification "${String(title).trim()}"${userId ? ` to user #${userId}` : ' to all users'}.`,
+    targetType: targetUserId ? 'targeted-notification' : 'broadcast-notification',
+    targetId: targetUserId,
+    summary: `Sent notification "${cleanTitle}"${targetUserId ? ` to user #${targetUserId}` : ' to all users'}.`,
   });
 
   res.status(201).json({ message: 'Notification sent.' });
@@ -2831,6 +2869,7 @@ app.put('/api/notifications/:id/read', authMiddleware, async (req, res) => {
 
   const record = cleanRecord(notification);
   const readBy = Array.isArray(record.readBy) ? record.readBy : [];
+  delete record.readBy;
 
   res.json({
     ...record,

@@ -4,9 +4,13 @@ import { THEME_KEY } from '../core/constants';
 
 export type ThemeMode = 'light' | 'dark';
 
+export function storedTheme(value: string | null): ThemeMode {
+  return value === 'dark' ? 'dark' : 'light';
+}
+
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  private mode: ThemeMode = (localStorage.getItem(THEME_KEY) as ThemeMode | null) ?? 'light';
+  private mode: ThemeMode = storedTheme(localStorage.getItem(THEME_KEY));
 
   constructor() {
     this.apply(this.mode);

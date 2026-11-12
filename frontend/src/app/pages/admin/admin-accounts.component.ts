@@ -86,6 +86,7 @@ export class AdminAccountsComponent implements OnInit {
   }
 
   createAccount() {
+    if (this.saving) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

@@ -80,7 +80,13 @@ export class ProfileComponent implements OnInit {
     if (!file) {
       return;
     }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 1_500_000) {
+      this.error = 'Choose a JPEG, PNG, or WebP image under 1.5 MB.';
+      input.value = '';
+      return;
+    }
 
+    this.error = '';
     const reader = new FileReader();
     reader.onload = () => {
       this.form.patchValue({
@@ -91,6 +97,7 @@ export class ProfileComponent implements OnInit {
   }
 
   save() {
+    if (this.loading) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

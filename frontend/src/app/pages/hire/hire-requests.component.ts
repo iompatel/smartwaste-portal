@@ -106,7 +106,7 @@ export class HireRequestsComponent implements OnInit {
   }
 
   createRequest() {
-    if (!this.isUser) {
+    if (this.saving || !this.isUser) {
       return;
     }
 
@@ -143,7 +143,7 @@ export class HireRequestsComponent implements OnInit {
   }
 
   assign(request: HireRequest) {
-    if (!this.isAdmin) {
+    if (this.saving || !this.isAdmin) {
       return;
     }
 
@@ -180,7 +180,7 @@ export class HireRequestsComponent implements OnInit {
   }
 
   deleteRequest(request: HireRequest) {
-    if (!this.isAdmin && !this.isUser) {
+    if (this.saving || (!this.isAdmin && !this.isUser)) {
       return;
     }
 
@@ -249,7 +249,7 @@ export class HireRequestsComponent implements OnInit {
   }
 
   completeTask(request: HireRequest) {
-    if (!this.isWorker) {
+    if (this.saving || !this.isWorker) {
       return;
     }
 

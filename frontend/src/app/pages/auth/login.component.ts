@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { APP_TITLE } from '../../core/constants';
+import { loginErrorMessage } from '../../core/auth-errors';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -46,6 +47,7 @@ export class LoginComponent {
   });
 
   submit() {
+    if (this.loading) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -53,7 +55,9 @@ export class LoginComponent {
 
     this.loading = true;
     this.error = '';
-    const { email, password } = this.form.getRawValue();
+    const value = this.form.getRawValue();
+    const email = value.email.trim().toLowerCase();
+    const password = value.password;
 
     this.authService.login(email, password).subscribe({
       next: () => {
@@ -62,21 +66,13 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading = false;
-        const code = String(err?.code ?? '');
-        if (
-          code.includes('auth/invalid-credential') ||
-          code.includes('auth/user-not-found') ||
-          code.includes('auth/wrong-password')
-        ) {
-          this.error = 'Invalid email or password.';
-          return;
-        }
-        this.error = err?.error?.message ?? 'Unable to login right now.';
+        this.error = loginErrorMessage(err, 'user');
       },
     });
   }
 
   loginWithGoogle() {
+    if (this.loading) return;
     this.loading = true;
     this.error = '';
 
