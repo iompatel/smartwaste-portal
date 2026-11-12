@@ -569,15 +569,18 @@ async function pickFreeWorkerIdForTicket(wasteType = '') {
     { id: 1, workerSkills: 1 },
   ).lean();
   const normalizedWasteType = String(wasteType).trim().toLowerCase();
-  const matchingWorkers = workers.filter((worker) => {
+  const skilledWorkers = workers.filter((worker) => {
     const skills = Array.isArray(worker.workerSkills) ? worker.workerSkills : [];
-    return (
-      !normalizedWasteType ||
-      skills.length === 0 ||
-      skills.some((skill) => normalizedWasteType.includes(String(skill).toLowerCase()))
-    );
+    return skills.some((skill) => normalizedWasteType.includes(String(skill).toLowerCase()));
   });
-  const candidates = matchingWorkers.length ? matchingWorkers : workers;
+  const generalWorkers = workers.filter(
+    (worker) => !Array.isArray(worker.workerSkills) || worker.workerSkills.length === 0,
+  );
+  const candidates = normalizedWasteType && skilledWorkers.length
+    ? skilledWorkers
+    : generalWorkers.length
+      ? generalWorkers
+      : workers;
   const workerIds = candidates
     .map((worker) => Number(worker.id))
     .filter((value) => Number.isFinite(value) && value > 0);
