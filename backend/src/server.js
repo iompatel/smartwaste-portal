@@ -27,6 +27,16 @@ import {
   matchesAdminSecret,
   readCookie,
 } from './admin-session.js';
+import {
+  MAX_TICKET_TEXT_LENGTH,
+  TICKET_PRIORITIES,
+  TICKET_STATUSES,
+  canWorkerTransition,
+  createCompletionCode,
+  isClosedTicket,
+  isValidImageData,
+  ticketSlaHours,
+} from './ticket-policy.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -63,6 +73,14 @@ if (IS_PRODUCTION && ADMIN_AUTH_ENABLED && !process.env.ADMIN_FRONTEND_URL) {
 if (
   IS_PRODUCTION &&
   ADMIN_AUTH_ENABLED &&
+  !REQUIRE_CF_ACCESS &&
+  !/^[a-f0-9]{64}$/i.test(ADMIN_EDGE_SECRET_HASH)
+) {
+  throw new Error('A valid ADMIN_EDGE_SECRET_HASH is required by the admin backend.');
+}
+if (
+  IS_PRODUCTION &&
+  ADMIN_AUTH_ENABLED &&
   REQUIRE_CF_ACCESS &&
   (!CF_ACCESS_TEAM_DOMAIN || !CF_ACCESS_AUD)
 ) {
@@ -75,8 +93,6 @@ const cloudflareJwks =
     : null;
 
 const USER_ROLES = ['admin', 'worker', 'user'];
-const TICKET_STATUSES = ['pending', 'in_progress', 'completed'];
-const TICKET_PRIORITIES = ['low', 'medium', 'high'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
@@ -186,8 +202,22 @@ const userSchema = new mongoose.Schema(
     updatedAt: { type: Date, default: Date.now },
     lastLoginAt: { type: Date, default: null },
     tokenVersion: { type: Number, default: 0 },
+    workerOnline: { type: Boolean, default: false },
+    workerLastSeenAt: { type: Date, default: null },
+    workerSkills: { type: [String], default: [] },
   },
   { versionKey: false, collection: 'users' },
+);
+
+const ticketStatusEventSchema = new mongoose.Schema(
+  {
+    status: { type: String, required: true, enum: TICKET_STATUSES },
+    actorId: { type: Number, default: null },
+    actorRole: { type: String, default: null },
+    note: { type: String, default: null, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false, versionKey: false },
 );
 
 const ticketSchema = new mongoose.Schema(
@@ -202,6 +232,14 @@ const ticketSchema = new mongoose.Schema(
     locationAddress: { type: String, required: true, trim: true },
     status: { type: String, required: true, enum: TICKET_STATUSES, default: 'pending' },
     priority: { type: String, required: true, enum: TICKET_PRIORITIES, default: 'medium' },
+    statusHistory: { type: [ticketStatusEventSchema], default: [] },
+    acceptedAt: { type: Date, default: null },
+    startedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    completionCode: { type: String, default: null },
+    completionCodeHash: { type: String, default: null },
+    completionMediaData: { type: String, default: null },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -278,6 +316,32 @@ const adminSessionSchema = new mongoose.Schema(
   { versionKey: false, collection: 'admin_sessions' },
 );
 
+const ticketMessageSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true, unique: true },
+    ticketId: { type: Number, required: true, index: true },
+    senderId: { type: Number, required: true },
+    senderRole: { type: String, required: true, enum: USER_ROLES },
+    message: { type: String, required: true, trim: true, maxlength: 1000 },
+    readBy: { type: [Number], default: [] },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false, collection: 'ticket_messages' },
+);
+
+const reviewSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true, unique: true },
+    ticketId: { type: Number, required: true, unique: true, index: true },
+    userId: { type: Number, required: true, index: true },
+    workerId: { type: Number, required: true, index: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, default: '', trim: true, maxlength: 500 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false, collection: 'reviews' },
+);
+
 const Counter = mongoose.model('Counter', counterSchema);
 const User = mongoose.model('User', userSchema);
 const Ticket = mongoose.model('Ticket', ticketSchema);
@@ -285,6 +349,8 @@ const Notification = mongoose.model('Notification', notificationSchema);
 const AdminActivity = mongoose.model('AdminActivity', adminActivitySchema);
 const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
+const TicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
+const Review = mongoose.model('Review', reviewSchema);
 
 async function nextId(key) {
   const counter = await Counter.findOneAndUpdate(
@@ -299,15 +365,11 @@ async function nextId(key) {
 async function syncCounter(key, Model) {
   const highest = await Model.findOne({}, { id: 1 }).sort({ id: -1 }).lean();
   const highestId = highest?.id ?? 0;
-  const current = await Counter.findOne({ key }).lean();
-
-  if (!current || current.value < highestId) {
-    await Counter.findOneAndUpdate(
-      { key },
-      { key, value: highestId },
-      { upsert: true, setDefaultsOnInsert: true },
-    );
-  }
+  await Counter.findOneAndUpdate(
+    { key },
+    { $max: { value: highestId }, $setOnInsert: { key } },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
 }
 
 async function createNotification({ userId = null, title, message }) {
@@ -362,6 +424,77 @@ function truncateText(value, maxLength = 140) {
     return text;
   }
   return `${text.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+}
+
+function cleanBoundedText(value, maxLength = MAX_TICKET_TEXT_LENGTH) {
+  const text = String(value ?? '').trim();
+  return text && text.length <= maxLength ? text : null;
+}
+
+function isValidProfileImage(value) {
+  if (value === null || value === undefined || value === '') return true;
+  const text = String(value);
+  return isValidImageData(text) || (text.length <= 2_000 && /^https:\/\//i.test(text));
+}
+
+function appendTicketStatus(ticket, status, actor, note = null, at = new Date()) {
+  ticket.status = status;
+  ticket.updatedAt = at;
+  ticket.statusHistory.push({
+    status,
+    actorId: actor?.id ?? null,
+    actorRole: actor?.role ?? null,
+    note: note ? String(note).trim().slice(0, 500) : null,
+    createdAt: at,
+  });
+}
+
+function canAccessTicket(user, ticket) {
+  return Boolean(
+    user &&
+      ticket &&
+      (user.role === 'admin' ||
+        ticket.userId === user.id ||
+        (user.role === 'worker' && ticket.workerId === user.id)),
+  );
+}
+
+async function buildTicketRecords(rows, viewer = null) {
+  const ticketIds = rows.map((ticket) => Number(ticket.id));
+  const userIds = [
+    ...new Set(
+      rows
+        .flatMap((ticket) => [Number(ticket.userId), Number(ticket.workerId)])
+        .filter((id) => Number.isFinite(id) && id > 0),
+    ),
+  ];
+  const [users, reviews] = await Promise.all([
+    userIds.length
+      ? User.find({ id: { $in: userIds } }, { passwordHash: 0, profileImage: 0 }).lean()
+      : [],
+    ticketIds.length ? Review.find({ ticketId: { $in: ticketIds } }).lean() : [],
+  ]);
+  const userMap = new Map(users.map((user) => [Number(user.id), sanitizeUser(user)]));
+  const reviewMap = new Map(reviews.map((review) => [Number(review.ticketId), cleanRecord(review)]));
+
+  return rows.map((ticket) => {
+    const record = cleanRecord(ticket);
+    delete record.completionCodeHash;
+    if (viewer?.role !== 'admin' && (viewer?.role !== 'user' || viewer.id !== record.userId)) {
+      delete record.completionCode;
+    }
+    const slaDueAt = new Date(
+      new Date(record.createdAt).getTime() + ticketSlaHours(record.priority) * 60 * 60 * 1000,
+    );
+    return {
+      ...record,
+      slaDueAt,
+      slaOverdue: !isClosedTicket(record.status) && slaDueAt.getTime() < Date.now(),
+      requester: userMap.get(Number(record.userId)) ?? null,
+      assignedWorker: userMap.get(Number(record.workerId)) ?? null,
+      review: reviewMap.get(Number(record.id)) ?? null,
+    };
+  });
 }
 
 function buildTicketDetailsMessage(ticket, requester) {
@@ -426,9 +559,26 @@ async function getBusyWorkerIds() {
   );
 }
 
-async function pickFreeWorkerIdForTicket() {
-  const workers = await User.find({ role: 'worker' }, { id: 1 }).lean();
-  const workerIds = workers
+async function pickFreeWorkerIdForTicket(wasteType = '') {
+  const workers = await User.find(
+    {
+      role: 'worker',
+      workerOnline: true,
+      workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
+    },
+    { id: 1, workerSkills: 1 },
+  ).lean();
+  const normalizedWasteType = String(wasteType).trim().toLowerCase();
+  const matchingWorkers = workers.filter((worker) => {
+    const skills = Array.isArray(worker.workerSkills) ? worker.workerSkills : [];
+    return (
+      !normalizedWasteType ||
+      skills.length === 0 ||
+      skills.some((skill) => normalizedWasteType.includes(String(skill).toLowerCase()))
+    );
+  });
+  const candidates = matchingWorkers.length ? matchingWorkers : workers;
+  const workerIds = candidates
     .map((worker) => Number(worker.id))
     .filter((value) => Number.isFinite(value) && value > 0);
 
@@ -446,7 +596,7 @@ async function pickFreeWorkerIdForTicket() {
     {
       $match: {
         workerId: { $in: freeIds },
-        status: { $ne: 'completed' },
+        status: { $nin: ['completed', 'cancelled'] },
       },
     },
     { $group: { _id: '$workerId', count: { $sum: 1 } } },
@@ -474,7 +624,14 @@ async function pickFreeWorkerIdForTicket() {
 
 async function autoAssignUnassignedTickets(limit = 25) {
   const busy = await getBusyWorkerIds();
-  const workers = await User.find({ role: 'worker' }, { id: 1 }).lean();
+  const workers = await User.find(
+    {
+      role: 'worker',
+      workerOnline: true,
+      workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
+    },
+    { id: 1 },
+  ).lean();
   const freeIds = workers
     .map((worker) => Number(worker.id))
     .filter((id) => Number.isFinite(id) && id > 0 && !busy.has(id));
@@ -483,7 +640,10 @@ async function autoAssignUnassignedTickets(limit = 25) {
     return 0;
   }
 
-  const tickets = await Ticket.find({ workerId: null, status: { $ne: 'completed' } })
+  const tickets = await Ticket.find({
+    workerId: null,
+    status: { $nin: ['completed', 'cancelled'] },
+  })
     .sort({ createdAt: 1 })
     .limit(limit);
 
@@ -502,14 +662,25 @@ async function autoAssignUnassignedTickets(limit = 25) {
 
   let assigned = 0;
   for (const ticket of tickets) {
-    const workerId = await pickFreeWorkerIdForTicket();
+    const workerId = await pickFreeWorkerIdForTicket(ticket.wasteType);
     if (!workerId) {
       break;
     }
 
     const updated = await Ticket.findOneAndUpdate(
-      { id: ticket.id, workerId: null },
-      { $set: { workerId, updatedAt: new Date() } },
+      { id: ticket.id, workerId: null, status: { $nin: ['completed', 'cancelled'] } },
+      {
+        $set: { workerId, status: 'assigned', updatedAt: new Date() },
+        $push: {
+          statusHistory: {
+            status: 'assigned',
+            actorId: null,
+            actorRole: 'system',
+            note: `Automatically assigned to Worker #${workerId}.`,
+            createdAt: new Date(),
+          },
+        },
+      },
       { new: true },
     );
 
@@ -532,7 +703,7 @@ function defaultPasswordForKnownDemoUsers(email) {
 
   return (
     DEMO_PASSWORDS[normalizedEmail] ??
-    `Temp#${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(2, 6)}`
+    `Temp#${createAdminSecret().slice(0, 16)}`
   );
 }
 
@@ -637,7 +808,7 @@ async function syncDefaultDemoUsersToFirebase() {
 async function seedData() {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
-    if (PUBLIC_AUTH_ENABLED) {
+    if (PUBLIC_AUTH_ENABLED && SEED_DEMO_USERS) {
       await upgradeLegacyDemoPasswords();
     }
     if (ADMIN_AUTH_ENABLED) {
@@ -649,6 +820,8 @@ async function seedData() {
       syncCounter('hireRequests', HireRequest),
       syncCounter('notifications', Notification),
       syncCounter('adminActivities', AdminActivity),
+      syncCounter('ticketMessages', TicketMessage),
+      syncCounter('reviews', Review),
     ]);
     return;
   }
@@ -677,6 +850,7 @@ async function seedData() {
     createdAt: now,
     updatedAt: now,
     lastLoginAt: null,
+    workerOnline: true,
   };
 
   const citizenUser = {
@@ -709,6 +883,12 @@ async function seedData() {
       locationAddress: 'Bus Stop, Central Market',
       status: 'in_progress',
       priority: 'high',
+      statusHistory: [
+        { status: 'pending', actorId: citizenUser.id, actorRole: 'user', createdAt: now },
+        { status: 'in_progress', actorId: workerUser.id, actorRole: 'worker', createdAt: now },
+      ],
+      acceptedAt: now,
+      startedAt: now,
       createdAt: now,
       updatedAt: now,
     },
@@ -723,6 +903,9 @@ async function seedData() {
       locationAddress: 'Community Park, Lakeview',
       status: 'pending',
       priority: 'medium',
+      statusHistory: [
+        { status: 'pending', actorId: citizenUser.id, actorRole: 'user', createdAt: now },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -742,7 +925,46 @@ async function seedData() {
     syncCounter('hireRequests', HireRequest),
     syncCounter('notifications', Notification),
     syncCounter('adminActivities', AdminActivity),
+    syncCounter('ticketMessages', TicketMessage),
+    syncCounter('reviews', Review),
   ]);
+}
+
+async function migrateTicketLifecycle() {
+  if (!PUBLIC_AUTH_ENABLED) return;
+  const now = new Date();
+  await Ticket.updateMany(
+    { workerId: { $ne: null }, status: 'pending' },
+    {
+      $set: { status: 'assigned', updatedAt: now },
+      $push: {
+        statusHistory: {
+          status: 'assigned',
+          actorId: null,
+          actorRole: 'system',
+          note: 'Existing assignment migrated to tracked lifecycle.',
+          createdAt: now,
+        },
+      },
+    },
+  );
+
+  const activeTickets = await Ticket.find({
+    status: 'in_progress',
+    completionCodeHash: null,
+  });
+  for (const ticket of activeTickets) {
+    const completionCode = createCompletionCode();
+    ticket.completionCode = completionCode;
+    ticket.completionCodeHash = hashAdminSecret(completionCode);
+    if (!ticket.startedAt) ticket.startedAt = ticket.updatedAt ?? now;
+    await ticket.save();
+    await createNotification({
+      userId: ticket.userId,
+      title: 'Completion Code Ready',
+      message: `${ticket.ticketCode} completion code: ${completionCode}. Share it only after verifying the work.`,
+    });
+  }
 }
 
 const app = express();
@@ -840,7 +1062,15 @@ const adminAuthLimiter = rateLimit({
   message: { message: 'Too many admin login attempts. Try again later.' },
 });
 
-app.use(express.json({ limit: '10mb' }));
+const ticketCreateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many tickets created. Try again later.' },
+});
+
+app.use(express.json({ limit: '3mb' }));
 app.use('/api/auth', (req, res, next) => {
   if (!ADMIN_AUTH_ENABLED && req.path === '/admin-login') {
     return res.status(404).json({ message: 'Not found.' });
@@ -972,6 +1202,16 @@ async function handlePasswordLogin(req, res, portal) {
 
   if (!normalizedEmail || !password) {
     return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  if (portal === 'public' && isFirebaseEnabled()) {
+    try {
+      if (await getFirebaseUserByEmail(normalizedEmail)) {
+        return res.status(401).json({ message: 'Invalid email or password.' });
+      }
+    } catch {
+      return res.status(503).json({ message: 'Authentication service is temporarily unavailable.' });
+    }
   }
 
   const user = await User.findOne({ email: normalizedEmail });
@@ -1264,6 +1504,11 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
     });
     await AdminSession.deleteOne({ _id: req.adminSessionId });
     clearAdminCookie(res);
+  } else if (req.user.role === 'worker') {
+    await User.updateOne(
+      { id: req.user.id, role: 'worker' },
+      { $set: { workerOnline: false, workerLastSeenAt: null } },
+    );
   }
 
   return res.json({ message: 'Logged out successfully.' });
@@ -1275,24 +1520,31 @@ app.get('/api/me', authMiddleware, (req, res) => {
 
 app.put('/api/me', authMiddleware, async (req, res) => {
   const { firstName, lastName, gender, mobile, address, profileImage } = req.body ?? {};
-  const now = new Date();
-
-  await User.updateOne(
-    { id: req.user.id },
-    {
-      $set: {
-        firstName: String(firstName ?? req.user.firstName),
-        lastName: String(lastName ?? req.user.lastName),
-        gender: String(gender ?? req.user.gender),
-        mobile: String(mobile ?? req.user.mobile),
-        address: String(address ?? req.user.address),
-        profileImage: profileImage ?? req.user.profileImage ?? null,
-        updatedAt: now,
-      },
-    },
-  );
-
   const user = await User.findOne({ id: req.user.id });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found.' });
+  }
+
+  const next = {
+    firstName: cleanBoundedText(firstName ?? user.firstName, 100),
+    lastName: cleanBoundedText(lastName ?? user.lastName, 100),
+    gender: cleanBoundedText(gender ?? user.gender, 30),
+    mobile: cleanBoundedText(mobile ?? user.mobile, 20),
+    address: cleanBoundedText(address ?? user.address, 500),
+  };
+  if (Object.values(next).some((value) => !value)) {
+    return res.status(400).json({ message: 'Profile fields are invalid or too long.' });
+  }
+  if (!/^\d{10,15}$/.test(next.mobile)) {
+    return res.status(400).json({ message: 'Mobile must contain 10 to 15 digits.' });
+  }
+  const nextProfileImage = profileImage ?? user.profileImage ?? null;
+  if (!isValidProfileImage(nextProfileImage)) {
+    return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
+  }
+
+  Object.assign(user, next, { profileImage: nextProfileImage, updatedAt: new Date() });
+  await user.save();
   if (req.user.role === 'admin') {
     await createAdminActivity({
       adminUser: user,
@@ -1307,10 +1559,51 @@ app.put('/api/me', authMiddleware, async (req, res) => {
   return res.json(sanitizeUser(user));
 });
 
+app.put(
+  '/api/workers/me/availability',
+  authMiddleware,
+  requireRoles('worker'),
+  async (req, res) => {
+    const online = req.body?.online;
+    if (typeof online !== 'boolean') {
+      return res.status(400).json({ message: 'online must be true or false.' });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { id: req.user.id, role: 'worker' },
+      {
+        $set: {
+          workerOnline: online,
+          workerLastSeenAt: online ? new Date() : null,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    );
+    if (online) {
+      await autoAssignUnassignedTickets(25);
+    }
+    return res.json(sanitizeUser(user));
+  },
+);
+
+app.post('/api/workers/me/heartbeat', authMiddleware, requireRoles('worker'), async (req, res) => {
+  const result = await User.updateOne(
+    { id: req.user.id, role: 'worker', workerOnline: true },
+    { $set: { workerLastSeenAt: new Date() } },
+  );
+  return res.json({ online: result.matchedCount === 1 });
+});
+
 app.get('/api/dashboard/summary', authMiddleware, async (_req, res) => {
-  const [totalUsers, totalWorkers, totalTickets, pendingTickets] = await Promise.all([
+  const [totalUsers, totalWorkers, onlineWorkers, totalTickets, pendingTickets] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ role: 'worker' }),
+    User.countDocuments({
+      role: 'worker',
+      workerOnline: true,
+      workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
+    }),
     Ticket.countDocuments(),
     Ticket.countDocuments({ status: 'pending' }),
   ]);
@@ -1318,14 +1611,34 @@ app.get('/api/dashboard/summary', authMiddleware, async (_req, res) => {
   res.json({
     totalUsers,
     totalWorkers,
+    onlineWorkers,
     totalTickets,
     pendingTickets,
   });
 });
 
 app.get('/api/users', authMiddleware, requireRoles('admin'), async (_req, res) => {
-  const users = await User.find().sort({ createdAt: -1 });
-  res.json(users.map((user) => sanitizeUser(user)));
+  const [users, ratings] = await Promise.all([
+    User.find({}, { passwordHash: 0, profileImage: 0 }).sort({ createdAt: -1 }).limit(500),
+    Review.aggregate([
+      { $group: { _id: '$workerId', ratingAverage: { $avg: '$rating' }, ratingCount: { $sum: 1 } } },
+    ]),
+  ]);
+  const ratingMap = new Map(ratings.map((item) => [Number(item._id), item]));
+  res.json(
+    users.map((user) => {
+      const safe = sanitizeUser(user);
+      return {
+        ...safe,
+        workerOnline:
+          safe.role === 'worker' &&
+          Boolean(safe.workerOnline) &&
+          new Date(safe.workerLastSeenAt ?? 0).getTime() > Date.now() - 2 * 60 * 1000,
+        ratingAverage: ratingMap.get(Number(user.id))?.ratingAverage ?? 0,
+        ratingCount: ratingMap.get(Number(user.id))?.ratingCount ?? 0,
+      };
+    }),
+  );
 });
 
 app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) => {
@@ -1339,6 +1652,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     role,
     address,
     profileImage = null,
+    workerSkills = [],
   } = req.body ?? {};
 
   if (!firstName || !lastName || !mobile || !email || !password || !role || !address) {
@@ -1358,6 +1672,12 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
   if (!isStrongPassword(password)) {
     return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
+  if (!isValidProfileImage(profileImage)) {
+    return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
+  }
+  const normalizedSkills = Array.isArray(workerSkills)
+    ? workerSkills.map((skill) => String(skill).trim()).filter(Boolean).slice(0, 20)
+    : [];
 
   const existing = await User.findOne({ email: normalizedEmail }, { id: 1 }).lean();
   if (existing) {
@@ -1379,6 +1699,8 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     createdAt: now,
     updatedAt: now,
     lastLoginAt: null,
+    workerOnline: false,
+    workerSkills: allowedRole === 'worker' ? normalizedSkills : [],
   });
 
   await createAdminActivity({
@@ -1410,12 +1732,24 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
   }
 
   const nextEmail = normalizeEmail(req.body?.email ?? existing.email);
+  if (!/^\S+@\S+\.\S+$/.test(nextEmail)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
   const duplicate = await User.findOne({ email: nextEmail, id: { $ne: id } }, { id: 1 }).lean();
   if (duplicate) {
     return res.status(409).json({ message: 'Email already exists.' });
   }
 
   const previousRole = existing.role;
+  if (previousRole === 'worker' && role !== 'worker') {
+    const [activeTicket, activeHire] = await Promise.all([
+      Ticket.exists({ workerId: id, status: { $nin: ['completed', 'cancelled'] } }),
+      HireRequest.exists({ assignedWorkerId: id, status: 'assigned' }),
+    ]);
+    if (activeTicket || activeHire) {
+      return res.status(409).json({ message: 'Reassign active worker jobs before changing role.' });
+    }
+  }
   existing.firstName = String(req.body?.firstName ?? existing.firstName);
   existing.lastName = String(req.body?.lastName ?? existing.lastName);
   existing.gender = String(req.body?.gender ?? existing.gender);
@@ -1424,6 +1758,19 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
   existing.role = role;
   existing.address = String(req.body?.address ?? existing.address);
   existing.profileImage = req.body?.profileImage ?? existing.profileImage ?? null;
+  if (!isValidProfileImage(existing.profileImage)) {
+    return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
+  }
+  if (existing.role === 'worker' && Array.isArray(req.body?.workerSkills)) {
+    existing.workerSkills = req.body.workerSkills
+      .map((skill) => String(skill).trim())
+      .filter(Boolean)
+      .slice(0, 20);
+  }
+  if (existing.role !== 'worker') {
+    existing.workerOnline = false;
+    existing.workerSkills = [];
+  }
   existing.updatedAt = new Date();
   await existing.save();
   if (previousRole === 'admin' && existing.role !== 'admin') {
@@ -1457,10 +1804,28 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
     return res.status(404).json({ message: 'User not found.' });
   }
 
+  const ownedTickets = await Ticket.find({ userId: id }, { id: 1 }).lean();
+  const ownedTicketIds = ownedTickets.map((ticket) => Number(ticket.id));
+  const now = new Date();
+
   await Promise.all([
     User.deleteOne({ id }),
     Ticket.deleteMany({ userId: id }),
-    Ticket.updateMany({ workerId: id }, { $set: { workerId: null, updatedAt: new Date() } }),
+    Ticket.updateMany(
+      { workerId: id, status: { $nin: ['completed', 'cancelled'] } },
+      {
+        $set: { workerId: null, status: 'pending', updatedAt: now },
+        $push: {
+          statusHistory: {
+            status: 'pending',
+            actorId: req.user.id,
+            actorRole: 'admin',
+            note: 'Worker account removed; returned to dispatch queue.',
+            createdAt: now,
+          },
+        },
+      },
+    ),
     HireRequest.deleteMany({ userId: id }),
     HireRequest.updateMany(
       { assignedWorkerId: id, status: 'assigned' },
@@ -1477,6 +1842,16 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
     ),
     Notification.deleteMany({ userId: id }),
     AdminSession.deleteMany({ userId: id }),
+    TicketMessage.deleteMany({
+      $or: [{ senderId: id }, ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : [])],
+    }),
+    Review.deleteMany({
+      $or: [
+        { userId: id },
+        { workerId: id },
+        ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : []),
+      ],
+    }),
   ]);
 
   await createAdminActivity({
@@ -1496,7 +1871,7 @@ app.get('/api/tickets', authMiddleware, async (req, res) => {
   let rows = [];
 
   if (role === 'user') {
-    rows = await Ticket.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+    rows = await Ticket.find({ userId: req.user.id }).sort({ updatedAt: -1 }).limit(200);
   } else if (role === 'worker') {
     const busy = await HireRequest.findOne(
       { assignedWorkerId: req.user.id, status: 'assigned' },
@@ -1504,18 +1879,21 @@ app.get('/api/tickets', authMiddleware, async (req, res) => {
     ).lean();
 
     if (busy) {
-      return res.json([]);
+      rows = await Ticket.find({ workerId: req.user.id, status: 'completed' })
+        .sort({ updatedAt: -1 })
+        .limit(200);
+      return res.json(await buildTicketRecords(rows, req.user));
     }
 
     // Attempt to distribute any unassigned tickets when a free worker opens the tickets view.
     await autoAssignUnassignedTickets(10);
 
-    rows = await Ticket.find({ workerId: req.user.id }).sort({ updatedAt: -1 });
+    rows = await Ticket.find({ workerId: req.user.id }).sort({ updatedAt: -1 }).limit(200);
   } else {
-    rows = await Ticket.find().sort({ updatedAt: -1 });
+    rows = await Ticket.find().sort({ updatedAt: -1 }).limit(200);
   }
 
-  res.json(rows.map((ticket) => cleanRecord(ticket)));
+  res.json(await buildTicketRecords(rows, req.user));
 });
 
 app.get('/api/hire-requests', authMiddleware, async (req, res) => {
@@ -1658,8 +2036,19 @@ app.put(
     // When a worker is hired for personal work, they should not receive tickets.
     // Re-distribute any open tickets that were assigned to this worker.
     await Ticket.updateMany(
-      { workerId, status: { $ne: 'completed' } },
-      { $set: { workerId: null, updatedAt: now } },
+      { workerId, status: { $nin: ['completed', 'cancelled'] } },
+      {
+        $set: { workerId: null, status: 'pending', updatedAt: now },
+        $push: {
+          statusHistory: {
+            status: 'pending',
+            actorId: req.user.id,
+            actorRole: 'admin',
+            note: 'Worker moved to a personal hire assignment.',
+            createdAt: now,
+          },
+        },
+      },
     );
     await autoAssignUnassignedTickets(25);
 
@@ -1807,7 +2196,7 @@ app.delete(
   },
 );
 
-app.post('/api/tickets', authMiddleware, async (req, res) => {
+app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) => {
   if (req.user.role !== 'user') {
     return res.status(403).json({ message: 'Only users can create tickets.' });
   }
@@ -1820,31 +2209,52 @@ app.post('/api/tickets', authMiddleware, async (req, res) => {
     mediaData = null,
   } = req.body ?? {};
 
-  if (!wasteType || !description || !locationAddress) {
+  const cleanWasteType = cleanBoundedText(wasteType, 100);
+  const cleanDescription = cleanBoundedText(description);
+  const cleanLocation = cleanBoundedText(locationAddress, 500);
+  if (!cleanWasteType || !cleanDescription || !cleanLocation) {
     return res.status(400).json({ message: 'Missing ticket fields.' });
+  }
+  if (!isValidImageData(mediaData)) {
+    return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
 
   const now = new Date();
+  const id = await nextId('tickets');
   const ticket = await Ticket.create({
-    id: await nextId('tickets'),
-    ticketCode: `SWM-${Date.now().toString().slice(-6)}`,
+    id,
+    ticketCode: `SWM-${String(id).padStart(6, '0')}`,
     userId: req.user.id,
     workerId: null,
-    wasteType: String(wasteType),
-    description: String(description),
+    wasteType: cleanWasteType,
+    description: cleanDescription,
     mediaData,
-    locationAddress: String(locationAddress),
+    locationAddress: cleanLocation,
     status: 'pending',
     priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
+    statusHistory: [
+      {
+        status: 'pending',
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        note: 'Ticket created.',
+        createdAt: now,
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   });
 
   const ticketDetailsMessage = buildTicketDetailsMessage(ticket, req.user);
-  const assignedWorkerId = await pickFreeWorkerIdForTicket();
+  const assignedWorkerId = await pickFreeWorkerIdForTicket(cleanWasteType);
   if (assignedWorkerId) {
     ticket.workerId = assignedWorkerId;
-    ticket.updatedAt = new Date();
+    appendTicketStatus(
+      ticket,
+      'assigned',
+      { id: null, role: 'system' },
+      `Automatically assigned to Worker #${assignedWorkerId}.`,
+    );
     await ticket.save();
 
     await createNotification({
@@ -1873,7 +2283,185 @@ app.post('/api/tickets', authMiddleware, async (req, res) => {
     userId: req.user.id,
   });
 
-  res.status(201).json(cleanRecord(ticket));
+  const [record] = await buildTicketRecords([ticket], req.user);
+  res.status(201).json(record);
+});
+
+app.put(
+  '/api/tickets/:id/assign',
+  authMiddleware,
+  requireRoles('admin'),
+  async (req, res) => {
+    const id = parseNumericId(req.params.id);
+    const workerId = parseNumericId(req.body?.workerId);
+    if (!id || !workerId) {
+      return res.status(400).json({ message: 'Valid ticket and worker ids are required.' });
+    }
+
+    const [ticket, worker] = await Promise.all([
+      Ticket.findOne({ id }),
+      User.findOne({ id: workerId, role: 'worker' }).lean(),
+    ]);
+    if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+    if (!worker) return res.status(400).json({ message: 'Worker not found.' });
+    if (!['pending', 'assigned'].includes(ticket.status)) {
+      return res.status(409).json({ message: 'Only pending or assigned tickets can be dispatched.' });
+    }
+    const hired = await HireRequest.exists({ assignedWorkerId: workerId, status: 'assigned' });
+    if (hired) {
+      return res.status(409).json({ message: 'Worker is busy with a personal hire request.' });
+    }
+
+    ticket.workerId = workerId;
+    appendTicketStatus(ticket, 'assigned', req.user, `Assigned to Worker #${workerId} by admin.`);
+    await ticket.save();
+    await Promise.all([
+      createNotification({
+        userId: workerId,
+        title: 'New Ticket Assigned',
+        message: buildTicketDetailsMessage(ticket, await User.findOne({ id: ticket.userId }).lean()),
+      }),
+      createNotification({
+        userId: ticket.userId,
+        title: 'Worker Assigned',
+        message: `${ticket.ticketCode} was assigned to ${worker.firstName} ${worker.lastName}.`,
+      }),
+      createAdminActivity({
+        adminUser: req.user,
+        sessionLabel: req.sessionLabel,
+        action: 'Ticket Assigned',
+        targetType: 'ticket',
+        targetId: ticket.id,
+        summary: `Assigned ${ticket.ticketCode} to Worker #${workerId}.`,
+      }),
+    ]);
+
+    const [record] = await buildTicketRecords([ticket], req.user);
+    return res.json(record);
+  },
+);
+
+app.put(
+  '/api/tickets/:id/status',
+  authMiddleware,
+  requireRoles('worker'),
+  async (req, res) => {
+    const id = parseNumericId(req.params.id);
+    const status = String(req.body?.status ?? '');
+    if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+
+    const ticket = await Ticket.findOne({ id });
+    if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+    if (ticket.workerId !== req.user.id) {
+      return res.status(403).json({ message: 'This ticket is not assigned to you.' });
+    }
+    const hired = await HireRequest.exists({ assignedWorkerId: req.user.id, status: 'assigned' });
+    if (hired) {
+      return res.status(403).json({ message: 'Worker is currently assigned to a hired task.' });
+    }
+    if (!canWorkerTransition(ticket.status, status)) {
+      return res.status(409).json({
+        message: `Cannot move ticket from ${ticket.status} to ${status || 'unknown'}.`,
+      });
+    }
+
+    const now = new Date();
+    let userNotification = null;
+    if (status === 'accepted') {
+      ticket.acceptedAt = now;
+      appendTicketStatus(ticket, status, req.user, 'Worker accepted the ticket.', now);
+      userNotification = {
+        userId: ticket.userId,
+        title: 'Worker Accepted Ticket',
+        message: `${ticket.ticketCode} was accepted by the assigned worker.`,
+      };
+    } else if (status === 'in_progress') {
+      const completionCode = createCompletionCode();
+      ticket.startedAt = now;
+      ticket.completionCode = completionCode;
+      ticket.completionCodeHash = hashAdminSecret(completionCode);
+      appendTicketStatus(ticket, status, req.user, 'Worker started the collection.', now);
+      userNotification = {
+        userId: ticket.userId,
+        title: 'Collection Started',
+        message: `${ticket.ticketCode} started. Completion code: ${completionCode}. Share it only after the work is complete.`,
+      };
+    } else if (status === 'completed') {
+      const completionCode = String(req.body?.completionCode ?? '').trim();
+      const completionMediaData = req.body?.completionMediaData ?? null;
+      if (!/^\d{6}$/.test(completionCode) || !ticket.completionCodeHash) {
+        return res.status(400).json({ message: 'A valid 6-digit completion code is required.' });
+      }
+      if (!matchesAdminSecret(completionCode, ticket.completionCodeHash)) {
+        return res.status(403).json({ message: 'Completion code is incorrect.' });
+      }
+      if (!isValidImageData(completionMediaData, { required: true })) {
+        return res.status(400).json({
+          message: 'An after-photo (JPEG, PNG, or WebP under 2 MB) is required.',
+        });
+      }
+      ticket.completedAt = now;
+      ticket.completionMediaData = completionMediaData;
+      ticket.completionCode = null;
+      ticket.completionCodeHash = null;
+      appendTicketStatus(ticket, status, req.user, 'Work completed with OTP verification.', now);
+      userNotification = {
+        userId: ticket.userId,
+        title: 'Ticket Completed',
+        message: `${ticket.ticketCode} was completed. Please rate the worker.`,
+      };
+    }
+
+    await ticket.save();
+    if (userNotification) await createNotification(userNotification);
+    if (status === 'completed') await autoAssignUnassignedTickets(25);
+    const [record] = await buildTicketRecords([ticket], req.user);
+    return res.json(record);
+  },
+);
+
+app.put('/api/tickets/:id/cancel', authMiddleware, async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+  const ticket = await Ticket.findOne({ id });
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+  const isAdmin = req.user.role === 'admin';
+  if (!isAdmin && ticket.userId !== req.user.id) {
+    return res.status(403).json({ message: 'No permission to cancel this ticket.' });
+  }
+  const canCancel = isAdmin
+    ? !isClosedTicket(ticket.status)
+    : ['pending', 'assigned'].includes(ticket.status);
+  if (!canCancel) {
+    return res.status(409).json({ message: 'This ticket cannot be cancelled.' });
+  }
+
+  const previousWorkerId = ticket.workerId;
+  ticket.workerId = null;
+  ticket.cancelledAt = new Date();
+  ticket.completionCode = null;
+  ticket.completionCodeHash = null;
+  appendTicketStatus(ticket, 'cancelled', req.user, String(req.body?.reason ?? 'Ticket cancelled.'));
+  await ticket.save();
+  if (previousWorkerId) {
+    await createNotification({
+      userId: previousWorkerId,
+      title: 'Ticket Cancelled',
+      message: `${ticket.ticketCode} was cancelled.`,
+    });
+  }
+  if (isAdmin) {
+    await createAdminActivity({
+      adminUser: req.user,
+      sessionLabel: req.sessionLabel,
+      action: 'Ticket Cancelled',
+      targetType: 'ticket',
+      targetId: ticket.id,
+      summary: `Cancelled ticket ${ticket.ticketCode}.`,
+    });
+  }
+  const [record] = await buildTicketRecords([ticket], req.user);
+  return res.json(record);
 });
 
 app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
@@ -1900,45 +2488,7 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
   }
 
   if (isWorker) {
-    const busy = await HireRequest.findOne(
-      { assignedWorkerId: req.user.id, status: 'assigned' },
-      { id: 1 },
-    ).lean();
-    if (busy) {
-      return res.status(403).json({ message: 'Worker is currently assigned to a hired task.' });
-    }
-
-    if (ticket.workerId !== req.user.id) {
-      return res.status(403).json({ message: 'This ticket is not assigned to you.' });
-    }
-
-    const status = req.body?.status;
-    if (status === undefined) {
-      return res.status(400).json({ message: 'Status is required.' });
-    }
-
-    if (!TICKET_STATUSES.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status.' });
-    }
-
-    if (status !== 'completed') {
-      return res.status(400).json({ message: 'Workers can only mark tickets as completed.' });
-    }
-
-    const previousStatus = ticket.status;
-    ticket.status = status;
-    ticket.updatedAt = new Date();
-    await ticket.save();
-
-    if (ticket.status !== previousStatus) {
-      await createNotification({
-        userId: ticket.userId,
-        title: 'Ticket Status Updated',
-        message: `${ticket.ticketCode} is now ${ticket.status.replace('_', ' ')}.`,
-      });
-    }
-
-    return res.json(cleanRecord(ticket));
+    return res.status(409).json({ message: 'Use the tracked ticket status actions.' });
   }
 
   if (req.body?.status !== undefined) {
@@ -1949,17 +2499,40 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
     return res.status(403).json({ message: 'Ticket assignment is automatic.' });
   }
 
-  ticket.wasteType = String(req.body?.wasteType ?? ticket.wasteType);
-  ticket.description = String(req.body?.description ?? ticket.description);
-  ticket.mediaData = req.body?.mediaData ?? ticket.mediaData ?? null;
-  ticket.locationAddress = String(req.body?.locationAddress ?? ticket.locationAddress);
+  if (!['pending', 'assigned'].includes(ticket.status)) {
+    return res.status(409).json({ message: 'Accepted or closed tickets cannot be edited.' });
+  }
+
+  const nextWasteType = cleanBoundedText(req.body?.wasteType ?? ticket.wasteType, 100);
+  const nextDescription = cleanBoundedText(req.body?.description ?? ticket.description);
+  const nextLocation = cleanBoundedText(req.body?.locationAddress ?? ticket.locationAddress, 500);
+  const nextMediaData = req.body?.mediaData ?? ticket.mediaData ?? null;
+  if (!nextWasteType || !nextDescription || !nextLocation) {
+    return res.status(400).json({ message: 'Ticket fields are invalid or too long.' });
+  }
+  if (!isValidImageData(nextMediaData)) {
+    return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
+  }
+
+  ticket.wasteType = nextWasteType;
+  ticket.description = nextDescription;
+  ticket.mediaData = nextMediaData;
+  ticket.locationAddress = nextLocation;
   ticket.priority = TICKET_PRIORITIES.includes(req.body?.priority)
     ? req.body.priority
     : ticket.priority;
   ticket.updatedAt = new Date();
   await ticket.save();
 
-  return res.json(cleanRecord(ticket));
+  if (ticket.workerId) {
+    await createNotification({
+      userId: ticket.workerId,
+      title: 'Assigned Ticket Updated',
+      message: `${ticket.ticketCode} details were updated by the requester.`,
+    });
+  }
+  const [record] = await buildTicketRecords([ticket], req.user);
+  return res.json(record);
 });
 
 app.delete('/api/tickets/:id', authMiddleware, async (req, res) => {
@@ -1978,8 +2551,15 @@ app.delete('/api/tickets/:id', authMiddleware, async (req, res) => {
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ message: 'No permission to delete ticket.' });
   }
+  if (isOwner && !['pending', 'cancelled'].includes(ticket.status)) {
+    return res.status(409).json({ message: 'Cancel active tickets instead of deleting them.' });
+  }
 
-  await Ticket.deleteOne({ id });
+  await Promise.all([
+    Ticket.deleteOne({ id }),
+    TicketMessage.deleteMany({ ticketId: id }),
+    Review.deleteMany({ ticketId: id }),
+  ]);
   if (isAdmin) {
     await createAdminActivity({
       adminUser: req.user,
@@ -1992,6 +2572,110 @@ app.delete('/api/tickets/:id', authMiddleware, async (req, res) => {
   }
 
   res.json({ message: 'Ticket deleted.' });
+});
+
+app.get('/api/tickets/:id/messages', authMiddleware, async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+  const ticket = await Ticket.findOne({ id }).lean();
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+  if (!canAccessTicket(req.user, ticket)) {
+    return res.status(403).json({ message: 'No permission to view this conversation.' });
+  }
+
+  const messages = await TicketMessage.find({ ticketId: id }).sort({ createdAt: 1 }).limit(200);
+  return res.json(messages.map((message) => cleanRecord(message)));
+});
+
+app.post('/api/tickets/:id/messages', authMiddleware, async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  const messageText = cleanBoundedText(req.body?.message, 1000);
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+  if (!messageText) return res.status(400).json({ message: 'Message is required (max 1000 characters).' });
+  const ticket = await Ticket.findOne({ id }).lean();
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+  if (!canAccessTicket(req.user, ticket)) {
+    return res.status(403).json({ message: 'No permission to message on this ticket.' });
+  }
+
+  const message = await TicketMessage.create({
+    id: await nextId('ticketMessages'),
+    ticketId: id,
+    senderId: req.user.id,
+    senderRole: req.user.role,
+    message: messageText,
+    readBy: [req.user.id],
+    createdAt: new Date(),
+  });
+  const recipientIds = new Set();
+  if (req.user.id !== ticket.userId) recipientIds.add(ticket.userId);
+  if (ticket.workerId && req.user.id !== ticket.workerId) recipientIds.add(ticket.workerId);
+  if (req.user.role !== 'admin') {
+    const admins = await User.find({ role: 'admin' }, { id: 1 }).lean();
+    admins.forEach((admin) => recipientIds.add(admin.id));
+  }
+  await Promise.all(
+    [...recipientIds].map((userId) =>
+      createNotification({
+        userId,
+        title: `New message on ${ticket.ticketCode}`,
+        message: `${req.user.firstName}: ${truncateText(messageText, 120)}`,
+      }),
+    ),
+  );
+  return res.status(201).json(cleanRecord(message));
+});
+
+app.post('/api/tickets/:id/review', authMiddleware, requireRoles('user'), async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  const rating = Number(req.body?.rating);
+  const comment = String(req.body?.comment ?? '').trim();
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 500) {
+    return res.status(400).json({ message: 'Rating must be 1 to 5 and comment at most 500 characters.' });
+  }
+  const ticket = await Ticket.findOne({ id }).lean();
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+  if (ticket.userId !== req.user.id) {
+    return res.status(403).json({ message: 'Only the requester can review this ticket.' });
+  }
+  if (ticket.status !== 'completed' || !ticket.workerId) {
+    return res.status(409).json({ message: 'Only completed worker tickets can be reviewed.' });
+  }
+  if (await Review.exists({ ticketId: id })) {
+    return res.status(409).json({ message: 'This ticket has already been reviewed.' });
+  }
+
+  const review = await Review.create({
+    id: await nextId('reviews'),
+    ticketId: id,
+    userId: req.user.id,
+    workerId: ticket.workerId,
+    rating,
+    comment,
+    createdAt: new Date(),
+  });
+  await createNotification({
+    userId: ticket.workerId,
+    title: 'New Worker Rating',
+    message: `${ticket.ticketCode} received a ${rating}-star rating.`,
+  });
+  return res.status(201).json(cleanRecord(review));
+});
+
+app.get('/api/workers/:id/reviews', authMiddleware, async (req, res) => {
+  const workerId = parseNumericId(req.params.id);
+  if (!workerId) return res.status(400).json({ message: 'Invalid worker id.' });
+  const [summary] = await Review.aggregate([
+    { $match: { workerId } },
+    { $group: { _id: '$workerId', ratingAverage: { $avg: '$rating' }, ratingCount: { $sum: 1 } } },
+  ]);
+  const reviews = await Review.find({ workerId }).sort({ createdAt: -1 }).limit(20);
+  return res.json({
+    ratingAverage: summary?.ratingAverage ?? 0,
+    ratingCount: summary?.ratingCount ?? 0,
+    reviews: reviews.map((review) => cleanRecord(review)),
+  });
 });
 
 app.get('/api/notifications', authMiddleware, async (req, res) => {
@@ -2094,6 +2778,7 @@ app.use((error, _req, res, _next) => {
 async function bootstrap() {
   await mongoose.connect(MONGO_URI);
   await seedData();
+  await migrateTicketLifecycle();
   await syncDefaultDemoUsersToFirebase();
 
   app.listen(PORT, () => {
