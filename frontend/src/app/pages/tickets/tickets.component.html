@@ -1,17 +1,16 @@
 <section class="tickets-page" aria-labelledby="tickets-title">
   <header class="page-hero">
     <div class="hero-copy">
-      <span class="eyebrow">Waste collection</span>
+      <span class="eyebrow">Tracked operations</span>
       <h1 id="tickets-title">Ticket Management</h1>
       <p>
         {{ isAdmin
-          ? 'Review ticket status across the portal and delete invalid or closed records when required.'
+          ? 'Dispatch workers, monitor SLA risk, review proof, and support every ticket.'
           : isWorker
-            ? 'View assigned tickets and mark them completed after resolving.'
-            : 'Create and track waste collection tickets.' }}
+            ? 'Accept assigned work, update each stage, chat with the requester, and complete with proof.'
+            : 'Create requests, follow every stage, chat with the worker, and rate completed work.' }}
       </p>
     </div>
-
     @if (canCreateTickets) {
       <button type="button" class="primary" (click)="openCreate()">Create Ticket</button>
     }
@@ -21,160 +20,89 @@
     <p class="error" role="alert">{{ error }}</p>
   }
 
+  <section class="ticket-toolbar" aria-label="Ticket filters">
+    <div class="field-control">
+      <label for="ticket-search">Search</label>
+      <input
+        id="ticket-search"
+        type="search"
+        placeholder="Code, waste type, address..."
+        [value]="searchTerm"
+        (input)="searchTerm = $any($event.target).value"
+      />
+    </div>
+    <div class="field-control">
+      <label for="ticket-status-filter">Status</label>
+      <select
+        id="ticket-status-filter"
+        [value]="statusFilter"
+        (change)="statusFilter = $any($event.target).value"
+      >
+        <option value="all">All statuses</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status.replace('_', ' ') }}</option>
+        }
+      </select>
+    </div>
+    <div class="field-control">
+      <label for="ticket-priority-filter">Priority</label>
+      <select
+        id="ticket-priority-filter"
+        [value]="priorityFilter"
+        (change)="priorityFilter = $any($event.target).value"
+      >
+        <option value="all">All priorities</option>
+        @for (priority of priorities; track priority) {
+          <option [value]="priority">{{ priority }}</option>
+        }
+      </select>
+    </div>
+    <button type="button" class="outline" [disabled]="loading" (click)="loadData()">Refresh</button>
+  </section>
+
   @if (isFormOpen && canCreateTickets) {
     <article class="form-card" aria-labelledby="ticket-form-title">
       <div class="section-heading">
         <span class="eyebrow">Ticket details</span>
         <h2 id="ticket-form-title">{{ editingTicket ? 'Edit Ticket' : 'New Ticket' }}</h2>
-        <p>Add the waste type, exact location, and a clear photo when one is available.</p>
+        <p>Add the waste type, exact location, priority, and an optional image.</p>
       </div>
 
       <div class="form-grid">
         <div class="field-control">
           <label for="ticket-waste-type">Waste Type</label>
-          <input
-            id="ticket-waste-type"
-            type="text"
-            [formControl]="form.controls.wasteType"
-            [attr.aria-invalid]="form.controls.wasteType.touched && form.controls.wasteType.invalid"
-            aria-describedby="ticket-waste-type-error"
-            placeholder="Dry, Wet, Medical..."
-            list="wasteTypeOptions"
-            required
-          />
+          <input id="ticket-waste-type" type="text" [formControl]="form.controls.wasteType" list="wasteTypeOptions" />
           <datalist id="wasteTypeOptions">
-            @for (type of wasteTypes; track type) {
-              <option [value]="type"></option>
-            }
+            @for (type of wasteTypes; track type) { <option [value]="type"></option> }
           </datalist>
-          @if (form.controls.wasteType.touched && form.controls.wasteType.hasError('required')) {
-            <p id="ticket-waste-type-error" class="field-error">Enter a waste type.</p>
-          }
         </div>
-
         <div class="field-control">
           <label for="ticket-priority">Priority</label>
-          <select
-            id="ticket-priority"
-            [formControl]="form.controls.priority"
-            [attr.aria-invalid]="form.controls.priority.touched && form.controls.priority.invalid"
-            aria-describedby="ticket-priority-error"
-            required
-          >
-            @for (item of priorities; track item) {
-              <option [value]="item">{{ item }}</option>
-            }
+          <select id="ticket-priority" [formControl]="form.controls.priority">
+            @for (item of priorities; track item) { <option [value]="item">{{ item }}</option> }
           </select>
-          @if (form.controls.priority.touched && form.controls.priority.hasError('required')) {
-            <p id="ticket-priority-error" class="field-error">Choose a priority.</p>
-          }
         </div>
-
         <div class="field-control full">
           <label for="ticket-description">Description</label>
-          <textarea
-            id="ticket-description"
-            rows="3"
-            [formControl]="form.controls.description"
-            [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
-            aria-describedby="ticket-description-error"
-            placeholder="Describe the waste and any collection details."
-            required
-          ></textarea>
-          @if (form.controls.description.touched && form.controls.description.hasError('required')) {
-            <p id="ticket-description-error" class="field-error">Enter a description.</p>
-          } @else if (form.controls.description.touched && form.controls.description.hasError('minlength')) {
-            <p id="ticket-description-error" class="field-error">
-              Use at least 10 characters so the worker knows what to collect.
-            </p>
-          }
+          <textarea id="ticket-description" rows="3" [formControl]="form.controls.description"></textarea>
         </div>
-
         <div class="field-control full">
           <label for="ticket-location">Location Address</label>
-          <input
-            id="ticket-location"
-            type="text"
-            [formControl]="form.controls.locationAddress"
-            [attr.aria-invalid]="form.controls.locationAddress.touched && form.controls.locationAddress.invalid"
-            aria-describedby="ticket-location-error"
-            placeholder="Area or landmark"
-            required
-          />
-          @if (form.controls.locationAddress.touched && form.controls.locationAddress.hasError('required')) {
-            <p id="ticket-location-error" class="field-error">Enter the collection address.</p>
-          }
+          <input id="ticket-location" type="text" [formControl]="form.controls.locationAddress" />
         </div>
       </div>
 
       <div class="media-row">
         <div class="field-control">
-          <label for="ticket-media">Upload from Gallery</label>
-          <input
-            id="ticket-media"
-            type="file"
-            accept="image/*"
-            aria-describedby="ticket-media-hint"
-            (change)="onMediaSelected($event)"
-          />
-          <p id="ticket-media-hint" class="field-hint">
-            Choose a clear image of the waste or collection area.
-          </p>
+          <label for="ticket-media">Upload Image</label>
+          <input id="ticket-media" type="file" accept="image/jpeg,image/png,image/webp" (change)="onMediaSelected($event)" />
+          <p class="field-hint">JPEG, PNG, or WebP under 1.5 MB.</p>
         </div>
-        <div class="field-control">
-          <span class="control-label">Capture from Camera</span>
-          <button type="button" class="outline camera-btn" (click)="openCamera()">
-            <span class="camera-icon" aria-hidden="true"></span>
-            Open Camera
-          </button>
-        </div>
+        <button type="button" class="outline camera-btn" (click)="openCamera()">Open Camera</button>
       </div>
-
       @if (mediaPreview) {
-        <figure class="media-preview">
-          <img [src]="mediaPreview" alt="Selected ticket image" class="preview" />
-          <figcaption>Image attached to this ticket</figcaption>
-        </figure>
+        <figure class="media-preview"><img [src]="mediaPreview" alt="Selected ticket image" class="preview" /></figure>
       }
-
-      @if (cameraOpen) {
-        <div class="camera-overlay" (click)="closeCamera()">
-          <section
-            class="camera-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="camera-title"
-            (click)="$event.stopPropagation()"
-          >
-            <div class="camera-top">
-              <div>
-                <span class="eyebrow">Photo capture</span>
-                <h2 id="camera-title">Camera</h2>
-              </div>
-              <button type="button" class="outline camera-close" (click)="closeCamera()">Close</button>
-            </div>
-
-            @if (cameraError) {
-              <p class="error" role="alert">{{ cameraError }}</p>
-            }
-
-            <video
-              #cameraVideo
-              class="camera-video"
-              aria-label="Live camera preview"
-              autoplay
-              muted
-              playsinline
-            ></video>
-            <canvas #cameraCanvas class="camera-canvas"></canvas>
-
-            <div class="camera-actions">
-              <button type="button" class="primary" (click)="captureFromCamera()">Capture Photo</button>
-            </div>
-          </section>
-        </div>
-      }
-
       <div class="form-actions">
         <button type="button" class="outline" (click)="cancelForm()">Cancel</button>
         <button type="button" class="primary" [disabled]="saving" (click)="saveTicket()">
@@ -184,84 +112,184 @@
     </article>
   }
 
+  @if (cameraOpen) {
+    <div class="camera-overlay" (click)="closeCamera()">
+      <section class="camera-modal" role="dialog" aria-modal="true" aria-labelledby="camera-title" (click)="$event.stopPropagation()">
+        <div class="camera-top">
+          <h2 id="camera-title">Camera</h2>
+          <button type="button" class="outline" (click)="closeCamera()">Close</button>
+        </div>
+        @if (cameraError) { <p class="error">{{ cameraError }}</p> }
+        <video #cameraVideo class="camera-video" aria-label="Live camera preview" autoplay muted playsinline></video>
+        <canvas #cameraCanvas class="camera-canvas"></canvas>
+        <button type="button" class="primary" (click)="captureFromCamera()">Capture Photo</button>
+      </section>
+    </div>
+  }
+
   @if (loading) {
     <p class="loading" aria-live="polite">Loading tickets...</p>
   } @else {
     <section class="ticket-index" aria-labelledby="ticket-list-title">
       <div class="section-heading list-heading">
-        <span class="eyebrow">Current records</span>
-        <h2 id="ticket-list-title">Tickets</h2>
-        <p>Status, priority, location, and available actions for each request.</p>
+        <span class="eyebrow">Live queue</span>
+        <h2 id="ticket-list-title">{{ filteredTickets.length }} Tickets</h2>
+        <p>Updates refresh automatically every 20 seconds.</p>
       </div>
 
       <div class="ticket-list">
-        @for (ticket of tickets; track ticket.id) {
-          <article class="ticket-card" [attr.aria-labelledby]="'ticket-' + ticket.id">
+        @for (ticket of filteredTickets; track ticket.id) {
+          <article class="ticket-card" [class.overdue]="isAdmin && isOverdue(ticket)">
             <div class="ticket-header">
               <div>
-                <h3 [id]="'ticket-' + ticket.id">{{ ticket.ticketCode }}</h3>
+                <h3>{{ ticket.ticketCode }}</h3>
                 <p class="ticket-summary">
                   <span>{{ ticket.wasteType }}</span>
                   <span class="ticket-priority">{{ ticket.priority }} priority</span>
+                  @if (isAdmin && isOverdue(ticket)) { <span class="sla-alert">SLA overdue</span> }
                 </p>
               </div>
               <app-status-badge [status]="ticket.status" />
             </div>
 
             <p class="ticket-description">{{ ticket.description }}</p>
-
             <dl class="ticket-details">
-              <div class="detail-wide">
-                <dt>Location</dt>
-                <dd>{{ ticket.locationAddress }}</dd>
-              </div>
-              <div>
-                <dt>User ID</dt>
-                <dd>{{ ticket.userId }}</dd>
-              </div>
+              <div class="detail-wide"><dt>Location</dt><dd>{{ ticket.locationAddress }}</dd></div>
+              <div><dt>Requester</dt><dd>{{ ticket.requester?.firstName }} {{ ticket.requester?.lastName }}</dd></div>
               <div>
                 <dt>Worker</dt>
-                <dd>{{ ticket.workerId ?? 'Unassigned' }}</dd>
+                <dd>
+                  @if (ticket.assignedWorker) {
+                    {{ ticket.assignedWorker.firstName }} {{ ticket.assignedWorker.lastName }}
+                  } @else { Unassigned }
+                </dd>
               </div>
             </dl>
 
-            @if (ticket.mediaData) {
-              <img
-                [src]="ticket.mediaData"
-                [alt]="'Image for ticket ' + ticket.ticketCode"
-                class="preview"
-              />
-            }
-
-            <div class="ticket-actions" [attr.aria-label]="'Actions for ' + ticket.ticketCode">
-              @if (isAdmin || isWorker) {
-                <button type="button" class="outline" (click)="openDirections(ticket)">
-                  Directions
-                </button>
+            <div class="proof-grid">
+              @if (ticket.mediaData) {
+                <figure><img [src]="ticket.mediaData" [alt]="'Before image for ' + ticket.ticketCode" class="preview" /><figcaption>Reported image</figcaption></figure>
               }
-
-              @if (canEdit(ticket)) {
-                <button type="button" (click)="openEdit(ticket)">Edit</button>
-              }
-
-              @if (isWorker) {
-                <button
-                  type="button"
-                  class="primary"
-                  [disabled]="ticket.status === 'completed'"
-                  (click)="quickStatusUpdate(ticket, 'completed')"
-                >
-                  Mark Completed
-                </button>
-              }
-
-              @if (canDelete(ticket)) {
-                <button type="button" class="danger" (click)="deleteTicket(ticket)">Delete</button>
+              @if (ticket.completionMediaData) {
+                <figure><img [src]="ticket.completionMediaData" [alt]="'Completion proof for ' + ticket.ticketCode" class="preview" /><figcaption>Completion proof</figcaption></figure>
               }
             </div>
+
+            <ol class="status-timeline" aria-label="Ticket status timeline">
+              @for (event of ticketTimeline(ticket); track $index) {
+                <li>
+                  <strong>{{ event.status.replace('_', ' ') }}</strong>
+                  <span>{{ event.createdAt | date: 'short' }}</span>
+                  @if (event.note) { <small>{{ event.note }}</small> }
+                </li>
+              }
+            </ol>
+
+            @if (user?.role === 'user' && ticket.status === 'in_progress' && ticket.completionCode) {
+              <div class="completion-code" role="status">
+                <span>Completion code</span>
+                <strong>{{ ticket.completionCode }}</strong>
+                <small>Share this code only after you verify the work and after-photo.</small>
+              </div>
+            }
+
+            @if (isAdmin && ['pending', 'assigned'].includes(ticket.status)) {
+              <div class="dispatch-control">
+                <label [for]="'ticket-worker-' + ticket.id">Dispatch worker</label>
+                <select
+                  [id]="'ticket-worker-' + ticket.id"
+                  [value]="selectedWorkerId[ticket.id] ?? ticket.workerId ?? 0"
+                  (change)="selectedWorkerId[ticket.id] = +$any($event.target).value"
+                >
+                  <option [value]="0">Select worker</option>
+                  @for (worker of workers; track worker.id) {
+                    <option [value]="worker.id">
+                      {{ worker.firstName }} {{ worker.lastName }} · {{ worker.workerOnline ? 'online' : 'offline' }}
+                    </option>
+                  }
+                </select>
+                <button type="button" class="primary" (click)="assignTicket(ticket)">Assign</button>
+              </div>
+            }
+
+            @if (isWorker && ticket.status === 'in_progress') {
+              <div class="completion-panel">
+                <h4>Complete with proof</h4>
+                <label [for]="'otp-' + ticket.id">User’s 6-digit completion code</label>
+                <input
+                  [id]="'otp-' + ticket.id"
+                  inputmode="numeric"
+                  maxlength="6"
+                  [value]="completionCode[ticket.id] ?? ''"
+                  (input)="completionCode[ticket.id] = $any($event.target).value"
+                />
+                <label [for]="'proof-' + ticket.id">After-photo</label>
+                <input [id]="'proof-' + ticket.id" type="file" accept="image/jpeg,image/png,image/webp" (change)="onMediaSelected($event, ticket.id)" />
+                @if (completionMedia[ticket.id]) { <p class="success">After-photo ready.</p> }
+                <button type="button" class="primary" (click)="completeTicket(ticket)">Verify & Complete</button>
+              </div>
+            }
+
+            @if (user?.role === 'user' && ticket.status === 'completed' && !ticket.review) {
+              <div class="review-panel">
+                <h4>Rate this worker</h4>
+                <select [value]="reviewRating[ticket.id] ?? 0" (change)="reviewRating[ticket.id] = +$any($event.target).value">
+                  <option [value]="0">Choose rating</option>
+                  @for (rating of [1, 2, 3, 4, 5]; track rating) { <option [value]="rating">{{ rating }} stars</option> }
+                </select>
+                <textarea
+                  rows="2"
+                  maxlength="500"
+                  placeholder="Optional feedback"
+                  [value]="reviewComment[ticket.id] ?? ''"
+                  (input)="reviewComment[ticket.id] = $any($event.target).value"
+                ></textarea>
+                <button type="button" class="primary" [disabled]="!((reviewRating[ticket.id] ?? 0) > 0)" (click)="submitReview(ticket)">Submit Rating</button>
+              </div>
+            } @else if (ticket.review) {
+              <p class="review-summary"><strong>{{ ticket.review.rating }} / 5</strong> {{ ticket.review.comment }}</p>
+            }
+
+            <div class="ticket-actions">
+              @if (isAdmin || isWorker) { <button type="button" class="outline" (click)="openDirections(ticket)">Directions</button> }
+              @if (canEdit(ticket)) { <button type="button" (click)="openEdit(ticket)">Edit</button> }
+              @if (canCreateTickets && ticket.status === 'completed') { <button type="button" (click)="openCreate(ticket)">Repeat Request</button> }
+              @if (isWorker && ['pending', 'assigned'].includes(ticket.status)) { <button type="button" class="primary" (click)="updateStatus(ticket, 'accepted')">Accept</button> }
+              @if (isWorker && ticket.status === 'accepted') { <button type="button" class="primary" (click)="updateStatus(ticket, 'in_progress')">Start Work</button> }
+              @if (canCancel(ticket)) { <button type="button" class="danger" (click)="cancelTicket(ticket)">Cancel</button> }
+              @if (canDelete(ticket)) { <button type="button" class="danger" (click)="deleteTicket(ticket)">Delete</button> }
+              <button type="button" class="outline" (click)="toggleChat(ticket)">
+                {{ chatOpen[ticket.id] ? 'Close Chat' : 'Ticket Chat' }}
+              </button>
+            </div>
+
+            @if (chatOpen[ticket.id]) {
+              <section class="chat-panel" [attr.aria-label]="'Conversation for ' + ticket.ticketCode">
+                <div class="chat-messages">
+                  @for (message of messages[ticket.id] ?? []; track message.id) {
+                    <p [class.mine]="message.senderId === user?.id">
+                      <strong>{{ message.senderRole }}</strong>
+                      <span>{{ message.message }}</span>
+                      <small>{{ message.createdAt | date: 'short' }}</small>
+                    </p>
+                  } @empty { <p>No messages yet.</p> }
+                </div>
+                <div class="chat-compose">
+                  <input
+                    type="text"
+                    maxlength="1000"
+                    placeholder="Write a message"
+                    [value]="chatDraft[ticket.id] ?? ''"
+                    (input)="chatDraft[ticket.id] = $any($event.target).value"
+                    (keyup.enter)="sendMessage(ticket)"
+                  />
+                  <button type="button" class="primary" (click)="sendMessage(ticket)">Send</button>
+                </div>
+              </section>
+            }
           </article>
         } @empty {
-          <p class="empty-state">No tickets found.</p>
+          <p class="empty-state">No tickets match these filters.</p>
         }
       </div>
     </section>

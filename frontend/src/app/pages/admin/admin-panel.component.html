@@ -58,6 +58,14 @@
         <span>Assign Worker Requests</span>
         <strong>{{ pendingHireRequests }}</strong>
       </div>
+      <div class="metric">
+        <span>Online Workers</span>
+        <strong>{{ onlineWorkerCount }}</strong>
+      </div>
+      <div class="metric">
+        <span>Overdue SLA</span>
+        <strong>{{ overdueTicketCount }}</strong>
+      </div>
     </article>
 
     <div class="panel-grid" [class.single]="pendingHireRequests === 0">

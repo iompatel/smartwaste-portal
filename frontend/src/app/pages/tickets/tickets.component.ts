@@ -1,8 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 
-import { Ticket, TicketPriority, TicketStatus } from '../../models/types';
+import {
+  Ticket,
+  TicketMessage,
+  TicketPriority,
+  TicketStatus,
+  User,
+} from '../../models/types';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
 import { SESSION_SERVICE } from '../../services/session';
@@ -25,6 +32,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   @ViewChild('cameraCanvas') private readonly cameraCanvas?: ElementRef<HTMLCanvasElement>;
 
   tickets: Ticket[] = [];
+  workers: User[] = [];
   loading = true;
   saving = false;
   error = '';
@@ -34,10 +42,31 @@ export class TicketsComponent implements OnInit, OnDestroy {
   mediaPreview: string | null = null;
   cameraOpen = false;
   cameraError = '';
-  private cameraStream: MediaStream | null = null;
+  searchTerm = '';
+  statusFilter: 'all' | TicketStatus = 'all';
+  priorityFilter: 'all' | TicketPriority = 'all';
+  selectedWorkerId: Partial<Record<number, number>> = {};
+  completionCode: Partial<Record<number, string>> = {};
+  completionMedia: Partial<Record<number, string | null>> = {};
+  chatOpen: Partial<Record<number, boolean>> = {};
+  chatDraft: Partial<Record<number, string>> = {};
+  messages: Partial<Record<number, TicketMessage[]>> = {};
+  reviewRating: Partial<Record<number, number>> = {};
+  reviewComment: Partial<Record<number, string>> = {};
 
+  private cameraStream: MediaStream | null = null;
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  readonly statuses: TicketStatus[] = [
+    'pending',
+    'assigned',
+    'accepted',
+    'in_progress',
+    'completed',
+    'cancelled',
+  ];
   readonly priorities: TicketPriority[] = ['low', 'medium', 'high'];
-  readonly wasteTypes: string[] = [
+  readonly wasteTypes = [
     'Dry Waste',
     'Wet Waste',
     'Mixed Waste',
@@ -75,42 +104,69 @@ export class TicketsComponent implements OnInit, OnDestroy {
     return this.user?.role === 'user';
   }
 
+  get filteredTickets() {
+    const query = this.searchTerm.trim().toLowerCase();
+    return this.tickets.filter((ticket) => {
+      if (this.statusFilter !== 'all' && ticket.status !== this.statusFilter) return false;
+      if (this.priorityFilter !== 'all' && ticket.priority !== this.priorityFilter) return false;
+      if (!query) return true;
+      return [ticket.ticketCode, ticket.wasteType, ticket.description, ticket.locationAddress]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }
+
   ngOnInit() {
     this.loadData();
+    this.refreshTimer = setInterval(() => {
+      if (!this.isFormOpen && !this.cameraOpen) this.loadData(true);
+    }, 20_000);
   }
 
   ngOnDestroy() {
     this.stopCameraStream();
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
   }
 
-  loadData() {
-    this.loading = true;
-    this.error = '';
-
+  loadData(silent = false) {
+    if (!silent) {
+      this.loading = true;
+      this.error = '';
+    }
+    const onError = (err: any) => {
+      this.loading = false;
+      if (!silent) this.error = err?.error?.message ?? 'Failed to load tickets.';
+    };
+    if (this.isAdmin) {
+      forkJoin({ tickets: this.portalService.getTickets(), users: this.portalService.getUsers() }).subscribe({
+        next: ({ tickets, users }) => {
+          this.tickets = tickets;
+          this.workers = users.filter((user) => user.role === 'worker');
+          this.loading = false;
+        },
+        error: onError,
+      });
+      return;
+    }
     this.portalService.getTickets().subscribe({
       next: (tickets) => {
         this.tickets = tickets;
+        this.workers = [];
         this.loading = false;
       },
-      error: (err) => {
-        this.loading = false;
-        this.error = err?.error?.message ?? 'Failed to load tickets.';
-      },
+      error: onError,
     });
   }
 
-  openCreate() {
-    if (!this.canCreateTickets) {
-      this.error = 'Admin can only review ticket status or delete tickets.';
-      return;
-    }
-
+  openCreate(source?: Ticket) {
+    if (!this.canCreateTickets) return;
     this.editingTicket = null;
     this.form.reset({
-      wasteType: '',
-      description: '',
-      locationAddress: this.user?.address ?? '',
-      priority: 'medium',
+      wasteType: source?.wasteType ?? '',
+      description: source?.description ?? '',
+      locationAddress: source?.locationAddress ?? this.user?.address ?? '',
+      priority: source?.priority ?? 'medium',
     });
     this.mediaPreview = null;
     this.closeCamera();
@@ -118,13 +174,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   openEdit(ticket: Ticket) {
-    if (this.user?.role !== 'user') {
-      this.error = this.isAdmin
-        ? 'Admin can only review ticket status or delete tickets.'
-        : 'Worker cannot edit tickets.';
-      return;
-    }
-
+    if (!this.canEdit(ticket)) return;
     this.editingTicket = ticket;
     this.form.reset({
       wasteType: ticket.wasteType,
@@ -145,39 +195,20 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   saveTicket() {
-    if (this.user?.role !== 'user') {
-      this.error = 'Only users can create or edit tickets.';
-      return;
-    }
-
-    if (this.form.invalid) {
+    if (!this.canCreateTickets || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
-
     this.saving = true;
     this.error = '';
-    const value = this.form.getRawValue();
-
-    const payload = {
-      wasteType: value.wasteType,
-      description: value.description,
-      locationAddress: value.locationAddress,
-      priority: value.priority,
-      mediaData: this.mediaPreview,
-    };
-
+    const payload = { ...this.form.getRawValue(), mediaData: this.mediaPreview };
     const request = this.editingTicket
       ? this.portalService.updateTicket(this.editingTicket.id, payload)
       : this.portalService.createTicket(payload);
-
     request.subscribe({
       next: (ticket) => {
         this.saving = false;
-        this.isFormOpen = false;
-        this.editingTicket = null;
-        this.mediaPreview = null;
-
+        this.cancelForm();
         this.notificationService.notify('Ticket Saved', `${ticket.ticketCode} saved successfully.`);
         this.loadData();
       },
@@ -188,78 +219,129 @@ export class TicketsComponent implements OnInit, OnDestroy {
     });
   }
 
-  deleteTicket(ticket: Ticket) {
-    if (!confirm(`Delete ticket ${ticket.ticketCode}?`)) {
+  assignTicket(ticket: Ticket) {
+    const workerId = Number(this.selectedWorkerId[ticket.id] ?? 0);
+    if (!workerId) {
+      this.error = 'Select a worker first.';
       return;
     }
-
-    this.portalService.deleteTicket(ticket.id).subscribe({
-      next: () => {
-        this.loadData();
-      },
-      error: (err) => {
-        this.error = err?.error?.message ?? 'Delete failed.';
-      },
+    this.portalService.assignTicket(ticket.id, workerId).subscribe({
+      next: () => this.loadData(),
+      error: (err) => (this.error = err?.error?.message ?? 'Unable to assign ticket.'),
     });
   }
 
-  quickStatusUpdate(ticket: Ticket, status: TicketStatus) {
-    if (!this.isWorker) {
-      this.error = 'Only workers can update ticket status.';
-      return;
-    }
-
-    this.portalService.updateTicket(ticket.id, { status }).subscribe({
+  updateStatus(ticket: Ticket, status: TicketStatus) {
+    this.portalService.updateTicketStatus(ticket.id, { status }).subscribe({
       next: (updated) => {
         this.notificationService.notify('Ticket Status', `${updated.ticketCode} is now ${status}.`);
-        this.loadData();
+        this.loadData(true);
       },
-      error: (err) => {
-        this.error = err?.error?.message ?? 'Status update failed.';
-      },
+      error: (err) => (this.error = err?.error?.message ?? 'Status update failed.'),
     });
   }
 
-  onMediaSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
+  completeTicket(ticket: Ticket) {
+    const completionCode = String(this.completionCode[ticket.id] ?? '').trim();
+    const completionMediaData = this.completionMedia[ticket.id] ?? null;
+    if (!/^\d{6}$/.test(completionCode) || !completionMediaData) {
+      this.error = 'Enter the 6-digit completion code and attach an after-photo.';
       return;
     }
+    this.portalService
+      .updateTicketStatus(ticket.id, { status: 'completed', completionCode, completionMediaData })
+      .subscribe({
+        next: () => {
+          delete this.completionCode[ticket.id];
+          delete this.completionMedia[ticket.id];
+          this.loadData();
+        },
+        error: (err) => (this.error = err?.error?.message ?? 'Unable to complete ticket.'),
+      });
+  }
 
+  cancelTicket(ticket: Ticket) {
+    if (!confirm(`Cancel ticket ${ticket.ticketCode}?`)) return;
+    this.portalService.cancelTicket(ticket.id, 'Cancelled from the portal.').subscribe({
+      next: () => this.loadData(),
+      error: (err) => (this.error = err?.error?.message ?? 'Unable to cancel ticket.'),
+    });
+  }
+
+  deleteTicket(ticket: Ticket) {
+    if (!confirm(`Delete ticket ${ticket.ticketCode}?`)) return;
+    this.portalService.deleteTicket(ticket.id).subscribe({
+      next: () => this.loadData(),
+      error: (err) => (this.error = err?.error?.message ?? 'Delete failed.'),
+    });
+  }
+
+  toggleChat(ticket: Ticket) {
+    this.chatOpen[ticket.id] = !this.chatOpen[ticket.id];
+    if (this.chatOpen[ticket.id]) this.loadMessages(ticket.id);
+  }
+
+  loadMessages(ticketId: number) {
+    this.portalService.getTicketMessages(ticketId).subscribe({
+      next: (messages) => (this.messages[ticketId] = messages),
+      error: (err) => (this.error = err?.error?.message ?? 'Unable to load conversation.'),
+    });
+  }
+
+  sendMessage(ticket: Ticket) {
+    const message = String(this.chatDraft[ticket.id] ?? '').trim();
+    if (!message) return;
+    this.portalService.sendTicketMessage(ticket.id, message).subscribe({
+      next: () => {
+        this.chatDraft[ticket.id] = '';
+        this.loadMessages(ticket.id);
+      },
+      error: (err) => (this.error = err?.error?.message ?? 'Unable to send message.'),
+    });
+  }
+
+  submitReview(ticket: Ticket) {
+    const rating = Number(this.reviewRating[ticket.id] ?? 0);
+    const comment = String(this.reviewComment[ticket.id] ?? '').trim();
+    this.portalService.reviewTicket(ticket.id, rating, comment).subscribe({
+      next: () => this.loadData(),
+      error: (err) => (this.error = err?.error?.message ?? 'Unable to submit rating.'),
+    });
+  }
+
+  onMediaSelected(event: Event, completionTicketId?: number) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 1_500_000) {
+      this.error = 'Choose a JPEG, PNG, or WebP image under 1.5 MB.';
+      input.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
-      this.mediaPreview = String(reader.result ?? '');
+      const value = String(reader.result ?? '');
+      if (completionTicketId) this.completionMedia[completionTicketId] = value;
+      else this.mediaPreview = value;
     };
     reader.readAsDataURL(file);
   }
 
   async openCamera() {
     this.cameraError = '';
-
     if (!navigator.mediaDevices?.getUserMedia) {
       this.cameraError = 'Camera is not supported in this browser.';
       return;
     }
-
     try {
-      // Start stream first; we will bind it after overlay renders.
       this.cameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       });
-
       this.cameraOpen = true;
       await new Promise((resolve) => setTimeout(resolve, 0));
-
       const video = this.cameraVideo?.nativeElement;
-      if (!video) {
-        this.cameraError = 'Unable to open camera preview.';
-        this.stopCameraStream();
-        this.cameraOpen = false;
-        return;
-      }
-
+      if (!video) throw new Error('Unable to open camera preview.');
       video.srcObject = this.cameraStream;
       video.setAttribute('playsinline', 'true');
       await video.play();
@@ -273,24 +355,15 @@ export class TicketsComponent implements OnInit, OnDestroy {
   captureFromCamera() {
     const video = this.cameraVideo?.nativeElement;
     const canvas = this.cameraCanvas?.nativeElement;
-    if (!video || !canvas) {
-      this.cameraError = 'Unable to capture photo.';
-      return;
-    }
-
+    if (!video || !canvas) return;
     const width = video.videoWidth || 1280;
     const height = video.videoHeight || 720;
     canvas.width = width;
     canvas.height = height;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      this.cameraError = 'Canvas not available.';
-      return;
-    }
-
-    ctx.drawImage(video, 0, 0, width, height);
-    this.mediaPreview = canvas.toDataURL('image/jpeg', 0.9);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, 0, 0, width, height);
+    this.mediaPreview = canvas.toDataURL('image/jpeg', 0.82);
     this.closeCamera();
   }
 
@@ -301,35 +374,42 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   private stopCameraStream() {
-    if (this.cameraStream) {
-      for (const track of this.cameraStream.getTracks()) {
-        track.stop();
-      }
-      this.cameraStream = null;
-    }
+    this.cameraStream?.getTracks().forEach((track) => track.stop());
+    this.cameraStream = null;
   }
 
   openDirections(ticket: Ticket) {
     const destination = encodeURIComponent(ticket.locationAddress ?? '');
-    if (!destination) {
-      this.notificationService.notify('Directions', 'Ticket location address is missing.');
-      return;
+    if (destination) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+        '_blank',
+        'noopener',
+      );
     }
-
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
   }
 
   canEdit(ticket: Ticket) {
-    if (!this.user) {
-      return false;
-    }
-    return this.user.role === 'user' && ticket.userId === this.user.id;
+    return this.user?.role === 'user' && ['pending', 'assigned'].includes(ticket.status);
+  }
+
+  canCancel(ticket: Ticket) {
+    return this.isAdmin
+      ? !['completed', 'cancelled'].includes(ticket.status)
+      : this.user?.role === 'user' && ['pending', 'assigned'].includes(ticket.status);
   }
 
   canDelete(ticket: Ticket) {
-    if (!this.user) {
-      return false;
-    }
-    return this.user.role === 'admin' || ticket.userId === this.user.id;
+    return this.isAdmin || (this.user?.role === 'user' && ['pending', 'cancelled'].includes(ticket.status));
+  }
+
+  isOverdue(ticket: Ticket) {
+    return Boolean(ticket.slaOverdue);
+  }
+
+  ticketTimeline(ticket: Ticket) {
+    return ticket.statusHistory?.length
+      ? ticket.statusHistory
+      : [{ status: ticket.status, actorId: null, actorRole: null, note: null, createdAt: ticket.updatedAt }];
   }
 }

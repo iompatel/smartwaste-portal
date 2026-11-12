@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { APP_TITLE } from '../core/constants';
@@ -22,7 +22,7 @@ import { SHELL_NAVIGATION, ShellNavItem } from './shell-navigation';
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
   @ViewChild('notificationMenu') notificationMenu?: ElementRef<HTMLDetailsElement>;
 
   readonly title = APP_TITLE;
@@ -31,6 +31,8 @@ export class ShellComponent implements OnInit {
   markingAllNotifications = false;
   readonly navItems = inject(SHELL_NAVIGATION);
   private readonly authService = inject(SESSION_SERVICE);
+  private notificationTimer: ReturnType<typeof setInterval> | null = null;
+  private workerHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly portalService: PortalService,
@@ -46,6 +48,19 @@ export class ShellComponent implements OnInit {
         this.notifications = [];
       }
     });
+    this.notificationTimer = setInterval(() => {
+      if (this.user) this.loadNotifications();
+    }, 30_000);
+    this.workerHeartbeatTimer = setInterval(() => {
+      if (this.user?.role === 'worker' && this.user.workerOnline) {
+        this.portalService.sendWorkerHeartbeat().subscribe({ error: () => {} });
+      }
+    }, 60_000);
+  }
+
+  ngOnDestroy() {
+    if (this.notificationTimer) clearInterval(this.notificationTimer);
+    if (this.workerHeartbeatTimer) clearInterval(this.workerHeartbeatTimer);
   }
 
   canShow(roles: string[]) {

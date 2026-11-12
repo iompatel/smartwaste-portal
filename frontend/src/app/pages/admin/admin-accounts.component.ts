@@ -45,6 +45,7 @@ export class AdminAccountsComponent implements OnInit {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]],
     address: ['', [Validators.required]],
+    workerSkills: [''],
   });
 
   readonly passwordHint = PASSWORD_HINT;
@@ -89,6 +90,13 @@ export class AdminAccountsComponent implements OnInit {
       .createUser({
         ...this.form.getRawValue(),
         role: this.managedRole,
+        workerSkills:
+          this.managedRole === 'worker'
+            ? this.form.controls.workerSkills.value
+                .split(',')
+                .map((skill) => skill.trim())
+                .filter(Boolean)
+            : [],
       })
       .subscribe({
         next: () => {
@@ -101,6 +109,7 @@ export class AdminAccountsComponent implements OnInit {
             email: '',
             password: '',
             address: '',
+            workerSkills: '',
           });
           this.loadData();
         },

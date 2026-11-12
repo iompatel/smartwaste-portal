@@ -16,6 +16,16 @@
 
     <div class="hero-actions" aria-label="Dashboard actions">
       <a routerLink="/tickets" class="primary-action">Open Tickets</a>
+      @if (isWorker) {
+        <button
+          type="button"
+          class="secondary-action"
+          [disabled]="savingAvailability"
+          (click)="toggleAvailability()"
+        >
+          {{ savingAvailability ? 'Updating...' : (workerOnline ? 'Go Offline' : 'Go Online') }}
+        </button>
+      }
       <button type="button" class="secondary-action" (click)="reload()">Refresh</button>
     </div>
   </header>
@@ -43,9 +53,16 @@
           <app-stat-card label="Assigned Tickets" [value]="myTicketCount" hint="Tickets assigned to you" />
           <app-stat-card label="Open Tickets" [value]="openTicketCount" hint="Pending or in progress" />
           <app-stat-card label="Completed" [value]="completedTicketCount" hint="Resolved tickets" />
-          @if (summary) {
-            <app-stat-card label="Workers" [value]="summary.totalWorkers" hint="Portal worker accounts" />
-          }
+          <app-stat-card
+            label="Availability"
+            [value]="workerOnline ? 'Online' : 'Offline'"
+            hint="Only online workers receive automatic assignments"
+          />
+          <app-stat-card
+            label="Rating"
+            [value]="workerRatingLabel"
+            [hint]="(workerReviews?.ratingCount ?? 0) + ' completed reviews'"
+          />
         }
       </div>
     </section>

@@ -75,6 +75,21 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist/frontend/browser
     headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com https://*.googleapis.com https://apis.google.com https://accounts.google.com; frame-src https://smartwaste-98f9a.firebaseapp.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(), geolocation=(self)
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
@@ -105,7 +120,7 @@ services:
         value: noindex, nofollow, noarchive
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://smartwaste-backend-5zei.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: no-referrer

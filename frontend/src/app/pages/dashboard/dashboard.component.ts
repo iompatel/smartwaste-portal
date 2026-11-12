@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 
-import { DashboardSummary, HireRequest, Ticket } from '../../models/types';
+import { DashboardSummary, HireRequest, Ticket, WorkerReviewSummary } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { PortalService } from '../../services/portal.service';
 import { StatCardComponent } from '../../shared/stat-card.component';
@@ -24,6 +24,8 @@ export class DashboardComponent implements OnInit {
   ticketsError = '';
   hireError = '';
   error = '';
+  savingAvailability = false;
+  workerReviews: WorkerReviewSummary | null = null;
 
   constructor(
     private readonly portalService: PortalService,
@@ -38,12 +40,22 @@ export class DashboardComponent implements OnInit {
     return this.authService.currentUser?.role === 'worker';
   }
 
+  get workerOnline() {
+    return Boolean(this.authService.currentUser?.workerOnline);
+  }
+
+  get workerRatingLabel() {
+    return this.workerReviews?.ratingCount
+      ? this.workerReviews.ratingAverage.toFixed(1)
+      : 'New';
+  }
+
   get myTicketCount() {
     return this.tickets.length;
   }
 
   get openTicketCount() {
-    return this.tickets.filter((ticket) => ticket.status !== 'completed').length;
+    return this.tickets.filter((ticket) => !['completed', 'cancelled'].includes(ticket.status)).length;
   }
 
   get completedTicketCount() {
@@ -109,10 +121,35 @@ export class DashboardComponent implements OnInit {
         this.tickets = tickets;
         this.hireRequests = hireRequests;
         this.loading = false;
+        if (this.isWorker && this.authService.currentUser) {
+          this.portalService.getWorkerReviews(this.authService.currentUser.id).subscribe({
+            next: (reviews) => (this.workerReviews = reviews),
+          });
+        }
       },
       error: () => {
         this.loading = false;
         this.error = this.error || 'Unable to load dashboard data.';
+      },
+    });
+  }
+
+  toggleAvailability() {
+    if (!this.isWorker || this.savingAvailability) return;
+    this.savingAvailability = true;
+    this.portalService.setWorkerAvailability(!this.workerOnline).subscribe({
+      next: () => {
+        this.authService.refreshUser().subscribe({
+          next: () => {
+            this.savingAvailability = false;
+            this.reload();
+          },
+          error: () => (this.savingAvailability = false),
+        });
+      },
+      error: (err) => {
+        this.savingAvailability = false;
+        this.error = err?.error?.message ?? 'Unable to update worker availability.';
       },
     });
   }

@@ -5,8 +5,11 @@ import {
   AppNotification,
   DashboardSummary,
   HireRequest,
+  Review,
   Ticket,
+  TicketMessage,
   User,
+  WorkerReviewSummary,
 } from '../models/types';
 import { API_CLIENT, ApiClient } from './api-client';
 
@@ -46,8 +49,47 @@ export class PortalService {
     return this.api.put<Ticket>(`/tickets/${ticketId}`, payload);
   }
 
+  assignTicket(ticketId: number, workerId: number) {
+    return this.api.put<Ticket>(`/tickets/${ticketId}/assign`, { workerId });
+  }
+
+  updateTicketStatus(
+    ticketId: number,
+    payload: { status: Ticket['status']; completionCode?: string; completionMediaData?: string | null },
+  ) {
+    return this.api.put<Ticket>(`/tickets/${ticketId}/status`, payload);
+  }
+
+  cancelTicket(ticketId: number, reason = '') {
+    return this.api.put<Ticket>(`/tickets/${ticketId}/cancel`, { reason });
+  }
+
   deleteTicket(ticketId: number) {
     return this.api.delete<{ message: string }>(`/tickets/${ticketId}`);
+  }
+
+  getTicketMessages(ticketId: number) {
+    return this.api.get<TicketMessage[]>(`/tickets/${ticketId}/messages`);
+  }
+
+  sendTicketMessage(ticketId: number, message: string) {
+    return this.api.post<TicketMessage>(`/tickets/${ticketId}/messages`, { message });
+  }
+
+  reviewTicket(ticketId: number, rating: number, comment: string) {
+    return this.api.post<Review>(`/tickets/${ticketId}/review`, { rating, comment });
+  }
+
+  getWorkerReviews(workerId: number) {
+    return this.api.get<WorkerReviewSummary>(`/workers/${workerId}/reviews`);
+  }
+
+  setWorkerAvailability(online: boolean) {
+    return this.api.put<User>('/workers/me/availability', { online });
+  }
+
+  sendWorkerHeartbeat() {
+    return this.api.post<{ online: boolean }>('/workers/me/heartbeat', {});
   }
 
   getHireRequests() {

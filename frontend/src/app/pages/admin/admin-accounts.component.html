@@ -7,7 +7,7 @@
     </div>
 
     <div class="hero-actions" aria-label="Directory actions">
-      <a class="back-link" routerLink="/dashboard">Back to Admin Panel</a>
+      <a class="back-link" routerLink="/admin-panel">Back to Admin Panel</a>
       <a class="primary-link" href="#create-account">Add {{ singularLabel }}</a>
     </div>
   </header>
@@ -137,6 +137,19 @@
               placeholder="Address"
             />
           </div>
+
+          @if (managedRole === 'worker') {
+            <div class="form-field full">
+              <label for="worker-skills">Worker Skills</label>
+              <input
+                id="worker-skills"
+                type="text"
+                [formControl]="form.controls.workerSkills"
+                placeholder="Waste collection, recycling, hazardous waste"
+              />
+              <p class="field-hint">Separate skills with commas.</p>
+            </div>
+          }
         </div>
 
         <div class="form-actions">
@@ -195,6 +208,9 @@
                 }
               </h3>
               <p>ID {{ user.id }}</p>
+              @if (managedRole === 'worker') {
+                <p>{{ user.workerOnline ? 'Online' : 'Offline' }} · {{ user.ratingCount ?? 0 }} reviews</p>
+              }
             </div>
 
             <div class="record-fields">
@@ -214,6 +230,18 @@
                 <span>{{ linkedTicketLabel }}</span>
                 <strong>{{ ticketCountFor(user) }}</strong>
               </div>
+              @if (managedRole === 'worker') {
+                <div class="field">
+                  <span>Rating</span>
+                  <strong>
+                    {{ user.ratingCount ? ((user.ratingAverage ?? 0) | number: '1.1-1') + ' / 5' : 'New' }}
+                  </strong>
+                </div>
+                <div class="field full">
+                  <span>Skills</span>
+                  <strong>{{ user.workerSkills?.join(', ') || 'General operations' }}</strong>
+                </div>
+              }
             </div>
 
             <div class="record-side">

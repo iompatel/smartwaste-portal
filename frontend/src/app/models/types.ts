@@ -1,5 +1,11 @@
 export type UserRole = 'admin' | 'worker' | 'user';
-export type TicketStatus = 'pending' | 'in_progress' | 'completed';
+export type TicketStatus =
+  | 'pending'
+  | 'assigned'
+  | 'accepted'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
 export type TicketPriority = 'low' | 'medium' | 'high';
 export type HireRequestStatus = 'pending' | 'assigned' | 'completed' | 'cancelled';
 
@@ -15,6 +21,11 @@ export interface User {
   profileImage: string | null;
   createdAt: string;
   updatedAt: string;
+  workerOnline?: boolean;
+  workerLastSeenAt?: string | null;
+  workerSkills?: string[];
+  ratingAverage?: number;
+  ratingCount?: number;
 }
 
 export interface AuthResponse {
@@ -25,6 +36,7 @@ export interface AuthResponse {
 export interface DashboardSummary {
   totalUsers: number;
   totalWorkers: number;
+  onlineWorkers: number;
   totalTickets: number;
   pendingTickets: number;
 }
@@ -40,8 +52,54 @@ export interface Ticket {
   locationAddress: string;
   status: TicketStatus;
   priority: TicketPriority;
+  statusHistory?: TicketStatusEvent[];
+  acceptedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  completionCode?: string | null;
+  completionMediaData?: string | null;
+  requester?: User | null;
+  assignedWorker?: User | null;
+  review?: Review | null;
+  slaDueAt?: string;
+  slaOverdue?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TicketStatusEvent {
+  status: TicketStatus;
+  actorId: number | null;
+  actorRole: UserRole | 'system' | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface TicketMessage {
+  id: number;
+  ticketId: number;
+  senderId: number;
+  senderRole: UserRole;
+  message: string;
+  readBy: number[];
+  createdAt: string;
+}
+
+export interface Review {
+  id: number;
+  ticketId: number;
+  userId: number;
+  workerId: number;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface WorkerReviewSummary {
+  ratingAverage: number;
+  ratingCount: number;
+  reviews: Review[];
 }
 
 export interface HireRequest {

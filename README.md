@@ -12,6 +12,11 @@ This project is a complete **web portal** implementation with:
 - Named routes with route guards
 - Admin panel for user, worker, ticket, notification, and hire-request operations
 - Ticket CRUD module with assignment and status changes
+- Tracked ticket lifecycle (`pending → assigned → accepted → in progress → completed`)
+- Online worker heartbeat, hybrid auto/admin dispatch, and SLA-overdue indicators
+- In-app completion OTP with required after-photo proof
+- Ticket-scoped user/worker/admin chat and in-app notifications
+- Post-completion worker ratings, reviews, filters, and repeat requests
 - Profile management
 - Settings page (theme, logout, notifications)
 - Camera / Gallery upload support for tickets
@@ -188,9 +193,11 @@ service's `API_BASE_URL` + Content Security Policy together. If the admin-backen
 also update the admin service's Content Security Policy in `render.yaml`.
 
 MongoDB creates the `admin_sessions` collection and its expiry index automatically. The migration
-does not modify tickets, users, hire requests, or notifications. Existing admin bearer tokens are
-rejected after deployment; the public backend has no admin-login endpoint, and the admin backend
-accepts no public or worker bearer tokens.
+also creates `ticket_messages` and `reviews` automatically. Existing ticket and user documents need
+no manual MongoDB edits: Mongoose supplies defaults, assigned legacy tickets are moved into the
+tracked lifecycle, and active legacy tickets receive a completion code on public-backend startup.
+Existing admin bearer tokens are rejected after deployment; the public backend has no admin-login
+endpoint, and the admin backend accepts no public or worker bearer tokens.
 
 Passwords created through signup or admin account management require at least 8 characters, one
 uppercase letter, and one special character.

@@ -66,8 +66,14 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
     return this.users.filter((item) => item.role === 'worker').length;
   }
 
+  get onlineWorkerCount() {
+    return this.users.filter((item) => item.role === 'worker' && item.workerOnline).length;
+  }
+
   get highPriorityTickets() {
-    return this.tickets.filter((item) => item.priority === 'high').length;
+    return this.tickets.filter(
+      (item) => item.priority === 'high' && !['completed', 'cancelled'].includes(item.status),
+    ).length;
   }
 
   get pendingTickets() {
@@ -75,11 +81,15 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   }
 
   get activeTicketCount() {
-    return this.tickets.filter((item) => item.status !== 'completed').length;
+    return this.tickets.filter((item) => !['completed', 'cancelled'].includes(item.status)).length;
   }
 
   get closedTicketCount() {
-    return this.tickets.filter((item) => item.status === 'completed').length;
+    return this.tickets.filter((item) => ['completed', 'cancelled'].includes(item.status)).length;
+  }
+
+  get overdueTicketCount() {
+    return this.tickets.filter((item) => item.slaOverdue).length;
   }
 
   get pendingHireRequests() {

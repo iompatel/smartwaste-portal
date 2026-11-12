@@ -22,10 +22,12 @@ import { TicketStatus } from '../models/types';
         letter-spacing: 0.01em;
         text-transform: capitalize;
       }
-      .pending {
+      .pending,
+      .assigned {
         background: var(--warning-soft);
         color: var(--warning);
       }
+      .accepted,
       .in_progress {
         background: var(--accent-soft);
         color: var(--accent-deep);
@@ -33,6 +35,10 @@ import { TicketStatus } from '../models/types';
       .completed {
         background: var(--success-soft);
         color: var(--success);
+      }
+      .cancelled {
+        background: var(--danger-soft);
+        color: var(--danger);
       }
     `,
   ],

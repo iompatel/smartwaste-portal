@@ -44,6 +44,6 @@ import { Component, Input } from '@angular/core';
 })
 export class StatCardComponent {
   @Input({ required: true }) label = '';
-  @Input({ required: true }) value = 0;
+  @Input({ required: true }) value: string | number = 0;
   @Input() hint = '';
 }
