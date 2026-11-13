@@ -7,7 +7,6 @@ import { Component, Input } from '@angular/core';
     <article class="card">
       <p class="label">{{ label }}</p>
       <h3>{{ value }}</h3>
-      <p class="hint">{{ hint }}</p>
     </article>
   `,
   styles: [
@@ -39,17 +38,10 @@ import { Component, Input } from '@angular/core';
         line-height: 1.1;
         letter-spacing: -0.02em;
       }
-      .hint {
-        margin: 12px 0 0;
-        color: var(--text-muted);
-        font-size: 14px;
-        line-height: 1.43;
-      }
     `,
   ],
 })
 export class StatCardComponent {
   @Input({ required: true }) label = '';
   @Input({ required: true }) value: string | number = 0;
-  @Input() hint = '';
 }

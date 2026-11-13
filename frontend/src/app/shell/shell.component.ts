@@ -19,7 +19,6 @@ import { AppNotification, User } from '../models/types';
 import { PortalService } from '../services/portal.service';
 import { SESSION_SERVICE } from '../services/session';
 import { ThemeService } from '../services/theme.service';
-import { AnimationService } from '../services/animation.service';
 import { RolePillComponent } from '../shared/role-pill.component';
 import { AvatarComponent } from '../shared/avatar/avatar.component';
 import { SHELL_NAVIGATION, ShellNavItem } from './shell-navigation';
