@@ -54,6 +54,32 @@ export class DashboardComponent implements OnInit {
     return this.authService.currentUser?.role === 'worker';
   }
 
+  get currentUser() {
+    return this.authService.currentUser;
+  }
+
+  get userDisplayName(): string {
+    const user = this.authService.currentUser;
+    if (!user) return 'Citizen';
+    if (user.firstName) return user.firstName;
+    return user.email?.split('@')[0] || 'Citizen';
+  }
+
+  get greeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  get currentDateFormatted(): string {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date());
+  }
+
   get workerOnline() {
     return Boolean(this.authService.currentUser?.workerOnline);
   }

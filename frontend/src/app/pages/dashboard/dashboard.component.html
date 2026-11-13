@@ -2,26 +2,43 @@
   <header class="dashboard-hero">
     <div class="hero-content">
       <div class="hero-badge">
-        <span class="badge badge-primary">City Operations</span>
+        <span class="badge badge-primary">
+          @if (isUser) { {{ currentDateFormatted }} } @else { City Operations }
+        </span>
       </div>
       <h1 id="dashboard-title">
-        @if (isWorker) { Worker Dashboard } @else { User Dashboard }
+        @if (isUser) {
+          {{ greeting }}, {{ userDisplayName }}
+        } @else if (isWorker) {
+          Worker Dashboard
+        } @else {
+          User Dashboard
+        }
       </h1>
       <p class="hero-description">
         @if (isWorker) {
           Review assigned collections, update progress, and manage hired tasks.
         } @else {
-          Track collection tickets, completed work, and personal worker requests at a glance.
+          Report neighborhood garbage, track collection requests, and request dedicated workers with real-time updates.
         }
       </p>
     </div>
 
     <div class="hero-actions" aria-label="Dashboard actions">
-      <a routerLink="/tickets" class="btn btn-primary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        @if (isWorker) { My Tickets } @else { Open Tickets }
-      </a>
-      @if (isWorker) {
+      @if (isUser) {
+        <a routerLink="/tickets" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Report Waste
+        </a>
+        <a routerLink="/hire-worker" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Hire Worker
+        </a>
+      } @else {
+        <a routerLink="/tickets" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          My Tickets
+        </a>
         <button
           type="button"
           class="btn btn-secondary"
@@ -29,11 +46,7 @@
           (click)="toggleAvailability()"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            @if (workerOnline) {
-              <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-            } @else {
-              <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-            }
+            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           {{ savingAvailability ? 'Updating...' : (workerOnline ? 'Go Offline' : 'Go Online') }}
         </button>
@@ -73,6 +86,71 @@
       </div>
     </div>
   } @else {
+    <!-- Citizen Services Hub -->
+    @if (isUser) {
+      <section class="services-hub" aria-labelledby="services-hub-title">
+        <div class="section-header">
+          <span class="section-badge">Citizen Services</span>
+          <h2 id="services-hub-title">Quick Actions</h2>
+        </div>
+
+        <div class="services-grid">
+          <a routerLink="/tickets" class="service-card card-interactive">
+            <div class="service-icon icon-waste">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </div>
+            <div class="service-body">
+              <strong>Report Waste</strong>
+              <p>Submit garbage pickup with camera photo & GPS address</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/hire-worker" class="service-card card-interactive">
+            <div class="service-icon icon-worker">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div class="service-body">
+              <strong>Hire a Worker</strong>
+              <p>Request an authorized worker for doorstep personal cleaning</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/tickets" class="service-card card-interactive">
+            <div class="service-icon icon-track">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="service-body">
+              <strong>Track Collections</strong>
+              <p>Monitor live GPS dispatch, status timeline & OTP codes</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/profile" class="service-card card-interactive">
+            <div class="service-icon icon-profile">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+            <div class="service-body">
+              <strong>My Profile</strong>
+              <p>Update pickup address and contact phone number</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+        </div>
+      </section>
+    }
+
+    <!-- Key Metrics Overview -->
     <section class="stats-section" aria-labelledby="stats-title">
       <div class="section-header">
         <span class="section-badge">Overview</span>
@@ -140,6 +218,7 @@
       </div>
     </section>
 
+    <!-- Activity Section (Apple Segmented Capsule + Squircle List) -->
     <section class="activity-section" aria-label="Recent activity">
       <div class="activity-tabs" role="tablist" aria-label="Activity sections">
         <button
@@ -189,19 +268,26 @@
 
           <div class="tracking-list">
             @for (ticket of recentTickets; track ticket.id) {
-              <article class="tracking-item card-interactive">
+              <article class="tracking-item card-interactive" routerLink="/tickets">
+                <div class="item-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </div>
+
                 <div class="item-primary">
                   <strong>{{ ticket.ticketCode }}</strong>
-                  <small>{{ ticket.wasteType }}</small>
+                  <span class="item-category-pill">{{ ticket.wasteType }}</span>
                 </div>
 
                 <div class="item-meta">
                   <app-status-badge [status]="ticket.status" />
-                  <span class="muted">Worker: {{ ticket.workerId ?? 'Pending' }}</span>
+                  <span class="muted">Worker: {{ ticket.assignedWorker ? (ticket.assignedWorker.firstName + ' ' + ticket.assignedWorker.lastName) : (ticket.workerId ? ('#' + ticket.workerId) : 'Pending') }}</span>
                 </div>
 
                 <div class="item-secondary">
-                  <span class="muted">{{ ticket.locationAddress }}</span>
+                  <span class="muted location-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    {{ ticket.locationAddress }}
+                  </span>
                   @if (!isUser) {
                     <button type="button" class="btn btn-ghost btn-sm" (click)="openDirections(ticket.locationAddress); $event.stopPropagation()">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
@@ -213,13 +299,17 @@
                 <div class="item-time">
                   <span class="muted">{{ ticket.updatedAt | date: 'short' }}</span>
                 </div>
+
+                <div class="item-arrow">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
               </article>
             } @empty {
               <app-empty-state
                 title="No tickets yet"
-                message="Create a ticket to get started."
+                message="Report a waste collection issue to get started."
                 icon="empty-tickets"
-                [actions]="[{ label: 'Create Ticket', callback: createTicketAction, variant: 'primary', icon: 'add' }]"
+                [actions]="[{ label: 'Report Waste', callback: createTicketAction, variant: 'primary', icon: 'add' }]"
               ></app-empty-state>
             }
           </div>
@@ -237,10 +327,14 @@
 
           <div class="tracking-list">
             @for (request of recentHireRequests; track request.id) {
-              <article class="tracking-item card-interactive">
+              <article class="tracking-item card-interactive" routerLink="/hire-worker">
+                <div class="item-icon hire-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+
                 <div class="item-primary">
                   <strong>{{ request.requestCode }}</strong>
-                  <small>{{ request.title || 'Personal Work' }}</small>
+                  <span class="item-category-pill">{{ request.title || 'Personal Work' }}</span>
                 </div>
 
                 <div class="item-meta">
@@ -248,31 +342,31 @@
                   @if (request.assignedWorker) {
                     <span class="muted">
                       {{ request.assignedWorker.firstName }} {{ request.assignedWorker.lastName }}
-                      ({{ request.assignedWorker.mobile }})
                     </span>
                   } @else {
-                    <span class="muted">Waiting for assignment</span>
+                    <span class="muted">Waiting for worker</span>
                   }
                 </div>
 
                 <div class="item-secondary">
-                  <span class="muted">{{ request.workAddress }}</span>
-                  @if (!isUser) {
-                    <button type="button" class="btn btn-ghost btn-sm" (click)="openDirections(request.workAddress); $event.stopPropagation()">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
-                      Directions
-                    </button>
-                  }
+                  <span class="muted location-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    {{ request.workAddress }}
+                  </span>
                 </div>
 
                 <div class="item-time">
                   <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
                 </div>
+
+                <div class="item-arrow">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
               </article>
             } @empty {
               <app-empty-state
                 title="No hire requests yet"
-                message="Hire a worker for personal work."
+                message="Hire a dedicated worker for personal cleaning and waste disposal."
                 icon="empty-hire"
                 [actions]="[{ label: 'Hire Worker', callback: hireWorkerAction, variant: 'primary', icon: 'add' }]"
               ></app-empty-state>
