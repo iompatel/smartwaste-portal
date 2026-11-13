@@ -3,11 +3,12 @@ import { Component, OnInit, inject } from '@angular/core';
 
 import { AdminActivity } from '../../models/types';
 import { PortalService } from '../../services/portal.service';
+import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
 
 @Component({
   selector: 'app-admin-activity',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TearButtonComponent],
   templateUrl: './admin-activity.component.html',
   styleUrl: './admin-activity.component.scss',
 })

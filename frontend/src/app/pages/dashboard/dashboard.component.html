@@ -36,19 +36,19 @@
 
     <div class="hero-actions" aria-label="Dashboard actions">
       @if (isUser) {
-        <a routerLink="/tickets" class="btn btn-primary">
+        <app-tear-button variant="primary" (btnClick)="navigateToTickets()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           Report Waste
-        </a>
-        <a routerLink="/hire-worker" class="btn btn-secondary">
+        </app-tear-button>
+        <app-tear-button variant="secondary" (btnClick)="navigateToHire()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           Hire Worker
-        </a>
+        </app-tear-button>
       } @else if (isWorker) {
-        <a routerLink="/tickets" class="btn btn-primary">
+        <app-tear-button variant="primary" (btnClick)="navigateToTickets()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           Assigned Routes
-        </a>
+        </app-tear-button>
         <button
           type="button"
           class="btn duty-toggle-btn"
@@ -65,26 +65,11 @@
           <span>{{ savingAvailability ? 'Updating...' : (workerOnline ? 'On Duty' : 'Off Duty') }}</span>
         </button>
       } @else {
-        <a routerLink="/tickets" class="btn btn-primary">
+        <app-tear-button variant="primary" (btnClick)="navigateToTickets()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           My Tickets
-        </a>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          [disabled]="savingAvailability"
-          (click)="toggleAvailability()"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          {{ savingAvailability ? 'Updating...' : (workerOnline ? 'Go Offline' : 'Go Online') }}
-        </button>
+        </app-tear-button>
       }
-      <button type="button" class="btn btn-ghost" (click)="reload()" [disabled]="loading">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-        Refresh
-      </button>
     </div>
   </header>
 
@@ -372,6 +357,97 @@
             class="stagger-5"
           />
         }
+      </div>
+    </section>
+
+    <!-- Clean India / Swachh Bharat Showcase (KokonutUI CardStack + 3D CardFlip Slogans) -->
+    <section class="clean-india-showcase" aria-labelledby="showcase-title">
+      <div class="section-header">
+        <div class="tricolor-badge">
+          <span class="dot saffron"></span>
+          <span class="dot white"></span>
+          <span class="dot green"></span>
+          <span class="showcase-badge-text">Swachh Bharat Mission · Clean India Initiative</span>
+        </div>
+        <h2 id="showcase-title">Civic Cleanliness & Sustainability Milestones</h2>
+        <p class="section-subtitle">
+          Interactive civic awareness: Flip cards for Clean India mission pledges or cycle through the national guidelines stack.
+        </p>
+      </div>
+
+      <div class="showcase-grid">
+        <div class="stack-column">
+          <div class="column-eyebrow">
+            <span class="eyebrow-tag">Card Stack</span>
+            <span class="eyebrow-hint">Cycle through national directives</span>
+          </div>
+          <app-card-stack />
+        </div>
+
+        <div class="flip-cards-column">
+          <div class="column-eyebrow">
+            <span class="eyebrow-tag">Interactive 3D Flip</span>
+            <span class="eyebrow-hint">Click cards to reveal Clean India slogans</span>
+          </div>
+          <div class="flip-cards-grid">
+            <app-card-flip
+              badge="Source Segregation"
+              title="Zero Landfill Waste"
+              metric="4,850+ T"
+              metricLabel="Recycled & Diverted"
+              description="Dry, wet & hazardous waste segregated at doorstep collection points."
+              icon="recycle"
+              slogan="Clean India, Green India"
+              sloganHindi="एक कदम स्वच्छता की ओर"
+              sloganQuote="Every segregated bag prevents landfill fires and conserves fertile soil for our future generations."
+              impactMetric="4,850 Tons"
+              impactLabel="Diverted this quarter"
+              variant="green"
+            />
+            <app-card-flip
+              badge="SLA Assurance"
+              title="Civic Accountability"
+              metric="98.4%"
+              metricLabel="Resolution Rate"
+              description="Every reported complaint verified via geo-fenced GPS and secure 6-digit citizen OTP."
+              icon="shield"
+              slogan="Zero Tolerance for Litter"
+              sloganHindi="ना गंदगी करेंगे, ना करने देंगे"
+              sloganQuote="We pledge neither to litter our public streets nor permit anyone else to pollute our shared surroundings."
+              impactMetric="100% Verified"
+              impactLabel="OTP closed handovers"
+              variant="blue"
+            />
+            <app-card-flip
+              badge="Fleet Telemetry"
+              title="Rapid Response"
+              metric="120 Min"
+              metricLabel="Average Turnaround"
+              description="Real-time operative dispatch ensuring rapid garbage clearance across all wards."
+              icon="sparkles"
+              slogan="Speed & Cleanliness Hand in Hand"
+              sloganHindi="स्वच्छ भारत, सशक्त भारत"
+              sloganQuote="Intelligent route tracking empowers municipal teams to reach distressed locations swiftly and effectively."
+              impactMetric="15s GPS"
+              impactLabel="Live fleet broadcast"
+              variant="amber"
+            />
+            <app-card-flip
+              badge="Safai Mitra Dignity"
+              title="Community Respect"
+              metric="4.9 ★"
+              metricLabel="Citizen Rating"
+              description="Recognizing and elevating sanitation workers with fair compensation and safe gear."
+              icon="leaf"
+              slogan="Clean Mind, Clean Nation"
+              sloganHindi="स्वच्छता ही सेवा है"
+              sloganQuote="Sanitation workers are the backbone of our cities. Service to cleanliness is the highest civic devotion."
+              impactMetric="1,200+"
+              impactLabel="Dedicated frontline heroes"
+              variant="indigo"
+            />
+          </div>
+        </div>
       </div>
     </section>
 
