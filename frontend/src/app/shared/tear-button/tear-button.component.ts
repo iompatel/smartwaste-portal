@@ -244,6 +244,7 @@ export class TearButtonComponent {
   @Input() fullWidth = false;
 
   @Output() buttonClick = new EventEmitter<MouseEvent>();
+  @Output() btnClick = new EventEmitter<MouseEvent>();
 
   ripples: Array<{ x: number; y: number }> = [];
 
@@ -261,5 +262,6 @@ export class TearButtonComponent {
     }, 600);
 
     this.buttonClick.emit(event);
+    this.btnClick.emit(event);
   }
 }

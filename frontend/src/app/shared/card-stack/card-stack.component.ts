@@ -506,6 +506,8 @@ export class CardStackComponent {
   }
 
   goToIndex(index: number) {
-    this.activeIndex = index;
+    if (index >= 0 && index < this.cards.length) {
+      this.activeIndex = index;
+    }
   }
 }
