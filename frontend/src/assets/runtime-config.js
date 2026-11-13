@@ -1,4 +1,4 @@
 window.__SWMS_CONFIG__ = {
-  "API_BASE_URL": "https://admin.smartwaste.dpdns.org/api",
+  "API_BASE_URL": "http://localhost:4000/api",
   "DEPLOY_COMMIT": "local"
 };

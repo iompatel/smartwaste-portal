@@ -7,13 +7,11 @@ import { catchError, forkJoin, of } from 'rxjs';
 import { DashboardSummary, HireRequest, Ticket, WorkerReviewSummary } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { PortalService } from '../../services/portal.service';
-import { BarChartComponent, BarDatum } from '../../shared/bar-chart.component';
-import { DonutChartComponent, DonutSlice } from '../../shared/donut-chart.component';
-import { SparklineComponent } from '../../shared/sparkline.component';
 import { StatCardComponent } from '../../shared/stat-card.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { EmptyStateComponent } from '../../shared/empty-state/empty-state.component';
+import { ToastService } from '../../shared/toast/toast.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -21,9 +19,6 @@ import { EmptyStateComponent } from '../../shared/empty-state/empty-state.compon
   imports: [
     CommonModule,
     RouterLink,
-    BarChartComponent,
-    DonutChartComponent,
-    SparklineComponent,
     StatCardComponent,
     StatusBadgeComponent,
     SkeletonComponent,
@@ -48,6 +43,7 @@ export class DashboardComponent implements OnInit {
     private readonly portalService: PortalService,
     private readonly authService: AuthService,
     private readonly router: Router,
+    private readonly toastService: ToastService,
   ) {}
 
   get isUser() {
@@ -97,47 +93,6 @@ export class DashboardComponent implements OnInit {
   get recentHireRequests() {
     return [...this.hireRequests]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 6);
-  }
-
-  get statusBreakdown(): DonutSlice[] {
-    const open = this.tickets.filter(
-      (ticket) => !['completed', 'cancelled'].includes(ticket.status),
-    ).length;
-    return [
-      { label: 'Open', value: open, color: 'var(--chart-2)' },
-      { label: 'Completed', value: this.completedTicketCount, color: 'var(--chart-1)' },
-      {
-        label: 'Cancelled',
-        value: this.tickets.filter((ticket) => ticket.status === 'cancelled').length,
-        color: 'var(--chart-5)',
-      },
-    ];
-  }
-
-  get weeklyTrend(): number[] {
-    const days = [0, 0, 0, 0, 0, 0, 0];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (const ticket of this.tickets) {
-      const created = new Date(ticket.createdAt);
-      created.setHours(0, 0, 0, 0);
-      const age = Math.floor((today.getTime() - created.getTime()) / 86400000);
-      if (age >= 0 && age < 7) {
-        days[6 - age]++;
-      }
-    }
-    return days;
-  }
-
-  get wasteTypeBreakdown(): BarDatum[] {
-    const counts = new Map<string, number>();
-    for (const ticket of this.tickets) {
-      counts.set(ticket.wasteType, (counts.get(ticket.wasteType) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value)
       .slice(0, 6);
   }
 
@@ -196,12 +151,17 @@ export class DashboardComponent implements OnInit {
 
   toggleAvailability() {
     if (!this.isWorker || this.savingAvailability) return;
+    const goingOnline = !this.workerOnline;
     this.savingAvailability = true;
-    this.portalService.setWorkerAvailability(!this.workerOnline).subscribe({
+    this.portalService.setWorkerAvailability(goingOnline).subscribe({
       next: () => {
         this.authService.refreshUser().subscribe({
           next: () => {
             this.savingAvailability = false;
+            this.toastService.success(
+              goingOnline ? 'You are now online' : 'You are now offline',
+              goingOnline ? 'Automatic ticket assignments are enabled.' : 'You will no longer receive automatic assignments.',
+            );
             this.reload();
           },
           error: () => (this.savingAvailability = false),
@@ -209,7 +169,7 @@ export class DashboardComponent implements OnInit {
       },
       error: (err) => {
         this.savingAvailability = false;
-        this.error = err?.error?.message ?? 'Unable to update worker availability.';
+        this.toastService.error('Update failed', err?.error?.message ?? 'Unable to update worker availability.');
       },
     });
   }
@@ -224,7 +184,8 @@ export class DashboardComponent implements OnInit {
   }
 
   openCreate() {
-    // This is called from the template
+    // Create form lives on the tickets page
+    this.router.navigate(['/tickets']);
   }
 
   createTicketAction = () => {
@@ -238,7 +199,6 @@ export class DashboardComponent implements OnInit {
   private playIntro() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     animate('.dashboard .stats-grid app-stat-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.06), ease: 'easeOut' });
-    animate('.dashboard .charts-grid .chart-card', { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: stagger(0.08, { startDelay: 0.15 }), ease: 'easeOut' });
-    animate('.dashboard .tracking-item', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.05, { startDelay: 0.3 }), ease: 'easeOut' });
+    animate('.dashboard .tracking-item', { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.05, { startDelay: 0.2 }), ease: 'easeOut' });
   }
 }

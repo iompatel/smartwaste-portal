@@ -9,7 +9,11 @@
         aria-expanded="{{ mobileMenuOpen }}"
         aria-controls="mobile-drawer"
       >
-        <span class="menu-icon" [innerHTML]="mobileMenuOpen ? closeIcon : menuIcon"></span>
+        @if (mobileMenuOpen) {
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        } @else {
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        }
       </button>
 
       <a routerLink="/dashboard" class="global-brand" aria-label="SmartWaste Home">
@@ -47,8 +51,9 @@
     </div>
 
     @if (mobileMenuOpen) {
-      <div #mobileBackdrop class="mobile-nav-backdrop" (click)="toggleMobileMenu()" aria-hidden="true"></div>
-      <nav #mobileDrawer id="mobile-drawer" class="mobile-nav-menu" aria-label="Mobile navigation">
+      <div class="mobile-nav-backdrop" (click)="toggleMobileMenu()" aria-hidden="true"></div>
+    }
+    <nav #mobileDrawer id="mobile-drawer" class="mobile-nav-menu" [class.open]="mobileMenuOpen" [attr.aria-hidden]="!mobileMenuOpen" aria-label="Mobile navigation">
         <div class="mobile-nav-header">
           <span class="mobile-nav-title">Navigation</span>
         </div>
@@ -62,7 +67,6 @@
               class="mobile-nav-link"
               (click)="toggleMobileMenu()"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon" [innerHTML]="getLinkIcon(item.path)"></svg>
               {{ navLabel(item) }}
             </a>
           }
@@ -86,8 +90,7 @@
           </button>
         }
       </nav>
-    }
-  </header>
+    </header>
 
   <header class="workspace-nav" role="navigation" aria-label="Workspace">
     <div class="workspace-nav-inner">
@@ -199,7 +202,6 @@
               <nav class="profile-dropdown-nav" aria-label="Profile navigation">
                 @for (item of profileMenuItems(); track item.path) {
                   <a [routerLink]="item.path" class="profile-dropdown-link" (click)="profileMenuOpen = false" role="menuitem">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="link-icon" [innerHTML]="getLinkIcon(item.path)"></svg>
                     {{ item.label }}
                   </a>
                 }

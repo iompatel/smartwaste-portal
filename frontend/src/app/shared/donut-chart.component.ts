@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 
 export interface DonutSlice {
   label: string;
@@ -10,6 +11,7 @@ export interface DonutSlice {
 @Component({
   selector: 'app-donut-chart',
   standalone: true,
+  imports: [DecimalPipe],
   template: `
     <figure class="donut">
       @if (total > 0) {
@@ -18,7 +20,7 @@ export interface DonutSlice {
           role="img"
           [attr.aria-label]="label + '. ' + ariaSummary"
         >
-          <circle class="track" cx="21" cy="21" r="15.9155" fill="none" stroke="var(--border)" stroke-width="4" />
+          <circle class="track" cx="21" cy="21" r="15.9155" fill="none" stroke="var(--border)" stroke-width="4.5" />
           @for (slice of visible; track slice.label) {
             <circle
               class="slice"
@@ -27,12 +29,13 @@ export interface DonutSlice {
               r="15.9155"
               fill="none"
               [attr.stroke]="slice.color"
-              stroke-width="4"
+              stroke-width="4.5"
               stroke-linecap="round"
               [attr.stroke-dasharray]="slice.dash"
               [attr.stroke-dashoffset]="slice.offset"
+              [style.animation-delay.ms]="300 + 120 * $index"
             >
-              <title>{{ slice.label }}: {{ slice.value }}</title>
+              <title>{{ slice.label }}: {{ slice.value }} ({{ slice.pct | number: '1.0-0' }}%)</title>
             </circle>
           }
         </svg>
@@ -46,6 +49,7 @@ export interface DonutSlice {
               <i class="swatch" [style.background]="slice.color"></i>
               {{ slice.label }}
               <strong>{{ slice.value }}</strong>
+              <em>{{ slice.pct | number: '1.0-0' }}%</em>
             </span>
           }
         </figcaption>
@@ -66,6 +70,19 @@ export interface DonutSlice {
         width: 168px;
         height: 168px;
         animation: donut-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      .slice {
+        opacity: 0;
+        animation: slice-in 0.5s ease both;
+        transition: stroke-width 0.2s ease;
+      }
+      .slice:hover {
+        stroke-width: 6;
+      }
+      @keyframes slice-in {
+        to {
+          opacity: 1;
+        }
       }
       @keyframes donut-in {
         from {
@@ -115,6 +132,11 @@ export interface DonutSlice {
       .legend-item strong {
         color: var(--text);
         font-weight: 600;
+      }
+      .legend-item em {
+        font-style: normal;
+        color: var(--text-muted);
+        font-size: 12px;
       }
       .swatch {
         width: 10px;

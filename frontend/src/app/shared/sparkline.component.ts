@@ -41,6 +41,11 @@ let uid = 0;
             [style.background]="color"
           ></i>
         </div>
+        <div class="days" aria-hidden="true">
+          @for (day of dayLabels; track $index) {
+            <span>{{ day }}</span>
+          }
+        </div>
         <figcaption class="legend">
           <span class="peak">Peak {{ peak }}</span>
           <span class="latest">Latest {{ latest }}</span>
@@ -72,6 +77,18 @@ let uid = 0;
         transform: translate(-50%, -50%);
         opacity: 0;
         animation: spark-fade 0.4s ease 0.9s both;
+      }
+      .days {
+        display: flex;
+        justify-content: space-between;
+        margin: 6px 2px 0;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .days span:nth-child(odd) {
+        visibility: hidden;
       }
       .line {
         stroke-dasharray: 100;
@@ -129,6 +146,13 @@ export class SparklineComponent {
 
   get gradientId() {
     return `spark-grad-${this.id}`;
+  }
+
+  get dayLabels(): string[] {
+    const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date().getDay();
+    // data[0] is 6 days ago, data[6] is today
+    return this.data.map((_, index) => names[(today - (this.data.length - 1 - index) + 7) % 7]);
   }
 
   get peak() {

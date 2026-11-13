@@ -1,6 +1,5 @@
 export { ToastService, type Toast, type ToastType } from './toast/toast.service';
 export { ToastContainerComponent } from './toast/toast.component';
-export { ConfirmDialogComponent, type ConfirmDialogData } from './confirm-dialog/confirm-dialog.component';
 export { SkeletonComponent } from './skeleton/skeleton.component';
 export { EmptyStateComponent, type EmptyStateAction } from './empty-state/empty-state.component';
 export { AvatarComponent } from './avatar/avatar.component';

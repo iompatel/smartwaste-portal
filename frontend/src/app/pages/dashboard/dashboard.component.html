@@ -63,11 +63,6 @@
           <app-skeleton type="card"></app-skeleton>
         }
       </div>
-      <div class="charts-grid stagger-4">
-        @for (_ of [1,2,3]; track $index) {
-          <app-skeleton type="card"></app-skeleton>
-        }
-      </div>
       <div class="activity-skeleton stagger-5">
         @for (_ of [1,2,3]; track $index) {
           <div class="skeleton-row">
@@ -89,28 +84,24 @@
           <app-stat-card
             label="My Tickets"
             [value]="myTicketCount"
-            hint="Tickets created by you"
             icon="tickets"
             class="stagger-1"
           />
           <app-stat-card
             label="Open Tickets"
             [value]="openTicketCount"
-            hint="Pending or in progress"
             icon="open"
             class="stagger-2"
           />
           <app-stat-card
             label="Completed"
             [value]="completedTicketCount"
-            hint="Resolved tickets"
             icon="check"
             class="stagger-3"
           />
           <app-stat-card
             label="Hire Requests"
             [value]="hireRequestCount"
-            hint="Personal work requests"
             icon="worker"
             class="stagger-4"
           />
@@ -118,28 +109,24 @@
           <app-stat-card
             label="Assigned Tickets"
             [value]="myTicketCount"
-            hint="Tickets assigned to you"
             icon="tickets"
             class="stagger-1"
           />
           <app-stat-card
             label="Open Tickets"
             [value]="openTicketCount"
-            hint="Pending or in progress"
             icon="open"
             class="stagger-2"
           />
           <app-stat-card
             label="Completed"
             [value]="completedTicketCount"
-            hint="Resolved tickets"
             icon="check"
             class="stagger-3"
           />
           <app-stat-card
             label="Availability"
             [value]="workerOnline ? 'Online' : 'Offline'"
-            hint="Only online workers receive automatic assignments"
             icon="toggle"
             class="stagger-4"
           />
@@ -151,56 +138,6 @@
             class="stagger-5"
           />
         }
-      </div>
-    </section>
-
-    <section class="charts-section" aria-label="Ticket analytics">
-      <div class="charts-grid">
-        <article class="chart-card card stagger-1">
-          <div class="chart-header">
-            <span class="chart-badge">Breakdown</span>
-            <h3>Ticket Status</h3>
-          </div>
-          <div class="chart-content">
-            @if (statusBreakdown.length) {
-              <app-donut-chart [slices]="statusBreakdown" label="Ticket status breakdown" />
-            } @else {
-              <app-empty-state
-                title="No tickets yet"
-                message="Create your first ticket to see the status breakdown."
-                icon="empty-tickets"
-              ></app-empty-state>
-            }
-          </div>
-        </article>
-
-        <article class="chart-card card stagger-2">
-          <div class="chart-header">
-            <span class="chart-badge">Trend</span>
-            <h3>Tickets This Week</h3>
-          </div>
-          <div class="chart-content">
-            <app-sparkline [data]="weeklyTrend" label="Tickets created per day over the last 7 days" />
-          </div>
-        </article>
-
-        <article class="chart-card card stagger-3">
-          <div class="chart-header">
-            <span class="chart-badge">Mix</span>
-            <h3>Waste Types</h3>
-          </div>
-          <div class="chart-content">
-            @if (wasteTypeBreakdown.length) {
-              <app-bar-chart [data]="wasteTypeBreakdown" label="Ticket count by waste type" />
-            } @else {
-              <app-empty-state
-                title="No waste types yet"
-                message="Create tickets with different waste types to see the breakdown."
-                icon="empty-waste"
-              ></app-empty-state>
-            }
-          </div>
-        </article>
       </div>
     </section>
 

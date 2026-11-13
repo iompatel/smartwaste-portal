@@ -1,4 +1,13 @@
 /* SmartWaste — Premium Environmental Design System */
+/* Self-hosted Inter (variable, latin, 48 kB) — CSP: no external font requests */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('assets/fonts/inter-latin.woff2') format('woff2');
+}
+
 * {
   box-sizing: border-box;
 }
@@ -157,7 +166,6 @@
      ======================================== */
   --font-sans: 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-
   --text-display-xl: clamp(40px, 5vw, 56px);
   --text-display-lg: clamp(32px, 4vw, 44px);
   --text-display-md: clamp(26px, 3vw, 34px);
@@ -531,6 +539,41 @@ label {
   border-radius: var(--radius-md);
   white-space: nowrap;
   text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Every button: press feedback (all devices) + hover lift (pointer devices only) */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+/* Primary sheen sweep */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .btn-primary:hover::after {
+    transform: translateX(100%);
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 .btn-sm {
@@ -572,7 +615,7 @@ label {
 }
 
 .btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Secondary */

@@ -55,18 +55,27 @@ export interface BarDatum {
         align-items: flex-end;
         align-self: stretch;
         height: 96px;
-        border-radius: 8px;
+        border-radius: 10px;
         background: var(--accent-soft);
+        transition: background 0.2s ease;
+      }
+      .bar-row:hover .bar-track {
+        background: var(--accent-strong, var(--border-strong));
       }
       .bar-fill {
         align-self: flex-end;
         display: block;
         width: min(34px, 100%);
         margin: 0 auto;
-        border-radius: 8px 8px 4px 4px;
+        border-radius: 10px 10px 6px 6px;
         background: linear-gradient(180deg, var(--chart-2), var(--chart-1));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
         transform-origin: bottom;
         animation: bar-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        transition: filter 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .bar-row:hover .bar-fill {
+        filter: brightness(1.12) saturate(1.15);
       }
       @keyframes bar-rise {
         from {
