@@ -129,9 +129,11 @@ function cleanRecord(value) {
   const source = typeof value.toObject === 'function' ? value.toObject() : { ...value };
   delete source._id;
   delete source.__v;
-  // Project no longer stores/exposes coordinates; keep address-only location.
-  delete source.latitude;
-  delete source.longitude;
+  // Tickets use address-only location
+  if (source.ticketCode) {
+    delete source.latitude;
+    delete source.longitude;
+  }
   return source;
 }
 
@@ -1529,7 +1531,7 @@ app.post('/api/auth/firebase-login', async (req, res) => {
       gender: String(gender).trim(),
       mobile: String(mobile).trim(),
       email,
-      passwordHash: await hashPassword(`firebase:${decoded.uid}`),
+      passwordHash: await hashPassword(createAdminSecret()),
       role: 'user',
       address: String(address).trim(),
       profileImage: profileImage ?? decoded.picture ?? null,

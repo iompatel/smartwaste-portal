@@ -7,7 +7,7 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div class="avatar" [class]="sizeClass()" [style.background]="backgroundColor()">
-      @if (src) {
+      @if (src && !hasError()) {
         <img [src]="src" [alt]="alt" class="avatar-img" (error)="onImageError()" />
       } @else {
         <span class="avatar-text">{{ initials() }}</span>
@@ -87,13 +87,24 @@ import { CommonModule } from '@angular/common';
   `],
 })
 export class AvatarComponent {
-  @Input() src = '';
+  private _src = '';
+
+  @Input()
+  set src(val: string) {
+    this._src = val;
+    this.hasError.set(false);
+  }
+  get src(): string {
+    return this._src;
+  }
+
   @Input() alt = '';
   @Input() name = '';
   @Input() size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md';
   @Input() status?: 'online' | 'offline' | 'busy' | 'away';
   @Input() color?: string;
 
+  readonly hasError = signal(false);
   readonly sizeClass = computed(() => `avatar-${this.size}`);
 
   readonly initials = computed(() => {
@@ -115,6 +126,6 @@ export class AvatarComponent {
   });
 
   onImageError(): void {
-    // Image will be hidden by template logic when src fails
+    this.hasError.set(true);
   }
 }
