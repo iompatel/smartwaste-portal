@@ -3,8 +3,14 @@
     <div class="hero-content">
       <div class="hero-badge">
         <span class="badge badge-primary">
-          @if (isUser) { {{ currentDateFormatted }} } @else { City Operations }
+          @if (isUser) { {{ currentDateFormatted }} } @else if (isWorker) { Field Operative · City Fleet } @else { City Operations }
         </span>
+        @if (isWorker) {
+          <span class="operative-duty-badge" [class.duty-online]="workerOnline" [class.duty-offline]="!workerOnline">
+            <span class="duty-dot"></span>
+            {{ workerOnline ? 'On Duty · GPS Active' : 'Off Duty · Idle' }}
+          </span>
+        }
         <span class="live-sync-indicator" title="Live background updates active">
           <span class="live-pulse-dot"></span>
           Live Sync
@@ -14,14 +20,14 @@
         @if (isUser) {
           {{ greeting }}, {{ userDisplayName }}
         } @else if (isWorker) {
-          Worker Dashboard
+          {{ greeting }}, Operative {{ userDisplayName }}
         } @else {
           User Dashboard
         }
       </h1>
       <p class="hero-description">
         @if (isWorker) {
-          Review assigned collections, update progress, and manage hired tasks.
+          Field cockpit for collection routes, live citizen handover verification, and dispatch telemetry.
         } @else {
           Report neighborhood garbage, track collection requests, and request dedicated workers with real-time updates.
         }
@@ -38,6 +44,26 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           Hire Worker
         </a>
+      } @else if (isWorker) {
+        <a routerLink="/tickets" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Assigned Routes
+        </a>
+        <button
+          type="button"
+          class="btn duty-toggle-btn"
+          [class.duty-on]="workerOnline"
+          [class.duty-off]="!workerOnline"
+          [disabled]="savingAvailability"
+          (click)="toggleAvailability()"
+          [attr.aria-pressed]="workerOnline"
+          [title]="workerOnline ? 'Click to go off duty' : 'Click to go on duty'"
+        >
+          <span class="toggle-track">
+            <span class="toggle-thumb"></span>
+          </span>
+          <span>{{ savingAvailability ? 'Updating...' : (workerOnline ? 'On Duty' : 'Off Duty') }}</span>
+        </button>
       } @else {
         <a routerLink="/tickets" class="btn btn-primary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -90,6 +116,133 @@
       </div>
     </div>
   } @else {
+    <!-- Field Operative Cockpit Banner -->
+    @if (isWorker) {
+      <section class="operative-cockpit-banner" aria-labelledby="cockpit-title">
+        <div class="cockpit-grid">
+          <div class="cockpit-duty-card">
+            <div class="duty-radar-visual" [class.active]="workerOnline">
+              <div class="radar-ping"></div>
+              <div class="radar-center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="duty-info">
+              <div class="duty-header-row">
+                <span class="duty-status-tag" [class.online]="workerOnline">
+                  {{ workerOnline ? 'Broadcasting Live GPS Coordinates' : 'Telemetry Broadcast Paused' }}
+                </span>
+                <span class="duty-gps-hint">15s Dispatch Sync</span>
+              </div>
+              <strong>{{ workerOnline ? 'Field Operative Status: On Duty' : 'Field Operative Status: Off Duty' }}</strong>
+              <p>{{ workerOnline ? 'Your live coordinates update on resident arrival maps and city operations queue.' : 'Turn On Duty to accept new route collections and broadcast live arrival coordinates.' }}</p>
+            </div>
+            <div class="duty-action">
+              <button
+                type="button"
+                class="btn btn-sm"
+                [class.btn-primary]="!workerOnline"
+                [class.btn-secondary]="workerOnline"
+                [disabled]="savingAvailability"
+                (click)="toggleAvailability()"
+              >
+                {{ savingAvailability ? 'Updating...' : (workerOnline ? 'Go Off Duty' : 'Go On Duty') }}
+              </button>
+            </div>
+          </div>
+
+          <div class="cockpit-rating-card">
+            <div class="rating-header">
+              <span class="badge badge-accent">Operative Performance</span>
+              <span class="rating-score">★ {{ workerRatingLabel }}</span>
+            </div>
+            <div class="rating-stars-visual">
+              <span class="stars-gold">★★★★★</span>
+              <span class="reviews-count">{{ workerReviews?.ratingCount || 0 }} Verified Reviews</span>
+            </div>
+            <div class="operative-telemetry-stats">
+              <div class="telemetry-pill">
+                <span class="telemetry-value">{{ myTicketCount }}</span>
+                <span class="telemetry-label">Assigned</span>
+              </div>
+              <div class="telemetry-pill">
+                <span class="telemetry-value">{{ openTicketCount }}</span>
+                <span class="telemetry-label">Active</span>
+              </div>
+              <div class="telemetry-pill">
+                <span class="telemetry-value">{{ completedTicketCount }}</span>
+                <span class="telemetry-label">Completed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Field Operative Quick Actions -->
+      <section class="services-hub worker-hub" aria-labelledby="worker-hub-title">
+        <div class="section-header">
+          <span class="section-badge">Field Operations</span>
+          <h2 id="worker-hub-title">Operative Quick Actions</h2>
+        </div>
+
+        <div class="services-grid">
+          <a routerLink="/tickets" class="service-card card-interactive">
+            <div class="service-icon icon-waste">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </div>
+            <div class="service-body">
+              <strong>Assigned Pickups</strong>
+              <p>Review customer waste tickets, verify OTP codes & upload proofs</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/hire-worker" class="service-card card-interactive">
+            <div class="service-icon icon-worker">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div class="service-body">
+              <strong>Hired Tasks</strong>
+              <p>Direct citizen bookings, doorstep cleaning & dedicated tasks</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/tickets" class="service-card card-interactive">
+            <div class="service-icon icon-track">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="service-body">
+              <strong>Route & Turn Directions</strong>
+              <p>Open turn-by-turn navigation directly to collection addresses</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+
+          <a routerLink="/profile" class="service-card card-interactive">
+            <div class="service-icon icon-profile">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+            <div class="service-body">
+              <strong>Field Credentials</strong>
+              <p>Update contact phone, equipment notes & review citizen feedback</p>
+            </div>
+            <div class="service-arrow">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+        </div>
+      </section>
+    }
+
     <!-- Citizen Services Hub -->
     @if (isUser) {
       <section class="services-hub" aria-labelledby="services-hub-title">
@@ -309,12 +462,20 @@
                 </div>
               </article>
             } @empty {
-              <app-empty-state
-                title="No tickets yet"
-                message="Report a waste collection issue to get started."
-                icon="empty-tickets"
-                [actions]="[{ label: 'Report Waste', callback: createTicketAction, variant: 'primary', icon: 'add' }]"
-              ></app-empty-state>
+              @if (isUser) {
+                <app-empty-state
+                  title="No tickets yet"
+                  message="Report a waste collection issue to get started."
+                  icon="empty-tickets"
+                  [actions]="[{ label: 'Report Waste', callback: createTicketAction, variant: 'primary', icon: 'add' }]"
+                ></app-empty-state>
+              } @else {
+                <app-empty-state
+                  title="Collection Queue Clear"
+                  message="No pending waste collection tickets are assigned to your operative route."
+                  icon="empty-tickets"
+                ></app-empty-state>
+              }
             }
           </div>
         </div>
@@ -417,8 +578,8 @@
               </article>
             } @empty {
               <app-empty-state
-                title="No hired tasks yet"
-                message="Assigned personal work tasks will appear here."
+                title="No Hired Tasks Assigned"
+                message="Private citizen cleaning and personal work requests assigned to you will appear here."
                 icon="empty-hired"
               ></app-empty-state>
             }

@@ -568,6 +568,320 @@
 }
 
 /* ========================================
+   FIELD OPERATIVE COCKPIT & DUTY STYLES
+   ======================================== */
+.operative-duty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  &.duty-online {
+    background: rgba(52, 199, 89, 0.12);
+    border: 1px solid rgba(52, 199, 89, 0.3);
+    color: var(--color-success-600);
+
+    .duty-dot {
+      background: var(--color-success-500);
+      box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.35);
+      animation: pulse-dot 2s infinite;
+    }
+  }
+
+  &.duty-offline {
+    background: rgba(142, 142, 147, 0.12);
+    border: 1px solid rgba(142, 142, 147, 0.25);
+    color: var(--text-secondary);
+
+    .duty-dot {
+      background: var(--text-tertiary);
+    }
+  }
+
+  .duty-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+}
+
+.duty-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text-primary);
+  transition: all var(--duration-fast) var(--ease-spring);
+
+  .toggle-track {
+    width: 34px;
+    height: 18px;
+    border-radius: 12px;
+    background: var(--border-strong, #d1d1d6);
+    position: relative;
+    transition: background-color var(--duration-fast) var(--ease-out);
+    display: inline-block;
+  }
+
+  .toggle-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform var(--duration-fast) var(--ease-spring);
+  }
+
+  &.duty-on {
+    border-color: rgba(52, 199, 89, 0.4);
+    background: rgba(52, 199, 89, 0.08);
+
+    .toggle-track {
+      background: var(--apple-green, #34c759);
+    }
+
+    .toggle-thumb {
+      transform: translateX(16px);
+    }
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.operative-cockpit-banner {
+  margin-bottom: var(--space-8);
+  animation: fade-in-up 0.5s var(--ease-spring) both;
+
+  .cockpit-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+
+    @media (min-width: 900px) {
+      grid-template-columns: 1.6fr 1fr;
+    }
+  }
+
+  .cockpit-duty-card,
+  .cockpit-rating-card {
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5) var(--space-6);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .cockpit-duty-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-4);
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+      text-align: center;
+      justify-items: center;
+    }
+  }
+
+  .duty-radar-visual {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .radar-center {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+      transition: all var(--duration-fast);
+    }
+
+    &.active {
+      .radar-center {
+        background: rgba(52, 199, 89, 0.15);
+        color: var(--apple-green, #34c759);
+      }
+
+      .radar-ping {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2px solid var(--apple-green, #34c759);
+        animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        opacity: 0.75;
+      }
+    }
+  }
+
+  .duty-info {
+    min-width: 0;
+
+    .duty-header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+
+      @media (max-width: 640px) {
+        justify-content: center;
+      }
+    }
+
+    .duty-status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+
+      &.online {
+        color: var(--color-success-600);
+      }
+    }
+
+    .duty-gps-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+    }
+
+    strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  }
+
+  .cockpit-rating-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-3);
+
+    .rating-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .badge-accent {
+        background: rgba(255, 149, 0, 0.12);
+        color: #ff9500;
+        border: 1px solid rgba(255, 149, 0, 0.25);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
+      }
+
+      .rating-score {
+        font-size: 16px;
+        font-weight: 700;
+        color: #ff9500;
+        letter-spacing: -0.01em;
+      }
+    }
+
+    .rating-stars-visual {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .stars-gold {
+        color: #ff9500;
+        letter-spacing: 2px;
+        font-size: 14px;
+      }
+
+      .reviews-count {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+    }
+
+    .operative-telemetry-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding-top: var(--space-2);
+      border-top: 1px solid var(--border);
+
+      .telemetry-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: var(--surface-subtle);
+        padding: 6px 4px;
+        border-radius: var(--radius-md);
+
+        .telemetry-value {
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.2;
+        }
+
+        .telemetry-label {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+      }
+    }
+  }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* ========================================
    SKELETONS
    ======================================== */
 .dashboard-skeleton {

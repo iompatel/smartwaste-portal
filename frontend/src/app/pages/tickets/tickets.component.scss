@@ -422,6 +422,179 @@ button {
   text-transform: none;
 }
 
+.worker-queue-statusbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+
+  .statusbar-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+
+    strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    svg {
+      color: var(--apple-blue);
+    }
+  }
+
+  .statusbar-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+
+    &.active {
+      background: var(--color-success-500);
+      box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.35);
+      animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  }
+
+  .statusbar-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--border);
+  }
+}
+
+.worker-handover-sheet {
+  border: 1px solid rgba(52, 199, 89, 0.35) !important;
+  background: var(--surface-strong) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: 22px !important;
+  box-shadow: 0 6px 24px rgba(52, 199, 89, 0.08) !important;
+  animation: fade-in-up 0.4s var(--ease-spring) both;
+
+  .handover-header {
+    margin-bottom: 14px;
+
+    .handover-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .handover-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      background: rgba(52, 199, 89, 0.12);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+      color: var(--color-success-600);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .handover-step {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    h4 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+      margin: 0 0 4px;
+    }
+
+    .handover-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin: 0;
+    }
+  }
+
+  .otp-verification-card {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+
+    .otp-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+
+      .otp-hint {
+        font-size: 11px;
+        color: var(--apple-blue);
+        text-transform: none;
+        font-weight: 500;
+      }
+    }
+
+    .otp-digit-input {
+      font-family: var(--font-mono, monospace);
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.4em;
+      text-align: center;
+      border-radius: var(--radius-md);
+      background: var(--surface-strong);
+      border: 1.5px solid var(--border-strong, #d1d1d6);
+      padding: 10px 14px;
+      height: 52px;
+      color: var(--text-primary);
+      transition: all var(--duration-fast) var(--ease-spring);
+
+      &:focus {
+        border-color: var(--apple-blue);
+        box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.18);
+        background: var(--surface-strong);
+      }
+    }
+  }
+
+  .proof-upload-section {
+    margin-bottom: 16px;
+
+    .proof-ready-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(52, 199, 89, 0.12);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+      color: var(--color-success-600);
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+  }
+}
+
 .dispatch-control,
 .completion-panel,
 .review-panel,

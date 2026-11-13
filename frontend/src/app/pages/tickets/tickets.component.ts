@@ -124,6 +124,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
     return this.user?.role === 'worker';
   }
 
+  get workerOnline(): boolean {
+    return Boolean(this.user?.workerOnline);
+  }
+
   get canCreateTickets() {
     return this.user?.role === 'user';
   }

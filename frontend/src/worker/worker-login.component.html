@@ -2,45 +2,48 @@
   <div class="auth-hero" aria-hidden="true">
     <div class="auth-hero-content">
       <div class="auth-hero-badge">
-        <span class="badge badge-primary">Field Operations</span>
+        <span class="badge badge-worker-pill">
+          <span class="pulse-indicator"></span>
+          Field Operations · Certified Operative
+        </span>
       </div>
-      <h1>Worker Console</h1>
-      <p>Dedicated access for workers managing assigned tickets and personal work requests.</p>
+      <h1>Operative Console</h1>
+      <p>Dedicated workstation for municipal waste squads, live route telemetry, and verified resident handovers.</p>
+
+      <div class="worker-hero-features">
+        <div class="worker-feature-chip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+          <span>Live GPS Dispatch & Route Sync</span>
+        </div>
+        <div class="worker-feature-chip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>6-Digit OTP Handover Verification</span>
+        </div>
+        <div class="worker-feature-chip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Direct In-Ticket Citizen Communication</span>
+        </div>
+      </div>
     </div>
-    <div class="auth-hero-illustration" aria-hidden="true">
-      <svg viewBox="0 0 400 400" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <linearGradient id="illGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#059669;stop-opacity:0.15" />
-            <stop offset="100%" style="stop-color:#10B981;stop-opacity:0.05" />
-          </linearGradient>
-          <linearGradient id="illGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0.1" />
-            <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:0" />
-          </linearGradient>
-        </defs>
-        <circle cx="120" cy="100" r="80" fill="url(#illGrad1)" />
-        <circle cx="300" cy="300" r="100" fill="url(#illGrad2)" />
-        <rect x="80" y="180" width="240" height="120" rx="20" fill="var(--brand-light)" opacity="0.5" />
-        <rect x="100" y="200" width="200" height="10" rx="5" fill="var(--brand)" />
-        <rect x="100" y="225" width="150" height="8" rx="4" fill="var(--brand-lighter)" />
-        <rect x="100" y="245" width="180" height="8" rx="4" fill="var(--brand-lighter)" />
-        <rect x="100" y="265" width="120" height="8" rx="4" fill="var(--brand-lighter)" />
-        <circle cx="300" cy="240" r="20" fill="var(--brand)" opacity="0.2" />
-        <path d="M300 240 L300 200 L280 220 M300 240 L300 200 L320 220" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" fill="none" />
-        <circle cx="150" cy="320" r="12" fill="var(--brand)" />
-        <circle cx="250" cy="320" r="12" fill="var(--brand-lighter)" />
-        <path d="M150 320 L150 300 M250 320 L250 280" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" fill="none" />
-      </svg>
+
+    <div class="auth-hero-illustration worker-tech-backdrop" aria-hidden="true">
+      <div class="worker-radar-ring ring-1"></div>
+      <div class="worker-radar-ring ring-2"></div>
+      <div class="worker-radar-ring ring-3"></div>
+      <div class="worker-radar-sweep"></div>
+      <div class="worker-ambient-glow"></div>
     </div>
   </div>
 
   <div class="auth-card-wrapper">
-    <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="worker-login-heading">
+    <form class="auth-card worker-auth-card" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="worker-login-heading">
       <div class="auth-card-header">
-        <span class="auth-badge">Worker Only</span>
-        <h2 id="worker-login-heading">Worker Console</h2>
-        <p>Enter your worker credentials to access your dashboard</p>
+        <div class="worker-card-badge-row">
+          <span class="auth-badge badge-worker">Municipal Operative</span>
+          <span class="live-dot" title="Operations Gateway Active"></span>
+        </div>
+        <h2 id="worker-login-heading">Worker Sign In</h2>
+        <p>Enter your field credentials to open your operations cockpit</p>
       </div>
 
       @if (error) {
@@ -51,28 +54,32 @@
       }
 
       <div class="form-group">
-        <label for="worker-email">Worker Email</label>
-        <input
-          id="worker-email"
-          type="email"
-          formControlName="email"
-          placeholder="worker@smartwaste.com"
-          autocomplete="username"
-          [class.invalid]="form.controls.email.touched && form.controls.email.invalid"
-        />
+        <label for="worker-email">Operative Email</label>
+        <div class="input-with-icon">
+          <svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          <input
+            id="worker-email"
+            type="email"
+            formControlName="email"
+            placeholder="worker@smartwaste.com"
+            autocomplete="username"
+            [class.invalid]="form.controls.email.touched && form.controls.email.invalid"
+          />
+        </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
-          <p class="field-error">Please enter a valid email</p>
+          <p class="field-error">Please enter a valid operative email</p>
         }
       </div>
 
       <div class="form-group">
-        <label for="worker-password">Password</label>
-        <div class="password-field">
+        <label for="worker-password">Security Password</label>
+        <div class="input-with-icon password-field">
+          <svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
           <input
             id="worker-password"
             [type]="showPassword ? 'text' : 'password'"
             formControlName="password"
-            placeholder="Enter worker password"
+            placeholder="Enter operative password"
             autocomplete="current-password"
             [class.invalid]="form.controls.password.touched && form.controls.password.invalid"
           />
@@ -84,9 +91,9 @@
             [attr.aria-pressed]="showPassword"
           >
             @if (showPassword) {
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>
             } @else {
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             }
           </button>
         </div>
@@ -95,14 +102,22 @@
         }
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg btn-full" [disabled]="loading">
+      <button type="submit" class="btn btn-primary btn-lg btn-full worker-submit-btn" [disabled]="loading">
         @if (loading) {
           <span class="btn-loading"></span>
-          Verifying...
+          Authenticating...
         } @else {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
           Enter Worker Console
         }
       </button>
+
+      <div class="worker-auth-footer">
+        <span class="security-chip">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Encrypted Operative Session · GPS Duty Protocol
+        </span>
+      </div>
     </form>
   </div>
 </section>

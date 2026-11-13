@@ -1,15 +1,33 @@
 <section class="tickets-page" aria-labelledby="tickets-title">
   <header class="page-hero">
     <div class="hero-copy">
-      <span class="eyebrow">Tracked operations</span>
-      <h1 id="tickets-title">Ticket Management</h1>
+      <span class="eyebrow">
+        @if (isWorker) { Municipal Fleet · Field Route Queue } @else { Tracked operations }
+      </span>
+      <h1 id="tickets-title">
+        @if (isWorker) { Assigned Collection Routes } @else { Ticket Management }
+      </h1>
       <p>
         {{ isAdmin
           ? 'Dispatch workers, monitor SLA risk, review proof, and support every ticket.'
           : isWorker
-            ? 'Accept assigned work, update each stage, chat with the requester, and complete with proof.'
+            ? 'Accept assigned routes, navigate with live GPS, communicate in real time with residents, and verify collection handovers with secure OTP.'
             : 'Create requests, follow every stage, chat with the worker, and rate completed work.' }}
       </p>
+
+      @if (isWorker) {
+        <div class="worker-queue-statusbar">
+          <div class="statusbar-item">
+            <span class="statusbar-dot" [class.active]="workerOnline"></span>
+            <span>Duty Status: <strong>{{ workerOnline ? 'Broadcasting GPS Location' : 'Offline / Telemetry Paused' }}</strong></span>
+          </div>
+          <div class="statusbar-divider"></div>
+          <div class="statusbar-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <span>Assigned Queue: <strong>{{ filteredTickets.length }} Pickups</strong></span>
+          </div>
+        </div>
+      }
     </div>
     @if (canCreateTickets) {
       <app-tear-button variant="primary" (buttonClick)="openCreate()">
@@ -256,27 +274,63 @@
             }
 
             @if (isWorker && ticket.status === 'in_progress') {
-              <div class="completion-panel">
-                <h4>Complete with proof</h4>
-                <div class="field-control">
-                  <label [for]="'otp-' + ticket.id">User’s 6-digit completion code</label>
-                  <input
-                    [id]="'otp-' + ticket.id"
-                    inputmode="numeric"
-                    maxlength="6"
-                    placeholder="Enter 6-digit OTP"
-                    [value]="completionCode[ticket.id] ?? ''"
-                    (input)="completionCode[ticket.id] = $any($event.target).value"
-                  />
+              <div class="completion-panel worker-handover-sheet">
+                <div class="handover-header">
+                  <div class="handover-badge-row">
+                    <span class="handover-badge">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                      Verified Collection Handover
+                    </span>
+                    <span class="handover-step">Step 2: Customer Handover</span>
+                  </div>
+                  <h4>Enter 6-Digit Completion Code</h4>
+                  <p class="handover-desc">Request the customer’s private completion code displayed on their ticket screen, and attach after-photo proof.</p>
                 </div>
-                <app-file-upload
-                  label="After-photo proof"
-                  hint="JPEG, PNG, or WebP proof under 1.5MB"
-                  [previewUrl]="completionMedia[ticket.id] ?? null"
-                  (fileSelected)="onCompletionFileUploadSelected($event, ticket.id)"
-                />
-                @if (completionMedia[ticket.id]) { <p class="success">After-photo ready.</p> }
-                <app-tear-button variant="primary" (buttonClick)="completeTicket(ticket)">Verify & Complete</app-tear-button>
+
+                <div class="otp-verification-card">
+                  <label [for]="'otp-' + ticket.id" class="otp-label">
+                    <span>Citizen Verification OTP</span>
+                    <span class="otp-hint">6 numeric digits</span>
+                  </label>
+                  <div class="otp-input-wrapper">
+                    <input
+                      [id]="'otp-' + ticket.id"
+                      class="otp-digit-input"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="6"
+                      placeholder="0 0 0 0 0 0"
+                      [value]="completionCode[ticket.id] ?? ''"
+                      (input)="completionCode[ticket.id] = $any($event.target).value"
+                    />
+                  </div>
+                </div>
+
+                <div class="proof-upload-section">
+                  <app-file-upload
+                    label="After-Collection Site Photo"
+                    hint="Clear photo proof of completed collection (JPEG, PNG, WebP < 1.5MB)"
+                    [previewUrl]="completionMedia[ticket.id] ?? null"
+                    (fileSelected)="onCompletionFileUploadSelected($event, ticket.id)"
+                  />
+                  @if (completionMedia[ticket.id]) {
+                    <div class="proof-ready-badge">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      After-photo proof attached
+                    </div>
+                  }
+                </div>
+
+                <app-tear-button
+                  variant="primary"
+                  size="md"
+                  [fullWidth]="true"
+                  [disabled]="(completionCode[ticket.id] ?? '').length < 6"
+                  (buttonClick)="completeTicket(ticket)"
+                >
+                  <svg slot="icon-start" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  Verify OTP & Complete Collection
+                </app-tear-button>
               </div>
             }
 
@@ -314,7 +368,10 @@
 
             <div class="ticket-actions">
               @if (isAdmin || isWorker) {
-                <app-tear-button variant="outline" size="sm" (buttonClick)="openDirections(ticket)">Directions</app-tear-button>
+                <app-tear-button variant="outline" size="sm" (buttonClick)="openDirections(ticket)">
+                  <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                  Directions
+                </app-tear-button>
               }
               @if (canEdit(ticket)) {
                 <app-tear-button variant="secondary" size="sm" (buttonClick)="openEdit(ticket)">Edit</app-tear-button>
@@ -323,10 +380,16 @@
                 <app-tear-button variant="secondary" size="sm" (buttonClick)="openCreate(ticket)">Repeat Request</app-tear-button>
               }
               @if (isWorker && ['pending', 'assigned'].includes(ticket.status)) {
-                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'accepted')">Accept</app-tear-button>
+                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'accepted')">
+                  <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Accept Route
+                </app-tear-button>
               }
               @if (isWorker && ticket.status === 'accepted') {
-                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'in_progress')">Start Work</app-tear-button>
+                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'in_progress')">
+                  <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  Start Collection
+                </app-tear-button>
               }
               @if (canCancel(ticket)) {
                 <app-tear-button variant="danger" size="sm" (buttonClick)="cancelTicket(ticket)">Cancel</app-tear-button>
@@ -335,6 +398,7 @@
                 <app-tear-button variant="danger" size="sm" (buttonClick)="deleteTicket(ticket)">Delete</app-tear-button>
               }
               <app-tear-button variant="outline" size="sm" (buttonClick)="toggleChat(ticket)">
+                <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 {{ chatOpen[ticket.id] ? 'Close Chat' : 'Ticket Chat' }}
               </app-tear-button>
             </div>

@@ -2,15 +2,15 @@
   <header class="hero-panel">
     <div class="hero-copy">
       <span class="eyebrow">
-        @if (isAdmin) { Admin Queue } @else if (isWorker) { Worker Portal } @else { User Portal }
+        @if (isAdmin) { Municipal Fleet · Admin Queue } @else if (isWorker) { Field Operative · Citizen Contracts } @else { Citizen Portal }
       </span>
       <h1 id="hire-title">
-        @if (isAdmin) { Assign Worker } @else if (isWorker) { Hired Task } @else { Hire Worker }
+        @if (isAdmin) { Assign Field Worker } @else if (isWorker) { Assigned Hired Tasks } @else { Hire Dedicated Worker }
       </h1>
       @if (!isAdmin) {
         <p>
           @if (isWorker) {
-            View assigned work with requester details, the work address, and completion status.
+            Manage personal citizen contracts, doorstep cleaning tasks, turn directions, and verified completion.
           } @else {
             Request help for personal work and follow the assignment from submission to completion.
           }
@@ -233,6 +233,7 @@
               } @else if (isWorker) {
                 <div class="record-actions">
                   <app-tear-button variant="outline" size="sm" (buttonClick)="openDirections(request)">
+                    <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
                     Directions
                   </app-tear-button>
                   <app-tear-button
@@ -241,12 +242,13 @@
                     [disabled]="saving || request.status !== 'assigned'"
                     (buttonClick)="completeTask(request)"
                   >
-                    Complete
+                    <svg slot="icon-start" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Complete Task
                   </app-tear-button>
                 </div>
 
                 <div class="worker-meta">
-                  <span>Status</span>
+                  <span>Contract Status</span>
                   <strong>{{ request.status }}</strong>
                   <small>Updated {{ timeAgo(request.updatedAt) }}</small>
                 </div>
