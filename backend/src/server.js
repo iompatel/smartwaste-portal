@@ -1135,8 +1135,8 @@ const authLimiter = rateLimit({
 });
 
 const adminAuthLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: 5 * 60 * 1000,
+  max: 10,
   // Production admin requests have already passed the verified Cloudflare edge above.
   keyGenerator: (req) =>
     ipKeyGenerator(
@@ -1145,7 +1145,7 @@ const adminAuthLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many admin login attempts. Try again later.' },
+  message: { message: 'Too many failed admin login attempts. Try again in five minutes.' },
 });
 
 const ticketCreateLimiter = rateLimit({
