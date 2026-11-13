@@ -203,12 +203,19 @@
 }
 
 .activity-tabs {
-  display: flex;
-  gap: var(--space-2);
-  border-bottom: 1px solid var(--border);
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 3px;
+  border-bottom: none;
   overflow-x: auto;
-  padding-bottom: 1px;
   scrollbar-width: none;
+  width: fit-content;
+}
+
+:host-context(body.theme-dark) .activity-tabs {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .activity-tabs::-webkit-scrollbar {
@@ -219,45 +226,59 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 48px;
-  padding: 0 var(--space-4);
-  font-size: var(--text-body-sm);
-  font-weight: var(--weight-medium);
+  min-height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
   color: var(--text-secondary);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition:
+    background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.15s ease,
+    box-shadow 0.2s ease;
 }
 
 .activity-tabs button[role="tab"]:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
 }
 
 .activity-tabs button[role="tab"].active {
-  color: var(--brand);
-  border-bottom-color: var(--brand);
-  background: var(--brand-light);
+  color: #1D1D1F;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+:host-context(body.theme-dark) .activity-tabs button[role="tab"].active {
+  color: #FFFFFF;
+  background: #636366;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .activity-tabs .tab-count {
-  min-width: 20px;
-  height: 20px;
+  min-width: 18px;
+  height: 18px;
   padding: 0 6px;
-  font-size: var(--text-micro);
-  font-weight: var(--weight-bold);
-  line-height: 20px;
-  color: var(--text-on-primary);
-  background: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.08);
   border-radius: var(--radius-full);
 }
 
+:host-context(body.theme-dark) .activity-tabs .tab-count {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
 .activity-tabs button[role="tab"].active .tab-count {
-  background: var(--brand);
+  background: var(--apple-blue, #0071E3);
+  color: #FFFFFF;
 }
 
 .activity-list {
@@ -274,17 +295,21 @@
   display: grid;
   grid-template-columns: 1fr auto auto auto;
   gap: var(--space-4) var(--space-6);
-  align-items: start;
-  padding: var(--space-4);
+  align-items: center;
+  padding: 16px 20px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface-strong);
-  transition: all var(--duration-normal) var(--ease-out);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s ease;
 }
 
 .tracking-item:hover {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
 

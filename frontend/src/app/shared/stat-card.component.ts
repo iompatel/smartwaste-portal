@@ -41,39 +41,48 @@ import { Component, Input } from '@angular/core';
     `
       .card {
         background: var(--surface);
-        border: 1px solid var(--border-strong);
+        border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        min-height: 148px;
-        padding: 24px;
-        box-shadow: var(--shadow-soft);
-        transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease;
+        min-height: 140px;
+        padding: 22px 24px;
+        box-shadow: var(--shadow-sm);
+        transition:
+          transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+          box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 0.2s ease;
       }
       .card:hover {
-        transform: translateY(-2px);
-        border-color: var(--accent);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--border-strong);
       }
       .card-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: 12px;
       }
       .label {
         margin: 0;
-        color: var(--text-muted);
-        font-size: 14px;
-        line-height: 1.43;
-        letter-spacing: 0;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.35;
+        letter-spacing: -0.005em;
       }
       .card-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: var(--radius-md);
-        background: var(--bg-elevated);
-        color: var(--color-primary-600);
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(0, 113, 227, 0.1);
+        color: var(--apple-blue, #0071E3);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .card:hover .card-icon {
+        transform: scale(1.08);
       }
       .card-icon.check {
         color: var(--color-success-600);
@@ -87,12 +96,17 @@ import { Component, Input } from '@angular/core';
         color: var(--color-accent-500);
         background: var(--color-accent-50);
       }
+      .card-icon.toggle {
+        color: var(--color-primary-600);
+        background: var(--color-primary-50);
+      }
       h3 {
-        margin: 12px 0 0;
-        font-size: 34px;
-        font-weight: 600;
-        line-height: 1.1;
-        letter-spacing: -0.02em;
+        margin: 14px 0 0;
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
       }
     `,
   ],

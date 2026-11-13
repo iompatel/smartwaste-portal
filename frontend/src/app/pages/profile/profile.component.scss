@@ -60,10 +60,11 @@
   justify-content: space-between;
   gap: 24px;
   padding: 20px 24px;
-  border: 1px solid var(--border-strong);
-  border-left: 2px solid var(--accent);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 
   strong {
     display: block;
@@ -94,6 +95,15 @@
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
+    transition: all var(--duration-fast) var(--ease-spring);
+
+    &:hover {
+      background: var(--surface-hover);
+    }
+
+    &:active {
+      transform: scale(0.965);
+    }
   }
 }
 
@@ -108,9 +118,11 @@
 .card {
   min-width: 0;
   padding: 24px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-spring);
 }
 
 .identity-card {
