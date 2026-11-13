@@ -1,6 +1,6 @@
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -1137,6 +1137,12 @@ const authLimiter = rateLimit({
 const adminAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  // Production admin requests have already passed the verified Cloudflare edge above.
+  keyGenerator: (req) =>
+    ipKeyGenerator(
+      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') || req.ip,
+    ),
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many admin login attempts. Try again later.' },
@@ -1161,7 +1167,10 @@ app.use('/api/auth', (req, res, next) => {
   return next();
 });
 app.use('/api/auth/admin-login', adminAuthLimiter);
-app.use('/api/auth', authLimiter);
+app.use('/api/auth', (req, res, next) => {
+  if (req.path === '/admin-login') return next();
+  return authLimiter(req, res, next);
+});
 
 function adminCookieOptions() {
   return {
