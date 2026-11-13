@@ -21,6 +21,8 @@ import { SESSION_SERVICE } from '../services/session';
 import { ThemeService } from '../services/theme.service';
 import { RolePillComponent } from '../shared/role-pill.component';
 import { AvatarComponent } from '../shared/avatar/avatar.component';
+import { ProfileDropdownComponent } from '../shared/profile-dropdown/profile-dropdown.component';
+import { NotificationStackComponent } from '../shared/notification-stack/notification-stack.component';
 import { SHELL_NAVIGATION, ShellNavItem } from './shell-navigation';
 import { ToastContainerComponent } from '../shared/toast/toast.component';
 
@@ -34,6 +36,8 @@ import { ToastContainerComponent } from '../shared/toast/toast.component';
     RouterLinkActive,
     RolePillComponent,
     AvatarComponent,
+    ProfileDropdownComponent,
+    NotificationStackComponent,
     ToastContainerComponent,
   ],
   templateUrl: './shell.component.html',
@@ -56,7 +60,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   readonly themeService = inject(ThemeService);
 
-  mobileMenuOpen = false;
+  drawerOpen = signal(false);
   notificationsOpen = false;
   profileMenuOpen = false;
 
@@ -65,7 +69,6 @@ export class ShellComponent implements OnInit, OnDestroy {
   private locationWatchId: number | null = null;
   private lastLocationSentAt = 0;
   private lastWorkerPosition: { latitude: number; longitude: number; accuracy: number } | null = null;
-
 
   navLabel(item: ShellNavItem) {
     const user = this.user();
@@ -80,9 +83,25 @@ export class ShellComponent implements OnInit, OnDestroy {
     return user ? this.navItems.filter((item) => this.canShow(item.roles)) : [];
   });
 
-  readonly unreadCount = computed(() => this.notifications().length);
+  readonly workspaceNavItems = computed(() => {
+    const user = this.user();
+    if (!user) return [];
+    return this.navItems.filter((i) => (i.group === 'workspace' || !i.group) && this.canShow(i.roles));
+  });
 
-  constructor() {}
+  readonly adminNavItems = computed(() => {
+    const user = this.user();
+    if (!user || user.role !== 'admin') return [];
+    return this.navItems.filter((i) => i.group === 'admin' && this.canShow(i.roles));
+  });
+
+  readonly settingsNavItems = computed(() => {
+    const user = this.user();
+    if (!user) return [];
+    return this.navItems.filter((i) => i.group === 'settings' && this.canShow(i.roles));
+  });
+
+  readonly unreadCount = computed(() => this.notifications().length);
 
   ngOnInit() {
     this.authService.currentUser$
@@ -117,8 +136,16 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.stopWorkerLocationTracking();
   }
 
-  toggleMobileMenu() {
-    this.mobileMenuOpen = !this.mobileMenuOpen;
+  toggleDrawer() {
+    this.drawerOpen.update((open) => !open);
+    if (this.drawerOpen()) {
+      this.notificationsOpen = false;
+      this.profileMenuOpen = false;
+    }
+  }
+
+  closeDrawer() {
+    this.drawerOpen.set(false);
   }
 
   @HostListener('document:click', ['$event'])
@@ -130,9 +157,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     if (!target.closest('.profile-menu-wrapper')) {
       this.profileMenuOpen = false;
     }
-    if (!target.closest('.mobile-drawer') && !target.closest('.mobile-menu-btn')) {
-      if (this.mobileMenuOpen) {
-        this.toggleMobileMenu();
+    if (!target.closest('.nav-drawer') && !target.closest('.hamburger-btn')) {
+      if (this.drawerOpen()) {
+        this.closeDrawer();
       }
     }
   }
@@ -141,9 +168,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   onEscape() {
     this.notificationsOpen = false;
     this.profileMenuOpen = false;
-    if (this.mobileMenuOpen) {
-      this.toggleMobileMenu();
-    }
+    this.closeDrawer();
   }
 
   canShow(roles: string[]) {
@@ -163,6 +188,17 @@ export class ShellComponent implements OnInit, OnDestroy {
   toggleNotifications() {
     this.notificationsOpen = !this.notificationsOpen;
     this.profileMenuOpen = false;
+    if (this.notificationsOpen) {
+      this.closeDrawer();
+    }
+  }
+
+  toggleProfileMenu() {
+    this.profileMenuOpen = !this.profileMenuOpen;
+    this.notificationsOpen = false;
+    if (this.profileMenuOpen) {
+      this.closeDrawer();
+    }
   }
 
   markNotificationRead(notificationId: number) {
@@ -192,7 +228,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     const loginPath = this.authService.loginPathForRole(this.user()?.role);
     this.authService.logout();
     this.router.navigate([loginPath]);
-    this.mobileMenuOpen = false;
+    this.closeDrawer();
     this.notificationsOpen = false;
     this.profileMenuOpen = false;
   }
@@ -206,6 +242,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     const item = this.navItems.find((navItem) => navItem.path === path);
     return item ? this.navLabel(item) : 'Workspace';
   }
+
   private syncWorkerLocationTracking() {
     const shouldTrack = this.user()?.role === 'worker' && this.user()?.workerOnline;
     if (!shouldTrack) {

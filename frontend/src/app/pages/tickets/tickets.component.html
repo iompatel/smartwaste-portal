@@ -12,7 +12,13 @@
       </p>
     </div>
     @if (canCreateTickets) {
-      <button type="button" class="primary" (click)="openCreate()">Create Ticket</button>
+      <app-tear-button variant="primary" (buttonClick)="openCreate()">
+        <svg slot="icon-start" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Create Ticket
+      </app-tear-button>
     }
   </header>
 
@@ -57,7 +63,9 @@
         }
       </select>
     </div>
-    <button type="button" class="outline" [disabled]="loading" (click)="loadData()">Refresh</button>
+    <app-tear-button variant="outline" size="sm" [disabled]="loading" (buttonClick)="loadData()">
+      Refresh
+    </app-tear-button>
   </section>
 
   @if (isFormOpen && canCreateTickets) {
@@ -93,21 +101,27 @@
       </div>
 
       <div class="media-row">
-        <div class="field-control">
-          <label for="ticket-media">Upload Image</label>
-          <input id="ticket-media" type="file" accept="image/jpeg,image/png,image/webp" (change)="onMediaSelected($event)" />
-          <p class="field-hint">JPEG, PNG, or WebP under 1.5 MB.</p>
+        <app-file-upload
+          label="Click to upload or drag & drop ticket image"
+          hint="JPEG, PNG, or WebP under 1.5 MB"
+          [previewUrl]="mediaPreview"
+          (fileSelected)="onFileUploadSelected($event)"
+        />
+        <div class="camera-action-box">
+          <app-tear-button variant="outline" size="md" [fullWidth]="true" (buttonClick)="openCamera()">
+            <svg slot="icon-start" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Capture Photo
+          </app-tear-button>
         </div>
-        <button type="button" class="outline camera-btn" (click)="openCamera()">Open Camera</button>
       </div>
-      @if (mediaPreview) {
-        <figure class="media-preview"><img [src]="mediaPreview" alt="Selected ticket image" class="preview" /></figure>
-      }
       <div class="form-actions">
-        <button type="button" class="outline" (click)="cancelForm()">Cancel</button>
-        <button type="button" class="primary" [disabled]="saving" (click)="saveTicket()">
+        <app-tear-button variant="secondary" (buttonClick)="cancelForm()">Cancel</app-tear-button>
+        <app-tear-button variant="primary" [loading]="saving" [disabled]="saving" (buttonClick)="saveTicket()">
           {{ saving ? 'Saving...' : 'Save Ticket' }}
-        </button>
+        </app-tear-button>
       </div>
     </article>
   }
@@ -116,19 +130,19 @@
     <div class="camera-overlay" (click)="closeCamera()">
       <section class="camera-modal" role="dialog" aria-modal="true" aria-labelledby="camera-title" (click)="$event.stopPropagation()">
         <div class="camera-top">
-          <h2 id="camera-title">Camera</h2>
-          <button type="button" class="outline" (click)="closeCamera()">Close</button>
+          <h2 id="camera-title">Camera Preview</h2>
+          <app-tear-button variant="ghost" size="sm" (buttonClick)="closeCamera()">Close</app-tear-button>
         </div>
         @if (cameraError) { <p class="error">{{ cameraError }}</p> }
         <video #cameraVideo class="camera-video" aria-label="Live camera preview" autoplay muted playsinline></video>
         <canvas #cameraCanvas class="camera-canvas"></canvas>
-        <button type="button" class="primary" (click)="captureFromCamera()">Capture Photo</button>
+        <app-tear-button variant="primary" (buttonClick)="captureFromCamera()">Capture Photo</app-tear-button>
       </section>
     </div>
   }
 
   @if (loading) {
-    <p class="loading" aria-live="polite">Loading tickets...</p>
+    <app-loader label="Loading tickets queue..." [centered]="true" size="lg" />
   } @else {
     <section class="ticket-index" aria-labelledby="ticket-list-title">
       <div class="section-heading list-heading">
@@ -236,59 +250,92 @@
                     </option>
                   }
                 </select>
-                <button type="button" class="primary" (click)="assignTicket(ticket)">Assign</button>
+                <app-tear-button variant="primary" size="sm" (buttonClick)="assignTicket(ticket)">Assign</app-tear-button>
               </div>
             }
 
             @if (isWorker && ticket.status === 'in_progress') {
               <div class="completion-panel">
                 <h4>Complete with proof</h4>
-                <label [for]="'otp-' + ticket.id">User’s 6-digit completion code</label>
-                <input
-                  [id]="'otp-' + ticket.id"
-                  inputmode="numeric"
-                  maxlength="6"
-                  [value]="completionCode[ticket.id] ?? ''"
-                  (input)="completionCode[ticket.id] = $any($event.target).value"
+                <div class="field-control">
+                  <label [for]="'otp-' + ticket.id">User’s 6-digit completion code</label>
+                  <input
+                    [id]="'otp-' + ticket.id"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="Enter 6-digit OTP"
+                    [value]="completionCode[ticket.id] ?? ''"
+                    (input)="completionCode[ticket.id] = $any($event.target).value"
+                  />
+                </div>
+                <app-file-upload
+                  label="After-photo proof"
+                  hint="JPEG, PNG, or WebP proof under 1.5MB"
+                  [previewUrl]="completionMedia[ticket.id] ?? null"
+                  (fileSelected)="onCompletionFileUploadSelected($event, ticket.id)"
                 />
-                <label [for]="'proof-' + ticket.id">After-photo</label>
-                <input [id]="'proof-' + ticket.id" type="file" accept="image/jpeg,image/png,image/webp" (change)="onMediaSelected($event, ticket.id)" />
                 @if (completionMedia[ticket.id]) { <p class="success">After-photo ready.</p> }
-                <button type="button" class="primary" (click)="completeTicket(ticket)">Verify & Complete</button>
+                <app-tear-button variant="primary" (buttonClick)="completeTicket(ticket)">Verify & Complete</app-tear-button>
               </div>
             }
 
             @if (user?.role === 'user' && ticket.status === 'completed' && !ticket.review) {
               <div class="review-panel">
                 <h4>Rate this worker</h4>
-                <select [value]="reviewRating[ticket.id] ?? 0" (change)="reviewRating[ticket.id] = +$any($event.target).value">
-                  <option [value]="0">Choose rating</option>
-                  @for (rating of [1, 2, 3, 4, 5]; track rating) { <option [value]="rating">{{ rating }} stars</option> }
-                </select>
+                <app-helpful-rating
+                  [rating]="reviewRating[ticket.id] ?? 0"
+                  (ratingChange)="reviewRating[ticket.id] = $event"
+                />
                 <textarea
                   rows="2"
                   maxlength="500"
-                  placeholder="Optional feedback"
+                  placeholder="Optional feedback..."
                   [value]="reviewComment[ticket.id] ?? ''"
                   (input)="reviewComment[ticket.id] = $any($event.target).value"
                 ></textarea>
-                <button type="button" class="primary" [disabled]="!((reviewRating[ticket.id] ?? 0) > 0)" (click)="submitReview(ticket)">Submit Rating</button>
+                <app-tear-button
+                  variant="primary"
+                  size="sm"
+                  [disabled]="!((reviewRating[ticket.id] ?? 0) > 0)"
+                  (buttonClick)="submitReview(ticket)"
+                >
+                  Submit Rating
+                </app-tear-button>
               </div>
             } @else if (ticket.review) {
-              <p class="review-summary"><strong>{{ ticket.review.rating }} / 5</strong> {{ ticket.review.comment }}</p>
+              <div class="review-summary">
+                <app-helpful-rating [rating]="ticket.review.rating" [readonly]="true" />
+                @if (ticket.review.comment) {
+                  <p class="review-comment">"{{ ticket.review.comment }}"</p>
+                }
+              </div>
             }
 
             <div class="ticket-actions">
-              @if (isAdmin || isWorker) { <button type="button" class="outline" (click)="openDirections(ticket)">Directions</button> }
-              @if (canEdit(ticket)) { <button type="button" (click)="openEdit(ticket)">Edit</button> }
-              @if (canCreateTickets && ticket.status === 'completed') { <button type="button" (click)="openCreate(ticket)">Repeat Request</button> }
-              @if (isWorker && ['pending', 'assigned'].includes(ticket.status)) { <button type="button" class="primary" (click)="updateStatus(ticket, 'accepted')">Accept</button> }
-              @if (isWorker && ticket.status === 'accepted') { <button type="button" class="primary" (click)="updateStatus(ticket, 'in_progress')">Start Work</button> }
-              @if (canCancel(ticket)) { <button type="button" class="danger" (click)="cancelTicket(ticket)">Cancel</button> }
-              @if (canDelete(ticket)) { <button type="button" class="danger" (click)="deleteTicket(ticket)">Delete</button> }
-              <button type="button" class="outline" (click)="toggleChat(ticket)">
+              @if (isAdmin || isWorker) {
+                <app-tear-button variant="outline" size="sm" (buttonClick)="openDirections(ticket)">Directions</app-tear-button>
+              }
+              @if (canEdit(ticket)) {
+                <app-tear-button variant="secondary" size="sm" (buttonClick)="openEdit(ticket)">Edit</app-tear-button>
+              }
+              @if (canCreateTickets && ticket.status === 'completed') {
+                <app-tear-button variant="secondary" size="sm" (buttonClick)="openCreate(ticket)">Repeat Request</app-tear-button>
+              }
+              @if (isWorker && ['pending', 'assigned'].includes(ticket.status)) {
+                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'accepted')">Accept</app-tear-button>
+              }
+              @if (isWorker && ticket.status === 'accepted') {
+                <app-tear-button variant="primary" size="sm" (buttonClick)="updateStatus(ticket, 'in_progress')">Start Work</app-tear-button>
+              }
+              @if (canCancel(ticket)) {
+                <app-tear-button variant="danger" size="sm" (buttonClick)="cancelTicket(ticket)">Cancel</app-tear-button>
+              }
+              @if (canDelete(ticket)) {
+                <app-tear-button variant="danger" size="sm" (buttonClick)="deleteTicket(ticket)">Delete</app-tear-button>
+              }
+              <app-tear-button variant="outline" size="sm" (buttonClick)="toggleChat(ticket)">
                 {{ chatOpen[ticket.id] ? 'Close Chat' : 'Ticket Chat' }}
-              </button>
+              </app-tear-button>
             </div>
 
             @if (chatOpen[ticket.id]) {
@@ -311,7 +358,7 @@
                     (input)="chatDraft[ticket.id] = $any($event.target).value"
                     (keyup.enter)="sendMessage(ticket)"
                   />
-                  <button type="button" class="primary" (click)="sendMessage(ticket)">Send</button>
+                  <app-tear-button variant="primary" size="sm" (buttonClick)="sendMessage(ticket)">Send</app-tear-button>
                 </div>
               </section>
             }

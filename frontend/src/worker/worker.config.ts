@@ -18,11 +18,11 @@ import { SHELL_NAVIGATION, ShellNavItem } from '../app/shell/shell-navigation';
 import { workerRoutes } from './worker.routes';
 
 const workerNavigation: ShellNavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', roles: ['worker'] },
-  { label: 'Tickets', path: '/tickets', roles: ['worker'] },
-  { label: 'Hired Task', path: '/hire-worker', roles: ['worker'] },
-  { label: 'Profile', path: '/profile', roles: ['worker'] },
-  { label: 'Settings', path: '/settings', roles: ['worker'] },
+  { label: 'Dashboard', path: '/dashboard', roles: ['worker'], icon: 'dashboard', group: 'workspace' },
+  { label: 'Tickets', path: '/tickets', roles: ['worker'], icon: 'tickets', group: 'workspace' },
+  { label: 'Hired Task', path: '/hire-worker', roles: ['worker'], icon: 'hire', group: 'workspace' },
+  { label: 'Profile', path: '/profile', roles: ['worker'], icon: 'profile', group: 'settings' },
+  { label: 'Settings', path: '/settings', roles: ['worker'], icon: 'settings', group: 'settings' },
 ];
 
 export const workerConfig: ApplicationConfig = {

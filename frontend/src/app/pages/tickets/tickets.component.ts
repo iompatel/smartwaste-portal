@@ -16,11 +16,23 @@ import { BrowserNotificationService } from '../../services/browser-notification.
 import { PortalService } from '../../services/portal.service';
 import { SESSION_SERVICE } from '../../services/session';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
+import { FileUploadComponent } from '../../shared/file-upload/file-upload.component';
+import { HelpfulRatingComponent } from '../../shared/helpful-rating/helpful-rating.component';
+import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
+import { LoaderComponent } from '../../shared/loader/loader.component';
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, StatusBadgeComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    StatusBadgeComponent,
+    FileUploadComponent,
+    HelpfulRatingComponent,
+    TearButtonComponent,
+    LoaderComponent,
+  ],
   templateUrl: './tickets.component.html',
   styleUrl: './tickets.component.scss',
 })
@@ -319,6 +331,14 @@ export class TicketsComponent implements OnInit, OnDestroy {
       next: () => this.loadData(),
       error: (err) => (this.error = err?.error?.message ?? 'Unable to submit rating.'),
     });
+  }
+
+  onFileUploadSelected(mediaData: string | null) {
+    this.mediaPreview = mediaData;
+  }
+
+  onCompletionFileUploadSelected(mediaData: string | null, ticketId: number) {
+    this.completionMedia[ticketId] = mediaData;
   }
 
   onMediaSelected(event: Event, completionTicketId?: number) {

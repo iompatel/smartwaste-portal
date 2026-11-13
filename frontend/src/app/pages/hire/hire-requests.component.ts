@@ -7,11 +7,13 @@ import { HireRequest, User } from '../../models/types';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
 import { SESSION_SERVICE } from '../../services/session';
+import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
+import { LoaderComponent } from '../../shared/loader/loader.component';
 
 @Component({
   selector: 'app-hire-requests',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TearButtonComponent, LoaderComponent],
   templateUrl: './hire-requests.component.html',
   styleUrl: './hire-requests.component.scss',
 })

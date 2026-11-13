@@ -104,9 +104,14 @@
       </div>
 
       <div class="form-actions">
-        <button type="button" class="primary" [disabled]="saving" (click)="createRequest()">
-          {{ saving ? 'Submitting...' : 'Send Hire Request' }}
-        </button>
+        <app-tear-button
+          variant="primary"
+          [loading]="saving"
+          [disabled]="saving"
+          (buttonClick)="createRequest()"
+        >
+          Send Hire Request
+        </app-tear-button>
       </div>
     </section>
   }
@@ -121,7 +126,7 @@
     </div>
 
     @if (loading) {
-      <p class="loading" aria-live="polite">Loading hire requests...</p>
+      <app-loader label="Loading hire requests..." [centered]="true" size="lg" />
     } @else {
       <div class="records-list">
         @for (request of requests; track request.id) {
@@ -206,14 +211,14 @@
                       </select>
                     </div>
 
-                    <button
-                      type="button"
-                      class="primary"
+                    <app-tear-button
+                      variant="primary"
+                      size="sm"
                       [disabled]="saving || availableWorkers.length === 0"
-                      (click)="assign(request)"
+                      (buttonClick)="assign(request)"
                     >
                       Assign
-                    </button>
+                    </app-tear-button>
                   } @else {
                     <div class="user-meta">
                       <span>Assignment</span>
@@ -221,19 +226,23 @@
                       <small>{{ request.assignedAt ? formatDate(request.assignedAt) : '-' }}</small>
                     </div>
                   }
-                  <button type="button" class="danger" (click)="deleteRequest(request)">Delete</button>
+                  <app-tear-button variant="danger" size="sm" [disabled]="saving" (buttonClick)="deleteRequest(request)">
+                    Delete
+                  </app-tear-button>
                 </div>
               } @else if (isWorker) {
                 <div class="record-actions">
-                  <button type="button" class="outline" (click)="openDirections(request)">Directions</button>
-                  <button
-                    type="button"
-                    class="primary"
+                  <app-tear-button variant="outline" size="sm" (buttonClick)="openDirections(request)">
+                    Directions
+                  </app-tear-button>
+                  <app-tear-button
+                    variant="primary"
+                    size="sm"
                     [disabled]="saving || request.status !== 'assigned'"
-                    (click)="completeTask(request)"
+                    (buttonClick)="completeTask(request)"
                   >
                     Complete
-                  </button>
+                  </app-tear-button>
                 </div>
 
                 <div class="worker-meta">
@@ -248,14 +257,14 @@
               } @else {
                 @if (request.status === 'pending') {
                   <div class="record-actions">
-                    <button
-                      type="button"
-                      class="danger"
+                    <app-tear-button
+                      variant="danger"
+                      size="sm"
                       [disabled]="saving"
-                      (click)="deleteRequest(request)"
+                      (buttonClick)="deleteRequest(request)"
                     >
                       Delete
-                    </button>
+                    </app-tear-button>
                   </div>
                 }
 

@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { SESSION_SERVICE, SessionService } from '../../services/session';
 import { ThemeService } from '../../services/theme.service';
+import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TearButtonComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
 })

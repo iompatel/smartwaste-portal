@@ -1,169 +1,172 @@
-<section class="profile-page">
-  <header class="page-header">
-    <div class="header-copy">
-      <span class="eyebrow">Account</span>
-      <h1>Profile</h1>
-      <p>Review your account identity, contact details, and profile picture.</p>
+<section class="profile-page page-enter">
+  <header class="profile-header">
+    <div class="header-titles">
+      <span class="badge badge-primary">Account Management</span>
+      <h1>Profile Settings</h1>
+      <p>Manage your account identity, personal contact details, and preferences.</p>
     </div>
-
-    <a class="primary-link" href="#profile-details">Update profile</a>
   </header>
 
   @if (shouldHighlightContactDetails) {
     <div class="profile-alert" role="status">
-      <div>
-        <strong>Complete your contact details</strong>
-        <p>
-          Google login successful. Add your mobile number and address now so tickets,
-          notifications, and future operations work properly.
-        </p>
+      <div class="alert-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
       </div>
-      <a routerLink="/profile" [queryParams]="{}">Update Now</a>
+      <div class="alert-text">
+        <strong>Complete your contact details</strong>
+        <p>Your mobile number and street address are required for notifications, ticket operations, and worker coordination.</p>
+      </div>
     </div>
   }
 
   @if (message) {
-    <p class="success" role="status">{{ message }}</p>
+    <div class="alert alert-success" role="status">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      {{ message }}
+    </div>
   }
 
   @if (error) {
-    <p class="error" role="alert">{{ error }}</p>
+    <div class="alert alert-danger" role="alert">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+      {{ error }}
+    </div>
   }
 
-  <div class="profile-layout">
-    <aside class="card identity-card" aria-label="Profile identity">
-      <div class="profile-hero">
-        <div class="profile-photo-card">
-          <div class="photo-frame">
-            @if (profileImageSrc) {
-              <img [src]="profileImageSrc" alt="Profile photo" />
-            } @else {
-              <span>{{ profileInitials }}</span>
-            }
-          </div>
-          <div class="photo-meta">
-            <strong>{{ form.controls.firstName.value }} {{ form.controls.lastName.value }}</strong>
-            <p>{{ form.controls.email.value }}</p>
-            <small>{{ form.controls.role.value }} profile</small>
-          </div>
-        </div>
+  <div class="profile-grid">
+    <!-- Left Column: Avatar & Account Summary Card -->
+    <aside class="profile-sidebar-card">
+      <div class="avatar-card-inner">
+        <app-avatar-picker
+          [imageSrc]="profileImageSrc"
+          [name]="profileFullName"
+          (imageChanged)="onAvatarChanged($event)"
+        ></app-avatar-picker>
 
-        <div class="photo-help">
-          <span class="eyebrow">Profile Photo</span>
-          <h2>Current picture</h2>
-          <p>Your saved image appears here and updates after you choose a new photo.</p>
+        <div class="user-meta-info">
+          <h3>{{ profileFullName }}</h3>
+          <p class="user-email-text">{{ form.controls.email.value }}</p>
+          <div class="user-role-badge">
+            <span class="role-chip">{{ form.controls.role.value }}</span>
+          </div>
         </div>
       </div>
     </aside>
 
-    <article class="card details-card" id="profile-details">
+    <!-- Right Column: Personal Details Form -->
+    <article class="profile-form-card" id="profile-details">
       <div class="card-head">
-        <div>
-          <span class="eyebrow">Personal Details</span>
-          <h2>Edit Profile</h2>
-        </div>
-        <p>Keep your contact details current so portal updates reach you.</p>
+        <h2>Personal Details</h2>
+        <p>Update your name, contact phone number, and residential address.</p>
       </div>
 
-      <div class="grid">
-        <div class="form-field">
-          <label for="profile-first-name">First Name</label>
-          <input
-            id="profile-first-name"
-            [formControl]="form.controls.firstName"
-            type="text"
-            autocomplete="given-name"
-          />
-        </div>
-        <div class="form-field">
-          <label for="profile-last-name">Last Name</label>
-          <input
-            id="profile-last-name"
-            [formControl]="form.controls.lastName"
-            type="text"
-            autocomplete="family-name"
-          />
-        </div>
-        <div class="form-field">
-          <label for="profile-gender">Gender</label>
-          <select id="profile-gender" [formControl]="form.controls.gender">
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="profile-mobile">Mobile</label>
-          <input
-            id="profile-mobile"
-            [formControl]="form.controls.mobile"
-            type="tel"
-            inputmode="numeric"
-            autocomplete="tel"
-            placeholder="Enter 10 to 15 digit mobile number"
-            aria-describedby="profile-mobile-error"
-          />
-          @if (form.controls.mobile.invalid && form.controls.mobile.touched) {
-            <p class="field-error" id="profile-mobile-error" role="alert">
-              Enter a valid mobile number.
-            </p>
-          }
-        </div>
-        <div class="form-field">
-          <label for="profile-email">Email</label>
-          <input
-            id="profile-email"
-            [formControl]="form.controls.email"
-            type="email"
-            autocomplete="email"
-          />
-        </div>
-        <div class="form-field">
-          <label for="profile-role">Role</label>
-          <input id="profile-role" [formControl]="form.controls.role" type="text" />
-        </div>
-        <div class="form-field full">
-          <label for="profile-address">Address</label>
-          <textarea
-            id="profile-address"
-            [formControl]="form.controls.address"
-            rows="3"
-            autocomplete="street-address"
-            placeholder="Enter full address"
-            aria-describedby="profile-address-error"
-          ></textarea>
-          @if (form.controls.address.invalid && form.controls.address.touched) {
-            <p class="field-error" id="profile-address-error" role="alert">
-              Address must be at least 5 characters.
-            </p>
-          }
-        </div>
-      </div>
+      <form [formGroup]="form" (ngSubmit)="save()" class="profile-form" novalidate>
+        <div class="form-row two-cols">
+          <div class="form-field">
+            <label for="profile-first-name">First Name</label>
+            <input
+              id="profile-first-name"
+              [formControl]="form.controls.firstName"
+              type="text"
+              autocomplete="given-name"
+              placeholder="e.g. John"
+            />
+            @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+              <small class="field-error">First name is required.</small>
+            }
+          </div>
 
-      <div class="media-row">
-        <div class="media-input">
-          <label for="profile-image">Profile Image</label>
-          <input id="profile-image" type="file" accept="image/*" (change)="onImageSelected($event)" />
-          <p>Upload a clear profile image. The preview updates immediately.</p>
-        </div>
-
-        <div class="media-preview">
-          <span class="eyebrow">Visible Preview</span>
-          <div class="preview-frame">
-            @if (profileImageSrc) {
-              <img [src]="profileImageSrc" alt="Profile preview" />
-            } @else {
-              <span>{{ profileInitials }}</span>
+          <div class="form-field">
+            <label for="profile-last-name">Last Name</label>
+            <input
+              id="profile-last-name"
+              [formControl]="form.controls.lastName"
+              type="text"
+              autocomplete="family-name"
+              placeholder="e.g. Doe"
+            />
+            @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+              <small class="field-error">Last name is required.</small>
             }
           </div>
         </div>
-      </div>
 
-      <div class="form-actions">
-        <button type="button" class="primary" [disabled]="loading" (click)="save()">
-          {{ loading ? 'Saving...' : 'Save Profile' }}
-        </button>
-      </div>
+        <div class="form-row two-cols">
+          <div class="form-field">
+            <label for="profile-gender">Gender</label>
+            <select id="profile-gender" [formControl]="form.controls.gender">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="profile-mobile">Mobile Number</label>
+            <input
+              id="profile-mobile"
+              [formControl]="form.controls.mobile"
+              type="tel"
+              autocomplete="tel"
+              placeholder="10-15 digit mobile number"
+            />
+            @if (form.controls.mobile.touched && form.controls.mobile.invalid) {
+              <small class="field-error">Valid 10-15 digit number is required.</small>
+            }
+          </div>
+        </div>
+
+        <div class="form-row two-cols">
+          <div class="form-field">
+            <label for="profile-email">Email Address (Read-only)</label>
+            <input
+              id="profile-email"
+              [formControl]="form.controls.email"
+              type="email"
+              class="input-disabled"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="profile-role">Portal Role (Read-only)</label>
+            <input
+              id="profile-role"
+              [formControl]="form.controls.role"
+              type="text"
+              class="input-disabled"
+            />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="profile-address">Street / Service Address</label>
+          <textarea
+            id="profile-address"
+            rows="3"
+            [formControl]="form.controls.address"
+            placeholder="Enter your complete street address for waste collection dispatch"
+          ></textarea>
+          @if (form.controls.address.touched && form.controls.address.invalid) {
+            <small class="field-error">A valid residential street address is required.</small>
+          }
+        </div>
+
+        <div class="form-actions">
+          <app-tear-button
+            variant="primary"
+            size="md"
+            type="submit"
+            [loading]="loading"
+            [disabled]="loading"
+          >
+            Save Changes
+          </app-tear-button>
+        </div>
+      </form>
     </article>
   </div>
 </section>

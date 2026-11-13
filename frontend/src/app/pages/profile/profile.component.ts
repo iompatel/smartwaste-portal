@@ -7,9 +7,11 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 import { SESSION_SERVICE } from '../../services/session';
+import { AvatarPickerComponent } from '../../shared/avatar-picker/avatar-picker.component';
+import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
 
 function placeholderAddressValidator(control: AbstractControl): ValidationErrors | null {
   const value = String(control.value ?? '').trim().toLowerCase();
@@ -23,7 +25,7 @@ function placeholderAddressValidator(control: AbstractControl): ValidationErrors
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, AvatarPickerComponent, TearButtonComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
 })
@@ -74,26 +76,8 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  onImageSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 1_500_000) {
-      this.error = 'Choose a JPEG, PNG, or WebP image under 1.5 MB.';
-      input.value = '';
-      return;
-    }
-
-    this.error = '';
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.form.patchValue({
-        profileImage: String(reader.result ?? ''),
-      });
-    };
-    reader.readAsDataURL(file);
+  onAvatarChanged(dataUrl: string | null) {
+    this.form.controls.profileImage.setValue(dataUrl || '');
   }
 
   save() {
@@ -139,9 +123,7 @@ export class ProfileComponent implements OnInit {
     return String(this.form.controls.profileImage.value ?? '').trim();
   }
 
-  get profileInitials() {
-    const first = this.form.controls.firstName.value?.[0] ?? this.user?.firstName?.[0] ?? '';
-    const last = this.form.controls.lastName.value?.[0] ?? this.user?.lastName?.[0] ?? '';
-    return `${first}${last}`.toUpperCase() || 'SW';
+  get profileFullName() {
+    return `${this.form.controls.firstName.value} ${this.form.controls.lastName.value}`.trim() || 'User';
   }
 }
