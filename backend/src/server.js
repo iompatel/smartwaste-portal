@@ -50,6 +50,8 @@ if (!JWT_SECRET) {
 
 const PORT = Number(process.env.PORT ?? 4000);
 const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/smart_waste_portal';
+// Optional second database for high-churn worker location pings. When unset, everything stays on MONGO_URI.
+const WORKER_LOCATION_MONGO_URI = process.env.WORKER_LOCATION_MONGO_URI ?? '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SERVICE_MODE = process.env.SERVICE_MODE ?? (IS_PRODUCTION ? 'public' : 'combined');
 if (!['public', 'admin', 'combined'].includes(SERVICE_MODE)) {
@@ -247,6 +249,11 @@ const ticketSchema = new mongoose.Schema(
   { versionKey: false, collection: 'tickets' },
 );
 
+// Hot-path indexes: per-user lists, per-worker lists, status/priority filtering
+ticketSchema.index({ userId: 1, updatedAt: -1 });
+ticketSchema.index({ workerId: 1, updatedAt: -1 });
+ticketSchema.index({ status: 1, priority: 1 });
+
 const notificationSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
@@ -258,6 +265,8 @@ const notificationSchema = new mongoose.Schema(
   },
   { versionKey: false, collection: 'notifications' },
 );
+
+notificationSchema.index({ userId: 1, createdAt: -1 });
 
 const adminActivitySchema = new mongoose.Schema(
   {
@@ -301,6 +310,9 @@ const hireRequestSchema = new mongoose.Schema(
   },
   { versionKey: false, collection: 'hire_requests' },
 );
+
+hireRequestSchema.index({ status: 1, assignedWorkerId: 1 });
+hireRequestSchema.index({ userId: 1, updatedAt: -1 });
 
 const adminSessionSchema = new mongoose.Schema(
   {
@@ -364,7 +376,17 @@ const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
 const TicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
 const Review = mongoose.model('Review', reviewSchema);
-const WorkerLocation = mongoose.model('WorkerLocation', workerLocationSchema);
+// WorkerLocation lives on its own connection when WORKER_LOCATION_MONGO_URI is set (free-tier storage split),
+// otherwise on the default connection so local dev needs zero config.
+let locationConn = null;
+if (WORKER_LOCATION_MONGO_URI) {
+  locationConn = mongoose.createConnection(WORKER_LOCATION_MONGO_URI);
+  locationConn.on('connected', () => console.log('[db] worker-location database connected'));
+  locationConn.on('error', (err) => console.error('[db] worker-location database error:', err.message));
+}
+const WorkerLocation = locationConn
+  ? locationConn.model('WorkerLocation', workerLocationSchema)
+  : mongoose.model('WorkerLocation', workerLocationSchema);
 
 async function nextId(key) {
   const counter = await Counter.findOneAndUpdate(
@@ -1364,11 +1386,16 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/ready', (_req, res) => {
-  const connected = mongoose.connection.readyState === 1;
+  const primaryConnected = mongoose.connection.readyState === 1;
+  const locationConnected = !locationConn || locationConn.readyState === 1;
+  const connected = primaryConnected && locationConnected;
   res.status(connected ? 200 : 503).json({
     status: connected ? 'ready' : 'unavailable',
     time: new Date().toISOString(),
-    database: connected ? 'mongodb-connected' : 'mongodb-disconnected',
+    databases: {
+      primary: primaryConnected ? 'connected' : 'disconnected',
+      workerLocations: locationConnected ? 'connected' : 'disconnected',
+    },
   });
 });
 
@@ -2905,6 +2932,7 @@ app.use((error, _req, res, _next) => {
 
 async function bootstrap() {
   await mongoose.connect(MONGO_URI);
+  if (locationConn) await locationConn.asPromise();
   await seedData();
   await migrateTicketLifecycle();
   await syncDefaultDemoUsersToFirebase();

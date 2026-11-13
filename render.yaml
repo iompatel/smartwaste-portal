@@ -17,6 +17,9 @@ services:
         value: public
       - key: MONGO_URI
         sync: false
+      - key: WORKER_LOCATION_MONGO_URI
+        # Optional: second free MongoDB cluster for live GPS pings. Leave unset to use MONGO_URI.
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
@@ -45,6 +48,8 @@ services:
       - key: SERVICE_MODE
         value: admin
       - key: MONGO_URI
+        sync: false
+      - key: WORKER_LOCATION_MONGO_URI
         sync: false
       - key: JWT_SECRET
         generateValue: true
