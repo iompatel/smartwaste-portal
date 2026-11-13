@@ -12,6 +12,7 @@ import {
   User,
   WorkerLocation,
 } from '../../models/types';
+import { formatTimeAgo } from '../../core/time.utils';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
 import { SESSION_SERVICE } from '../../services/session';
@@ -66,15 +67,19 @@ export class TicketsComponent implements OnInit, OnDestroy {
   chatOpen: Partial<Record<number, boolean>> = {};
   chatDraft: Partial<Record<number, string>> = {};
   messages: Partial<Record<number, TicketMessage[]>> = {};
+  sendingMessage: Partial<Record<number, boolean>> = {};
   reviewRating: Partial<Record<number, number>> = {};
   reviewComment: Partial<Record<number, string>> = {};
   workerLocations: Partial<Record<number, WorkerLocation>> = {};
   workerMapUrls: Partial<Record<number, SafeResourceUrl>> = {};
   workerMapKeys: Partial<Record<number, string>> = {};
+  nowTimestamp = Date.now();
 
   private cameraStream: MediaStream | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private locationTimer: ReturnType<typeof setInterval> | null = null;
+  private chatPollTimer: ReturnType<typeof setInterval> | null = null;
+  private liveClockTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly statuses: TicketStatus[] = [
     'pending',
@@ -140,14 +145,19 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.loadData();
     this.refreshTimer = setInterval(() => {
       if (!this.isFormOpen && !this.cameraOpen) this.loadData(true);
-    }, 20_000);
-    this.locationTimer = setInterval(() => this.refreshLiveLocations(), 10_000);
+    }, 8_000);
+    this.locationTimer = setInterval(() => this.refreshLiveLocations(), 6_000);
+    this.liveClockTimer = setInterval(() => {
+      this.nowTimestamp = Date.now();
+    }, 5_000);
   }
 
   ngOnDestroy() {
     this.stopCameraStream();
+    this.stopChatPolling();
     if (this.refreshTimer) clearInterval(this.refreshTimer);
     if (this.locationTimer) clearInterval(this.locationTimer);
+    if (this.liveClockTimer) clearInterval(this.liveClockTimer);
   }
 
   loadData(silent = false) {
@@ -302,26 +312,84 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   toggleChat(ticket: Ticket) {
     this.chatOpen[ticket.id] = !this.chatOpen[ticket.id];
-    if (this.chatOpen[ticket.id]) this.loadMessages(ticket.id);
+    if (this.chatOpen[ticket.id]) {
+      this.loadMessages(ticket.id, false);
+      this.startChatPolling();
+    } else {
+      const anyOpen = Object.values(this.chatOpen).some(Boolean);
+      if (!anyOpen) this.stopChatPolling();
+    }
   }
 
-  loadMessages(ticketId: number) {
+  loadMessages(ticketId: number, silent = false) {
     this.portalService.getTicketMessages(ticketId).subscribe({
-      next: (messages) => (this.messages[ticketId] = messages),
-      error: (err) => (this.error = err?.error?.message ?? 'Unable to load conversation.'),
+      next: (messages) => {
+        const prevCount = this.messages[ticketId]?.length ?? 0;
+        this.messages[ticketId] = messages;
+        if (messages.length > prevCount) {
+          setTimeout(() => this.scrollChatToBottom(ticketId), 60);
+        }
+      },
+      error: (err) => {
+        if (!silent) {
+          this.error = err?.error?.message ?? 'Unable to load conversation.';
+        }
+      },
     });
   }
 
   sendMessage(ticket: Ticket) {
     const message = String(this.chatDraft[ticket.id] ?? '').trim();
-    if (!message) return;
+    if (!message || this.sendingMessage[ticket.id]) return;
+
+    this.sendingMessage[ticket.id] = true;
     this.portalService.sendTicketMessage(ticket.id, message).subscribe({
       next: () => {
         this.chatDraft[ticket.id] = '';
-        this.loadMessages(ticket.id);
+        this.sendingMessage[ticket.id] = false;
+        this.loadMessages(ticket.id, true);
+        setTimeout(() => this.scrollChatToBottom(ticket.id), 80);
       },
-      error: (err) => (this.error = err?.error?.message ?? 'Unable to send message.'),
+      error: (err) => {
+        this.sendingMessage[ticket.id] = false;
+        this.error = err?.error?.message ?? 'Unable to send message.';
+      },
     });
+  }
+
+  private startChatPolling() {
+    if (this.chatPollTimer) return;
+    this.chatPollTimer = setInterval(() => {
+      if (document.hidden) return;
+      Object.keys(this.chatOpen).forEach((idStr) => {
+        const ticketId = Number(idStr);
+        if (this.chatOpen[ticketId]) {
+          this.loadMessages(ticketId, true);
+        }
+      });
+    }, 2500);
+  }
+
+  private stopChatPolling() {
+    if (this.chatPollTimer) {
+      clearInterval(this.chatPollTimer);
+      this.chatPollTimer = null;
+    }
+  }
+
+  private scrollChatToBottom(ticketId: number) {
+    const container = document.getElementById(`chat-scroll-${ticketId}`);
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  }
+
+  getTimeAgo(date: string | Date | null | undefined): string {
+    return formatTimeAgo(date, this.nowTimestamp);
+  }
+
+  isSendingMessage(ticketId: number): boolean {
+    return Boolean(this.sendingMessage[ticketId]);
   }
 
   submitReview(ticket: Ticket) {

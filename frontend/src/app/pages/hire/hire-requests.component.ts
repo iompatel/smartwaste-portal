@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { formatTimeAgo } from '../../core/time.utils';
 import { HireRequest, User } from '../../models/types';
 import { BrowserNotificationService } from '../../services/browser-notification.service';
 import { PortalService } from '../../services/portal.service';
@@ -17,7 +18,7 @@ import { LoaderComponent } from '../../shared/loader/loader.component';
   templateUrl: './hire-requests.component.html',
   styleUrl: './hire-requests.component.scss',
 })
-export class HireRequestsComponent implements OnInit {
+export class HireRequestsComponent implements OnInit, OnDestroy {
   private readonly portalService = inject(PortalService);
   private readonly authService = inject(SESSION_SERVICE);
   private readonly fb = inject(FormBuilder);
@@ -29,6 +30,10 @@ export class HireRequestsComponent implements OnInit {
   loading = true;
   saving = false;
   error = '';
+  nowTimestamp = Date.now();
+
+  private refreshTimer: any = null;
+  private liveClockTimer: any = null;
 
   selectedWorkerId: Record<number, number | undefined> = {};
 
@@ -44,6 +49,21 @@ export class HireRequestsComponent implements OnInit {
     if (this.isAdmin) {
       this.loadWorkers();
     }
+    this.refreshTimer = setInterval(() => {
+      if (!this.saving) this.loadRequests(true);
+    }, 8_000);
+    this.liveClockTimer = setInterval(() => {
+      this.nowTimestamp = Date.now();
+    }, 5_000);
+  }
+
+  ngOnDestroy() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    if (this.liveClockTimer) clearInterval(this.liveClockTimer);
+  }
+
+  timeAgo(date: string | Date | null | undefined): string {
+    return formatTimeAgo(date, this.nowTimestamp);
   }
 
   get user() {
@@ -91,9 +111,11 @@ export class HireRequestsComponent implements OnInit {
     return this.workers.filter((worker) => !busy.has(worker.id));
   }
 
-  loadRequests() {
-    this.loading = true;
-    this.error = '';
+  loadRequests(silent = false) {
+    if (!silent) {
+      this.loading = true;
+      this.error = '';
+    }
 
     this.portalService.getHireRequests().subscribe({
       next: (requests) => {
@@ -102,7 +124,9 @@ export class HireRequestsComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        this.error = err?.error?.message ?? 'Failed to load hire requests.';
+        if (!silent) {
+          this.error = err?.error?.message ?? 'Failed to load hire requests.';
+        }
       },
     });
   }

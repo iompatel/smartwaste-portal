@@ -5,6 +5,10 @@
         <span class="badge badge-primary">
           @if (isUser) { {{ currentDateFormatted }} } @else { City Operations }
         </span>
+        <span class="live-sync-indicator" title="Live background updates active">
+          <span class="live-pulse-dot"></span>
+          Live Sync
+        </span>
       </div>
       <h1 id="dashboard-title">
         @if (isUser) {
@@ -297,7 +301,7 @@
                 </div>
 
                 <div class="item-time">
-                  <span class="muted">{{ ticket.updatedAt | date: 'short' }}</span>
+                  <span class="muted">{{ timeAgo(ticket.updatedAt) }}</span>
                 </div>
 
                 <div class="item-arrow">
@@ -356,7 +360,7 @@
                 </div>
 
                 <div class="item-time">
-                  <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
+                  <span class="muted">{{ timeAgo(request.updatedAt) }}</span>
                 </div>
 
                 <div class="item-arrow">
@@ -408,7 +412,7 @@
                 </div>
 
                 <div class="item-time">
-                  <span class="muted">{{ request.updatedAt | date: 'short' }}</span>
+                  <span class="muted">{{ timeAgo(request.updatedAt) }}</span>
                 </div>
               </article>
             } @empty {

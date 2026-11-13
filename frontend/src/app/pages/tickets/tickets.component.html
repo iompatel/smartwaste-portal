@@ -160,6 +160,7 @@
                 <p class="ticket-summary">
                   <span>{{ ticket.wasteType }}</span>
                   <span class="ticket-priority">{{ ticket.priority }} priority</span>
+                  <span class="ticket-live-time">Updated {{ getTimeAgo(ticket.updatedAt) }}</span>
                   @if (isAdmin && isOverdue(ticket)) { <span class="sla-alert">SLA overdue</span> }
                 </p>
               </div>
@@ -340,25 +341,51 @@
 
             @if (chatOpen[ticket.id]) {
               <section class="chat-panel" [attr.aria-label]="'Conversation for ' + ticket.ticketCode">
-                <div class="chat-messages">
+                <div class="chat-header-bar">
+                  <div class="chat-header-info">
+                    <span class="chat-live-badge">
+                      <span class="live-dot-mini"></span>
+                      Live Chat
+                    </span>
+                    <span class="chat-subtitle">Direct line with {{ isWorker ? 'Requester' : 'Worker / Admin' }}</span>
+                  </div>
+                  <span class="chat-count">{{ (messages[ticket.id] ?? []).length }} messages</span>
+                </div>
+
+                <div class="chat-messages" [id]="'chat-scroll-' + ticket.id">
                   @for (message of messages[ticket.id] ?? []; track message.id) {
                     <p [class.mine]="message.senderId === user?.id">
                       <strong>{{ message.senderRole }}</strong>
                       <span>{{ message.message }}</span>
-                      <small>{{ message.createdAt | date: 'short' }}</small>
+                      <small>{{ getTimeAgo(message.createdAt) }}</small>
                     </p>
-                  } @empty { <p>No messages yet.</p> }
+                  } @empty {
+                    <div class="chat-empty">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                      <p>No messages yet. Send a message to start live communication.</p>
+                    </div>
+                  }
                 </div>
+
                 <div class="chat-compose">
                   <input
                     type="text"
                     maxlength="1000"
-                    placeholder="Write a message"
+                    placeholder="Type a message... (Press Enter to send)"
                     [value]="chatDraft[ticket.id] ?? ''"
                     (input)="chatDraft[ticket.id] = $any($event.target).value"
                     (keyup.enter)="sendMessage(ticket)"
+                    [disabled]="isSendingMessage(ticket.id)"
                   />
-                  <app-tear-button variant="primary" size="sm" (buttonClick)="sendMessage(ticket)">Send</app-tear-button>
+                  <app-tear-button
+                    variant="primary"
+                    size="sm"
+                    [loading]="isSendingMessage(ticket.id)"
+                    [disabled]="!((chatDraft[ticket.id] ?? '').trim().length) || isSendingMessage(ticket.id)"
+                    (buttonClick)="sendMessage(ticket)"
+                  >
+                    Send
+                  </app-tear-button>
                 </div>
               </section>
             }

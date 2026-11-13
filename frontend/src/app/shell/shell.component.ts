@@ -117,8 +117,8 @@ export class ShellComponent implements OnInit, OnDestroy {
       });
 
     this.notificationTimer = setInterval(() => {
-      if (this.user()) this.loadNotifications();
-    }, 30_000);
+      if (this.user() && !document.hidden) this.loadNotifications();
+    }, 10_000);
 
     this.workerHeartbeatTimer = setInterval(() => {
       if (this.user()?.role !== 'worker' || !this.user()?.workerOnline) return;

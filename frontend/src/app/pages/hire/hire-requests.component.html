@@ -248,11 +248,7 @@
                 <div class="worker-meta">
                   <span>Status</span>
                   <strong>{{ request.status }}</strong>
-                  <small>
-                    {{ request.status === 'completed'
-                      ? formatDate(request.completedAt ?? request.updatedAt)
-                      : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}
-                  </small>
+                  <small>Updated {{ timeAgo(request.updatedAt) }}</small>
                 </div>
               } @else {
                 @if (request.status === 'pending') {
@@ -271,11 +267,7 @@
                 <div class="user-meta">
                   <span>Status</span>
                   <strong>{{ request.status }}</strong>
-                  <small>
-                    {{ request.status === 'completed'
-                      ? formatDate(request.completedAt ?? request.updatedAt)
-                      : (request.assignedAt ? formatDate(request.assignedAt) : '-') }}
-                  </small>
+                  <small>Updated {{ timeAgo(request.updatedAt) }}</small>
                 </div>
               }
             </div>

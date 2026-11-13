@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { animate, stagger } from 'motion';
 import { catchError, forkJoin, of } from 'rxjs';
 
+import { formatTimeAgo } from '../../core/time.utils';
 import { DashboardSummary, HireRequest, Ticket, WorkerReviewSummary } from '../../models/types';
 import { AuthService } from '../../services/auth.service';
 import { PortalService } from '../../services/portal.service';
@@ -27,7 +28,7 @@ import { ToastService } from '../../shared/toast/toast.service';
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   loading = true;
   summary: DashboardSummary | null = null;
   tickets: Ticket[] = [];
@@ -38,6 +39,10 @@ export class DashboardComponent implements OnInit {
   savingAvailability = false;
   workerReviews: WorkerReviewSummary | null = null;
   activeTab = 'tickets';
+  nowTimestamp = Date.now();
+
+  private autoReloadTimer: any = null;
+  private liveClockTimer: any = null;
 
   constructor(
     private readonly portalService: PortalService,
@@ -124,6 +129,41 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.reload();
+    this.autoReloadTimer = setInterval(() => this.autoReload(), 8_000);
+    this.liveClockTimer = setInterval(() => {
+      this.nowTimestamp = Date.now();
+    }, 5_000);
+  }
+
+  ngOnDestroy() {
+    if (this.autoReloadTimer) clearInterval(this.autoReloadTimer);
+    if (this.liveClockTimer) clearInterval(this.liveClockTimer);
+  }
+
+  timeAgo(date: string | Date | null | undefined): string {
+    return formatTimeAgo(date, this.nowTimestamp);
+  }
+
+  private autoReload() {
+    if (document.hidden) return;
+    const summary$ = this.portalService.getSummary().pipe(catchError(() => of(this.summary)));
+    const tickets$ = this.portalService.getTickets().pipe(catchError(() => of(this.tickets)));
+    const hireRequests$ = (this.isUser || this.isWorker)
+      ? this.portalService.getHireRequests().pipe(catchError(() => of(this.hireRequests)))
+      : of([] as HireRequest[]);
+
+    forkJoin([summary$, tickets$, hireRequests$]).subscribe({
+      next: ([summary, tickets, hireRequests]) => {
+        if (summary) this.summary = summary;
+        if (tickets) this.tickets = tickets;
+        if (hireRequests) this.hireRequests = hireRequests;
+        if (this.isWorker && this.authService.currentUser) {
+          this.portalService.getWorkerReviews(this.authService.currentUser.id).subscribe({
+            next: (reviews) => (this.workerReviews = reviews),
+          });
+        }
+      },
+    });
   }
 
   reload() {
