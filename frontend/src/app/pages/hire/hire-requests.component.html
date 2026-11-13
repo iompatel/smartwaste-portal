@@ -7,17 +7,15 @@
       <h1 id="hire-title">
         @if (isAdmin) { Assign Field Worker } @else if (isWorker) { Assigned Hired Tasks } @else { Hire Dedicated Worker }
       </h1>
-      @if (!isAdmin) {
-        <p>
-          @if (isWorker) {
-            Manage personal citizen contracts, doorstep cleaning tasks, turn directions, and verified completion.
-          } @else {
-            Request help for personal work and follow the assignment from submission to completion.
-          }
-        </p>
-      } @else {
-        <p>Review personal work requests, assign available workers, and follow each task to completion.</p>
-      }
+      <p>
+        @if (isAdmin) {
+          Review requests and dispatch field workers.
+        } @else if (isWorker) {
+          Personal contracts and doorstep cleaning tasks.
+        } @else {
+          Book a verified worker for personal waste handling.
+        }
+      </p>
     </div>
 
     <div class="hero-actions">
@@ -38,7 +36,6 @@
       <div class="section-heading">
         <span class="eyebrow">New request</span>
         <h2 id="hire-form-title">Request a Worker</h2>
-        <p>Describe the job and confirm where the assigned worker should go.</p>
       </div>
 
       @if (needsProfileCompletion) {
@@ -122,7 +119,6 @@
       <h2 id="hire-history-title">
         @if (isAdmin) { All Hire Requests } @else if (isWorker) { My Hired Tasks } @else { My Hire Requests }
       </h2>
-      <p>Requester, worker, location, and status details stay together with the relevant actions.</p>
     </div>
 
     @if (loading) {

@@ -9,10 +9,10 @@
       </h1>
       <p>
         {{ isAdmin
-          ? 'Dispatch workers, monitor SLA risk, review proof, and support every ticket.'
+          ? 'Dispatch squads, SLA monitoring, and proof verification.'
           : isWorker
-            ? 'Accept assigned routes, navigate with live GPS, communicate in real time with residents, and verify collection handovers with secure OTP.'
-            : 'Create requests, follow every stage, chat with the worker, and rate completed work.' }}
+            ? 'Assigned routes, GPS navigation, and verified handovers.'
+            : 'Track collections, live worker location, and chat.' }}
       </p>
 
       @if (isWorker) {
@@ -91,7 +91,6 @@
       <div class="section-heading">
         <span class="eyebrow">Ticket details</span>
         <h2 id="ticket-form-title">{{ editingTicket ? 'Edit Ticket' : 'New Ticket' }}</h2>
-        <p>Add the waste type, exact location, priority, and an optional image.</p>
       </div>
 
       <div class="form-grid">
@@ -166,7 +165,6 @@
       <div class="section-heading list-heading">
         <span class="eyebrow">Live queue</span>
         <h2 id="ticket-list-title">{{ filteredTickets.length }} Tickets</h2>
-        <p>Updates refresh automatically every 20 seconds.</p>
       </div>
 
       <div class="ticket-list">
@@ -284,7 +282,7 @@
                     <span class="handover-step">Step 2: Customer Handover</span>
                   </div>
                   <h4>Enter 6-Digit Completion Code</h4>
-                  <p class="handover-desc">Request the customer’s private completion code displayed on their ticket screen, and attach after-photo proof.</p>
+                  <p class="handover-desc">Verify customer OTP and attach completion proof.</p>
                 </div>
 
                 <div class="otp-verification-card">

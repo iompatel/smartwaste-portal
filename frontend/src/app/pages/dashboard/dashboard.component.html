@@ -27,9 +27,9 @@
       </h1>
       <p class="hero-description">
         @if (isWorker) {
-          Field cockpit for collection routes, live citizen handover verification, and dispatch telemetry.
+          Collection routes, citizen handovers & dispatch telemetry.
         } @else {
-          Report neighborhood garbage, track collection requests, and request dedicated workers with real-time updates.
+          Waste collections, requests & worker bookings.
         }
       </p>
     </div>
@@ -137,7 +137,7 @@
                 <span class="duty-gps-hint">15s Dispatch Sync</span>
               </div>
               <strong>{{ workerOnline ? 'Field Operative Status: On Duty' : 'Field Operative Status: Off Duty' }}</strong>
-              <p>{{ workerOnline ? 'Your live coordinates update on resident arrival maps and city operations queue.' : 'Turn On Duty to accept new route collections and broadcast live arrival coordinates.' }}</p>
+              <p>{{ workerOnline ? 'Broadcasting live coordinates to operations radar.' : 'Turn On Duty to accept routes and broadcast GPS.' }}</p>
             </div>
             <div class="duty-action">
               <button
@@ -194,7 +194,7 @@
             </div>
             <div class="service-body">
               <strong>Assigned Pickups</strong>
-              <p>Review customer waste tickets, verify OTP codes & upload proofs</p>
+              <p>Active waste tickets & verification</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -207,7 +207,7 @@
             </div>
             <div class="service-body">
               <strong>Hired Tasks</strong>
-              <p>Direct citizen bookings, doorstep cleaning & dedicated tasks</p>
+              <p>Doorstep cleaning & bookings</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -220,7 +220,7 @@
             </div>
             <div class="service-body">
               <strong>Route & Turn Directions</strong>
-              <p>Open turn-by-turn navigation directly to collection addresses</p>
+              <p>Turn-by-turn route navigation</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -233,7 +233,7 @@
             </div>
             <div class="service-body">
               <strong>Field Credentials</strong>
-              <p>Update contact phone, equipment notes & review citizen feedback</p>
+              <p>Account & service details</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -258,7 +258,7 @@
             </div>
             <div class="service-body">
               <strong>Report Waste</strong>
-              <p>Submit garbage pickup with camera photo & GPS address</p>
+              <p>Photo & location pickup</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -271,7 +271,7 @@
             </div>
             <div class="service-body">
               <strong>Hire a Worker</strong>
-              <p>Request an authorized worker for doorstep personal cleaning</p>
+              <p>Doorstep personal cleaning</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -284,7 +284,7 @@
             </div>
             <div class="service-body">
               <strong>Track Collections</strong>
-              <p>Monitor live GPS dispatch, status timeline & OTP codes</p>
+              <p>Live GPS & OTP status</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -297,7 +297,7 @@
             </div>
             <div class="service-body">
               <strong>My Profile</strong>
-              <p>Update pickup address and contact phone number</p>
+              <p>Address & contact details</p>
             </div>
             <div class="service-arrow">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
