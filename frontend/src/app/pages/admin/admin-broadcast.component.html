@@ -48,9 +48,9 @@
         </div>
 
         <div class="form-actions">
-          <app-tear-button variant="primary" [loading]="sending" [disabled]="sending" (btnClick)="sendNotification()">
-            Send Notification
-          </app-tear-button>
+          <button type="button" class="primary" [disabled]="sending" (click)="sendNotification()">
+            {{ sending ? 'Sending...' : 'Send Notification' }}
+          </button>
         </div>
       </div>
     </article>

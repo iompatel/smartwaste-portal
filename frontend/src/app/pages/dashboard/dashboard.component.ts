@@ -12,9 +12,6 @@ import { StatCardComponent } from '../../shared/stat-card.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { EmptyStateComponent } from '../../shared/empty-state/empty-state.component';
-import { TearButtonComponent } from '../../shared/tear-button/tear-button.component';
-import { CardFlipComponent } from '../../shared/card-flip/card-flip.component';
-import { CardStackComponent } from '../../shared/card-stack/card-stack.component';
 import { ToastService } from '../../shared/toast/toast.service';
 
 @Component({
@@ -27,9 +24,6 @@ import { ToastService } from '../../shared/toast/toast.service';
     StatusBadgeComponent,
     SkeletonComponent,
     EmptyStateComponent,
-    TearButtonComponent,
-    CardFlipComponent,
-    CardStackComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -253,14 +247,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank', 'noopener');
-  }
-
-  navigateToTickets() {
-    this.router.navigate(['/tickets']);
-  }
-
-  navigateToHire() {
-    this.router.navigate(['/hire-worker']);
   }
 
   openCreate() {

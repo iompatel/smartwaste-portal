@@ -6,9 +6,9 @@
       <p>Administrative audit logs and timeline.</p>
     </div>
 
-    <app-tear-button variant="primary" [loading]="loading" [disabled]="loading" (btnClick)="loadActivities()">
+    <button type="button" class="primary" [disabled]="loading" (click)="loadActivities()">
       Refresh activity
-    </app-tear-button>
+    </button>
   </header>
 
   @if (error) {

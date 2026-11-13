@@ -149,9 +149,9 @@
         </div>
 
         <div class="form-actions">
-          <app-tear-button variant="primary" [loading]="saving" [disabled]="saving" (btnClick)="createAccount()">
-            Create {{ singularLabel }}
-          </app-tear-button>
+          <button type="button" class="primary" [disabled]="saving" (click)="createAccount()">
+            {{ saving ? 'Creating...' : 'Create ' + singularLabel }}
+          </button>
         </div>
       </article>
     </div>
@@ -189,10 +189,7 @@
         </div>
 
         <div class="report-actions">
-          <app-tear-button variant="secondary" size="sm" (btnClick)="exportFilteredPdf()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Download PDF
-          </app-tear-button>
+          <button type="button" (click)="exportFilteredPdf()">Download PDF</button>
         </div>
       </div>
 
@@ -256,8 +253,8 @@
                   <option value="worker">worker</option>
                   <option value="user">user</option>
                 </select>
-                <app-tear-button variant="outline" size="sm" (btnClick)="exportUserPdf(user)">User PDF</app-tear-button>
-                <app-tear-button variant="danger" size="sm" (btnClick)="deleteUser(user)">Delete</app-tear-button>
+                <button type="button" (click)="exportUserPdf(user)">User PDF</button>
+                <button type="button" class="danger" (click)="deleteUser(user)">Delete</button>
               </div>
             </div>
           </article>
