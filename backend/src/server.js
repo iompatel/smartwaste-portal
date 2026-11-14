@@ -1091,8 +1091,6 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 if (!IS_PRODUCTION) {
-  allowedOrigins.add('http://localhost:3000');
-  allowedOrigins.add('http://127.0.0.1:3000');
   allowedOrigins.add('http://localhost:4200');
   allowedOrigins.add('http://localhost:4300');
   allowedOrigins.add('http://localhost:4400');
