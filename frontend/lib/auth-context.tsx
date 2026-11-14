@@ -92,10 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Verify current user
           try {
-            const meRes = await apiRequest<{ user: BackendUser }>('/api/me')
-            if (meRes?.user) {
-              setUser(meRes.user)
-              setStoredUser(meRes.user)
+            const meRes = await apiRequest<any>('/api/me')
+            const validUser = meRes?.user || meRes
+            if (validUser?.id) {
+              setUser(validUser)
+              setStoredUser(validUser)
             }
           } catch {
             // Token might have expired, try demo login for this role
@@ -217,10 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await apiRequest<{ user: BackendUser }>('/api/me')
-      if (res?.user) {
-        setUser(res.user)
-        setStoredUser(res.user)
+      const res = await apiRequest<any>('/api/me')
+      const validUser = res?.user || res
+      if (validUser?.id) {
+        setUser(validUser)
+        setStoredUser(validUser)
       }
     } catch {
       // ignore
