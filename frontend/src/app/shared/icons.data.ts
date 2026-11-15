@@ -10,6 +10,29 @@ export const ICONS: Record<string, IconNode> = {
       }
     ]
   ],
+  "alert-triangle": [
+    [
+      "path",
+      {
+        "d": "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+        "key": "alert-triangle"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M12 9v4",
+        "key": "alert-line"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M12 17h.01",
+        "key": "alert-dot"
+      }
+    ]
+  ],
   "arrow-right": [
     [
       "path",
@@ -39,6 +62,38 @@ export const ICONS: Record<string, IconNode> = {
       {
         "d": "M7 17 17 7",
         "key": "1vkiza"
+      }
+    ]
+  ],
+  "bar-chart-3": [
+    [
+      "line",
+      {
+        "x1": "12",
+        "x2": "12",
+        "y1": "20",
+        "y2": "10",
+        "key": "bar-middle"
+      }
+    ],
+    [
+      "line",
+      {
+        "x1": "18",
+        "x2": "18",
+        "y1": "20",
+        "y2": "4",
+        "key": "bar-tall"
+      }
+    ],
+    [
+      "line",
+      {
+        "x1": "6",
+        "x2": "6",
+        "y1": "20",
+        "y2": "16",
+        "key": "bar-short"
       }
     ]
   ],
@@ -222,6 +277,22 @@ export const ICONS: Record<string, IconNode> = {
       {
         "d": "M20 6 9 17l-5-5",
         "key": "1gmf2c"
+      }
+    ]
+  ],
+  "check-circle-2": [
+    [
+      "path",
+      {
+        "d": "M21.801 10A10 10 0 1 1 17 3.335",
+        "key": "check-circle"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "m9 11 3 3L22 4",
+        "key": "check-mark"
       }
     ]
   ],
@@ -477,6 +548,47 @@ export const ICONS: Record<string, IconNode> = {
       }
     ]
   ],
+  "globe-2": [
+    [
+      "circle",
+      {
+        "cx": "12",
+        "cy": "12",
+        "r": "10",
+        "key": "globe-outline"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
+        "key": "globe-meridian"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M2 12h20",
+        "key": "globe-equator"
+      }
+    ]
+  ],
+  "home": [
+    [
+      "path",
+      {
+        "d": "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8",
+        "key": "home-door"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+        "key": "home-outline"
+      }
+    ]
+  ],
   "image-plus": [
     [
       "path",
@@ -692,6 +804,27 @@ export const ICONS: Record<string, IconNode> = {
       }
     ]
   ],
+  "lock": [
+    [
+      "rect",
+      {
+        "width": "18",
+        "height": "11",
+        "x": "3",
+        "y": "11",
+        "rx": "2",
+        "ry": "2",
+        "key": "lock-body"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M7 11V7a5 5 0 0 1 10 0v4",
+        "key": "lock-shackle"
+      }
+    ]
+  ],
   "log-out": [
     [
       "path",
@@ -904,6 +1037,15 @@ export const ICONS: Record<string, IconNode> = {
       }
     ]
   ],
+  "phone": [
+    [
+      "path",
+      {
+        "d": "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z",
+        "key": "phone"
+      }
+    ]
+  ],
   "plus": [
     [
       "path",
@@ -1000,6 +1142,36 @@ export const ICONS: Record<string, IconNode> = {
       {
         "d": "m13.378 9.633 4.096 1.098 1.097-4.096",
         "key": "1oe83g"
+      }
+    ]
+  ],
+  "refresh-cw": [
+    [
+      "path",
+      {
+        "d": "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8",
+        "key": "refresh-top"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M21 3v5h-5",
+        "key": "refresh-top-arrow"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16",
+        "key": "refresh-bottom"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M8 16H3v5",
+        "key": "refresh-bottom-arrow"
       }
     ]
   ],
@@ -1320,6 +1492,24 @@ export const ICONS: Record<string, IconNode> = {
       {
         "d": "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
         "key": "ih7n3h"
+      }
+    ]
+  ],
+  "user": [
+    [
+      "path",
+      {
+        "d": "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2",
+        "key": "user-body"
+      }
+    ],
+    [
+      "circle",
+      {
+        "cx": "12",
+        "cy": "7",
+        "r": "4",
+        "key": "user-head"
       }
     ]
   ],

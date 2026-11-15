@@ -158,7 +158,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
 
               <!-- Search Bar -->
               <div class="relative ml-auto hidden w-full max-w-[240px] md:block">
-                <app-icon name="search" class="pointer-events-none absolute top-3 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="search" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   aria-label="Search reports and accounts"
                   [(ngModel)]="search"

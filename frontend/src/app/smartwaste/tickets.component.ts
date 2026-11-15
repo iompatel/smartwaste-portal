@@ -284,7 +284,7 @@ export class TicketsViewComponent {
         <div>
           <app-field-label htmlFor="report-address">Collection address</app-field-label>
           <div class="relative">
-            <app-icon name="map-pin" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+            <app-icon name="map-pin" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
             <input
               id="report-address"
               [(ngModel)]="address"

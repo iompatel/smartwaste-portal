@@ -40,7 +40,7 @@ import { Role } from '../smartwaste/data';
                   First name
                 </label>
                 <div class="relative">
-                  <app-icon name="user" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                  <app-icon name="user" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                   <input
                     id="su-first-name"
                     required
@@ -74,7 +74,7 @@ import { Role } from '../smartwaste/data';
                 Email address
               </label>
               <div class="relative">
-                <app-icon name="mail" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="mail" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="su-email"
                   type="email"
@@ -94,7 +94,7 @@ import { Role } from '../smartwaste/data';
                   Mobile number
                 </label>
                 <div class="relative">
-                  <app-icon name="phone" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                  <app-icon name="phone" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                   <input
                     id="su-mobile"
                     type="tel"
@@ -130,7 +130,7 @@ import { Role } from '../smartwaste/data';
                 Password
               </label>
               <div class="relative">
-                <app-icon name="lock" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="lock" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="su-password"
                   type="password"
@@ -152,7 +152,7 @@ import { Role } from '../smartwaste/data';
                 Street address
               </label>
               <div class="relative">
-                <app-icon name="map-pin" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="map-pin" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="su-address"
                   required

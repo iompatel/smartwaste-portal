@@ -8,7 +8,6 @@ import { ICONS } from './icons.data';
   template: `
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      [attr.class]="svgClass()"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -26,18 +25,18 @@ import { ICONS } from './icons.data';
       line-height: 0;
       flex-shrink: 0;
     }
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
   `]
 })
 export class IconComponent {
   name = input.required<string>();
-  class = input<string>('size-4');
   strokeWidth = input<number | string>(2);
 
   constructor(private sanitizer: DomSanitizer) {}
-
-  svgClass = computed(() => {
-    return this.class();
-  });
 
   svgContent = computed<SafeHtml>(() => {
     const rawName = this.name();

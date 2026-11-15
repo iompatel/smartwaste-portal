@@ -43,7 +43,7 @@ import { Role } from '../smartwaste/data';
                 Admin email
               </label>
               <div class="relative">
-                <app-icon name="mail" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="mail" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="admin-email"
                   type="email"
@@ -62,7 +62,7 @@ import { Role } from '../smartwaste/data';
                 Password
               </label>
               <div class="relative">
-                <app-icon name="lock" class="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground"></app-icon>
+                <app-icon name="lock" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="admin-password"
                   type="password"
