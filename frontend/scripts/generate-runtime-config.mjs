@@ -15,6 +15,8 @@ const payload = {
   API_BASE_URL: apiBaseUrl,
   DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
   ...(consoles.includes(consoleMode) ? { CONSOLE_MODE: consoleMode } : {}),
+  // Optional: run the client against the local Firebase Auth emulator for e2e tests.
+  ...(process.env.FIREBASE_AUTH_EMULATOR ? { FIREBASE_AUTH_EMULATOR: process.env.FIREBASE_AUTH_EMULATOR } : {}),
 };
 
 const content = `window.__SWMS_CONFIG__ = ${JSON.stringify(payload, null, 2)};\n`;

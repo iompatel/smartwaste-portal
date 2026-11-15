@@ -92,20 +92,44 @@ import { Role } from '../smartwaste/data';
                 <app-icon name="lock" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="login-password"
-                  type="password"
+                  [type]="showPassword() ? 'text' : 'password'"
                   required
                   [(ngModel)]="password"
                   name="password"
                   autocomplete="current-password"
-                  [class]="inputCls + ' pl-10'"
+                  [class]="inputCls + ' pl-10 pr-10'"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  (click)="showPassword.set(!showPassword())"
+                  class="absolute inset-y-0 right-3 my-auto flex items-center bg-transparent border-none p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                  [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                >
+                  <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" class="size-4"></app-icon>
+                </button>
               </div>
             </div>
 
             @if (errorMessage()) {
               <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium">
                 {{ errorMessage() }}
+              </div>
+            }
+
+            @if (needsVerification()) {
+              <div class="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning font-medium leading-5">
+                Your email is not verified yet. Click the verification link in your inbox.
+                <button
+                  type="button"
+                  (click)="resendLink()"
+                  class="ml-1 underline font-semibold cursor-pointer bg-transparent border-none p-0 text-warning"
+                >
+                  Resend verification link
+                </button>
+                @if (resendNote()) {
+                  <span class="block mt-1 text-muted-foreground">{{ resendNote() }}</span>
+                }
               </div>
             }
 
@@ -154,6 +178,9 @@ export class LoginComponent implements OnInit {
   errorMessage = signal<string>('');
   submitting = signal<boolean>(false);
   googleLoading = signal<boolean>(false);
+  showPassword = signal<boolean>(false);
+  needsVerification = signal<boolean>(false);
+  resendNote = signal<string>('');
 
   inputCls = inputClassName;
 
@@ -189,13 +216,25 @@ export class LoginComponent implements OnInit {
   private async executeLogin() {
     this.submitting.set(true);
     this.errorMessage.set('');
+    this.needsVerification.set(false);
+    this.resendNote.set('');
     try {
       await this.auth.login('citizen', this.email, this.password);
       this.success.emit('citizen');
     } catch (err: any) {
+      this.needsVerification.set(err?.code === 'EMAIL_NOT_VERIFIED');
       this.errorMessage.set(err.message || 'Invalid email or password.');
     } finally {
       this.submitting.set(false);
+    }
+  }
+
+  async resendLink() {
+    try {
+      await this.auth.resendVerification();
+      this.resendNote.set('Verification link sent. Check your inbox and spam folder.');
+    } catch (err: any) {
+      this.resendNote.set(err?.message || 'Could not resend right now. Please try again.');
     }
   }
 }

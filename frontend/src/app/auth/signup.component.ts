@@ -1,4 +1,4 @@
-import { Component, output, signal } from '@angular/core';
+import { Component, DestroyRef, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -33,6 +33,57 @@ import { Role } from '../smartwaste/data';
         </div>
 
         <app-surface class="mt-8 p-6 sm:p-8 block">
+          @if (step() === 'verify') {
+            <div class="flex flex-col items-center text-center">
+              <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
+                <app-icon name="mail" class="size-6 text-primary"></app-icon>
+              </div>
+              <h2 class="mt-4 text-lg font-semibold text-foreground">Verify your email</h2>
+              <p class="mt-2 text-xs text-muted-foreground leading-5 max-w-xs">
+                We sent a verification link to
+                <span class="font-medium text-foreground break-all">{{ verifiedEmail }}</span>.
+                Click the link in the email to activate your account. This page updates automatically.
+              </p>
+
+              <div class="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                <app-icon name="refresh-cw" class="size-3.5 animate-spin"></app-icon>
+                Waiting for verification...
+              </div>
+
+              @if (verifyError()) {
+                <div class="mt-3 w-full rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium leading-5">
+                  {{ verifyError() }}
+                </div>
+              }
+
+              <button
+                type="button"
+                appButton
+                variant="outline"
+                (click)="resendLink()"
+                [disabled]="resending() || resendIn() > 0"
+                class="mt-4 h-10 w-full rounded-full cursor-pointer"
+              >
+                @if (resending()) {
+                  Sending link...
+                } @else if (resendIn() > 0) {
+                  Resend available in {{ resendIn() }}s
+                } @else {
+                  Resend verification link
+                }
+              </button>
+
+              <p class="mt-5 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  (click)="loginClick.emit()"
+                  class="font-medium text-primary hover:underline cursor-pointer bg-transparent border-none p-0 inline"
+                >
+                  Back to sign in
+                </button>
+              </p>
+            </div>
+          } @else {
           <form (submit)="onSubmit($event)" class="flex flex-col gap-4">
             <div class="grid grid-cols-2 gap-3">
               <div>
@@ -133,14 +184,22 @@ import { Role } from '../smartwaste/data';
                 <app-icon name="lock" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="su-password"
-                  type="password"
+                  [type]="showPassword() ? 'text' : 'password'"
                   required
                   [(ngModel)]="password"
                   name="password"
                   autocomplete="new-password"
-                  [class]="inputCls + ' pl-10'"
+                  [class]="inputCls + ' pl-10 pr-10'"
                   placeholder="Min 8 chars, 1 uppercase & 1 symbol"
                 />
+                <button
+                  type="button"
+                  (click)="showPassword.set(!showPassword())"
+                  class="absolute inset-y-0 right-3 my-auto flex items-center bg-transparent border-none p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                  [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                >
+                  <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" class="size-4"></app-icon>
+                </button>
               </div>
               <p class="mt-1 text-[10px] text-muted-foreground">
                 Requires at least 8 characters, 1 uppercase letter, and 1 special symbol.
@@ -192,16 +251,17 @@ import { Role } from '../smartwaste/data';
             </button>
           </form>
 
-          <p class="mt-6 text-center text-xs text-muted-foreground">
-            Already have an account?
-            <button
-              type="button"
-              (click)="loginClick.emit()"
-              class="font-medium text-primary hover:underline ml-1 cursor-pointer bg-transparent border-none p-0 inline"
-            >
-              Sign in
-            </button>
-          </p>
+            <p class="mt-6 text-center text-xs text-muted-foreground">
+              Already have an account?
+              <button
+                type="button"
+                (click)="loginClick.emit()"
+                class="font-medium text-primary hover:underline ml-1 cursor-pointer bg-transparent border-none p-0 inline"
+              >
+                Sign in
+              </button>
+            </p>
+          }
         </app-surface>
       </div>
     </div>
@@ -210,6 +270,13 @@ import { Role } from '../smartwaste/data';
 export class SignupComponent {
   success = output<Role>();
   loginClick = output<void>();
+
+  step = signal<'form' | 'verify'>('form');
+  verifiedEmail = '';
+  resendIn = signal(0);
+  resending = signal(false);
+  verifyError = signal<string>('');
+  showPassword = signal(false);
 
   firstName = '';
   lastName = '';
@@ -221,6 +288,9 @@ export class SignupComponent {
   errorMessage = signal<string>('');
   submitting = signal<boolean>(false);
   inputCls = inputClassName;
+
+  private watchTimer: ReturnType<typeof setInterval> | null = null;
+  private destroyRef = inject(DestroyRef);
 
   constructor(private auth: AuthService) {}
 
@@ -244,11 +314,74 @@ export class SignupComponent {
         address: this.address.trim(),
         gender: this.gender,
       });
-      this.success.emit('citizen');
+      this.verifiedEmail = this.email.trim();
+      this.step.set('verify');
+      this.startVerificationWatch();
     } catch (err: any) {
       this.errorMessage.set(err?.message || 'Failed to create account. Ensure password meets security policy.');
     } finally {
       this.submitting.set(false);
+    }
+  }
+
+  // Poll Firebase every 3s; once the user clicks the verification link, the
+  // account is created and the citizen is signed in automatically.
+  private startVerificationWatch(): void {
+    this.stopVerificationWatch();
+    const startedAt = Date.now();
+    let tick = 0;
+    this.resendIn.set(60);
+    this.watchTimer = setInterval(async () => {
+      if (this.resendIn() > 0) {
+        this.resendIn.set(this.resendIn() - 1);
+      }
+      if (tick % 3 !== 0) {
+        tick += 1;
+        return;
+      }
+      tick += 1;
+      try {
+        if (await this.auth.emailVerified()) {
+          this.stopVerificationWatch();
+          try {
+            await this.auth.completeSignup();
+            this.success.emit('citizen');
+          } catch (err: any) {
+            this.verifyError.set(err?.message || 'Could not finish creating your account.');
+          }
+          return;
+        }
+      } catch {
+        // Transient Firebase error; keep polling.
+      }
+      if (Date.now() - startedAt > 10 * 60 * 1000) {
+        this.stopVerificationWatch();
+        this.verifyError.set(
+          'This is taking a while. Click the link in the email — you can sign in as soon as your email is verified.',
+        );
+      }
+    }, 1000);
+    this.destroyRef.onDestroy(() => this.stopVerificationWatch());
+  }
+
+  private stopVerificationWatch(): void {
+    if (this.watchTimer) {
+      clearInterval(this.watchTimer);
+      this.watchTimer = null;
+    }
+  }
+
+  async resendLink(): Promise<void> {
+    if (this.resending() || this.resendIn() > 0) return;
+    this.resending.set(true);
+    this.verifyError.set('');
+    try {
+      await this.auth.resendVerification();
+      this.resendIn.set(60);
+    } catch (err: any) {
+      this.verifyError.set(err?.message || 'Could not resend right now. Please try again.');
+    } finally {
+      this.resending.set(false);
     }
   }
 }

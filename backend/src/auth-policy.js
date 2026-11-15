@@ -15,6 +15,10 @@ export function canUseLoginPortal(role, portal) {
   return roleByPortal[portal] === role;
 }
 
+export function usesFirebasePasswordProvider(payload) {
+  return payload?.firebase?.sign_in_provider === 'password';
+}
+
 export function tokenVersionMatches(payload, user) {
   return Number(payload?.tokenVersion ?? 0) === Number(user?.tokenVersion ?? 0);
 }

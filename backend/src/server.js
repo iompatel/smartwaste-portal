@@ -19,6 +19,7 @@ import {
   isNotificationTargetRole,
   isStrongPassword,
   tokenVersionMatches,
+  usesFirebasePasswordProvider,
 } from './auth-policy.js';
 import {
   adminCookieName,
@@ -327,6 +328,25 @@ const adminSessionSchema = new mongoose.Schema(
   { versionKey: false, collection: 'admin_sessions' },
 );
 
+// Email-verification-link policy: citizens are stored here (max 24h) until they
+// click the Firebase verification link; the real account is created only then.
+const PENDING_REGISTRATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+const pendingRegistrationSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    gender: { type: String, required: true, trim: true },
+    mobile: { type: String, required: true, trim: true },
+    address: { type: String, required: true, trim: true },
+    profileImage: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true, expires: 0 },
+  },
+  { versionKey: false, collection: 'pending_registrations' },
+);
+
 const ticketMessageSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
@@ -372,6 +392,7 @@ const Notification = mongoose.model('Notification', notificationSchema);
 const AdminActivity = mongoose.model('AdminActivity', adminActivitySchema);
 const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
+const PendingRegistration = mongoose.model('PendingRegistration', pendingRegistrationSchema);
 const TicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
 const Review = mongoose.model('Review', reviewSchema);
 // WorkerLocation lives on its own connection when WORKER_LOCATION_MONGO_URI is set (free-tier storage split),
@@ -1227,56 +1248,131 @@ app.get('/api/ready', (_req, res) => {
   });
 });
 
+// Email-verification-link policy: signup stores a pending registration only.
+// The real citizen account is created by /api/auth/complete-signup after the
+// user clicks the Firebase verification link. Existing users are grandfathered.
 app.post('/api/auth/signup', async (req, res) => {
   const {
+    idToken,
     firstName,
     lastName,
-    gender,
+    gender = 'Other',
     mobile,
-    email,
-    password,
     address,
     profileImage = null,
   } = req.body ?? {};
 
-  if (!firstName || !lastName || !mobile || !email || !password || !address) {
+  if (!idToken || !firstName || !lastName || !mobile || !address) {
     return res.status(400).json({ message: 'Please fill all mandatory fields.' });
   }
 
-  const normalizedEmail = normalizeEmail(email);
+  if (!isFirebaseEnabled()) {
+    return res.status(500).json({ message: 'Email verification is not configured yet.' });
+  }
+
+  let decoded;
+  try {
+    decoded = await verifyFirebaseIdToken(String(idToken));
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired session. Please try again.' });
+  }
+
+  const normalizedEmail = normalizeEmail(decoded.email);
   if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
     return res.status(400).json({ message: 'Invalid email format.' });
   }
 
-  if (!isStrongPassword(password)) {
-    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
-  }
-
-  // Public signup can create only the "user" role.
-  const allowedRole = 'user';
   const existing = await User.findOne({ email: normalizedEmail }, { id: 1 }).lean();
   if (existing) {
     return res.status(409).json({ message: 'Email already registered.' });
   }
 
   const now = new Date();
+  await PendingRegistration.findOneAndUpdate(
+    { email: normalizedEmail },
+    {
+      $set: {
+        firstName: String(firstName).trim(),
+        lastName: String(lastName).trim(),
+        gender: String(gender).trim(),
+        mobile: String(mobile).trim(),
+        address: String(address).trim(),
+        profileImage,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + PENDING_REGISTRATION_TTL_MS),
+      },
+    },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
+
+  return res.status(202).json({ pending: true });
+});
+
+// Called after the citizen clicks the Firebase verification link.
+app.post('/api/auth/complete-signup', async (req, res) => {
+  const { idToken } = req.body ?? {};
+  if (!idToken) {
+    return res.status(400).json({ message: 'Firebase ID token is required.' });
+  }
+
+  if (!isFirebaseEnabled()) {
+    return res.status(500).json({ message: 'Email verification is not configured yet.' });
+  }
+
+  let decoded;
+  try {
+    decoded = await verifyFirebaseIdToken(String(idToken));
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired session. Please try again.' });
+  }
+
+  const email = normalizeEmail(decoded.email);
+  if (decoded.email_verified !== true) {
+    return res.status(403).json({
+      code: 'EMAIL_NOT_VERIFIED',
+      message: 'Email not verified yet. Click the verification link in your inbox first.',
+    });
+  }
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    if (!canUseLoginPortal(existing.role, 'public')) {
+      return res.status(403).json({
+        message:
+          existing.role === 'admin'
+            ? 'Admin accounts must use the Admin Console.'
+            : 'Worker accounts must use the Worker Console.',
+      });
+    }
+    return sendLoginResponse(existing, res);
+  }
+
+  const pending = await PendingRegistration.findOne({
+    email,
+    expiresAt: { $gt: new Date() },
+  }).lean();
+  if (!pending) {
+    return res.status(410).json({ message: 'Registration expired. Please sign up again.' });
+  }
+
+  const now = new Date();
   const user = await User.create({
     id: await nextId('users'),
-    firstName: String(firstName).trim(),
-    lastName: String(lastName).trim(),
-    gender: String(gender ?? 'Other').trim(),
-    mobile: String(mobile).trim(),
-    email: normalizedEmail,
-    passwordHash: await hashPassword(String(password)),
-    role: allowedRole,
-    address: String(address).trim(),
-    profileImage,
+    firstName: pending.firstName,
+    lastName: pending.lastName,
+    gender: pending.gender,
+    mobile: pending.mobile,
+    email,
+    passwordHash: await hashPassword(createAdminSecret()),
+    role: 'user',
+    address: pending.address,
+    profileImage: pending.profileImage,
     createdAt: now,
     updatedAt: now,
     lastLoginAt: now,
   });
 
-  const token = generateToken(user);
+  await PendingRegistration.deleteOne({ email });
 
   await createNotification({
     userId: user.id,
@@ -1284,7 +1380,7 @@ app.post('/api/auth/signup', async (req, res) => {
     message: 'Welcome to Smart Waste Management System.',
   });
 
-  return res.status(201).json({ token, user: sanitizeUser(user) });
+  return sendLoginResponse(user, res);
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -1333,6 +1429,16 @@ app.post('/api/auth/firebase-login', async (req, res) => {
     return res.status(400).json({ message: 'No email found in Firebase token.' });
   }
 
+  // Email-verification policy: password-provider logins must have a verified
+  // email. Google tokens already carry email_verified=true from Google.
+  const passwordProvider = usesFirebasePasswordProvider(decoded);
+  if (passwordProvider && decoded.email_verified !== true) {
+    return res.status(403).json({
+      code: 'EMAIL_NOT_VERIFIED',
+      message: 'Please verify your email before signing in. Check your inbox for the verification link.',
+    });
+  }
+
   let user = await User.findOne({ email });
   if (user && !canUseLoginPortal(user.role, 'public')) {
     return res.status(403).json({
@@ -1344,6 +1450,14 @@ app.post('/api/auth/firebase-login', async (req, res) => {
   }
 
   if (!user) {
+    // Prefer the profile captured at signup time over generic defaults.
+    const pending = await PendingRegistration.findOne({
+      email,
+      expiresAt: { $gt: new Date() },
+    }).lean();
+    if (passwordProvider && !pending) {
+      return res.status(410).json({ message: 'Registration expired. Please sign up again.' });
+    }
     const now = new Date();
     const fullName = String(decoded.name ?? '').trim();
     const nameParts = fullName.split(/\s+/).filter(Boolean);
@@ -1352,19 +1466,21 @@ app.post('/api/auth/firebase-login', async (req, res) => {
 
     user = await User.create({
       id: await nextId('users'),
-      firstName: String(firstName ?? derivedFirstName).trim(),
-      lastName: String(lastName ?? derivedLastName).trim(),
-      gender: String(gender).trim(),
-      mobile: String(mobile).trim(),
+      firstName: String(pending?.firstName ?? firstName ?? derivedFirstName).trim(),
+      lastName: String(pending?.lastName ?? lastName ?? derivedLastName).trim(),
+      gender: String(pending?.gender ?? gender).trim(),
+      mobile: String(pending?.mobile ?? mobile).trim(),
       email,
       passwordHash: await hashPassword(createAdminSecret()),
       role: 'user',
-      address: String(address).trim(),
-      profileImage: profileImage ?? decoded.picture ?? null,
+      address: String(pending?.address ?? address).trim(),
+      profileImage: profileImage ?? pending?.profileImage ?? decoded.picture ?? null,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,
     });
+
+    await PendingRegistration.deleteOne({ email });
 
     await createNotification({
       userId: user.id,

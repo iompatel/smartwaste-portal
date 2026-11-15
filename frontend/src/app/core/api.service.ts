@@ -122,14 +122,16 @@ export class ApiService {
 
       if (!response.ok) {
         let msg = `Request failed (${response.status})`;
+        let body: any = null;
         try {
-          const body = await response.json();
+          body = await response.json();
           msg = body.message || msg;
         } catch {
           // ignore
         }
         const error: any = new Error(msg);
         error.status = response.status;
+        if (body?.code) error.code = body.code;
         throw error;
       }
 
@@ -148,13 +150,17 @@ export class ApiService {
         });
         if (!response.ok) {
           let msg = `Request failed (${response.status})`;
+          let body: any = null;
           try {
-            const body = await response.json();
+            body = await response.json();
             msg = body.message || msg;
           } catch {
             // ignore
           }
-          throw new Error(msg);
+          const error: any = new Error(msg);
+          error.status = response.status;
+          if (body?.code) error.code = body.code;
+          throw error;
         }
         return (await response.json()) as T;
       }

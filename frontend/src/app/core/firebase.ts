@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { connectAuthEmulator, getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 export const firebaseConfig = {
   apiKey: "AIzaSyDKncPrxH2IEI1Vvthk2JtO50EWKIUzTQs",
@@ -13,5 +13,15 @@ export const firebaseConfig = {
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const firebaseAuth = getAuth(app);
+
+// Local e2e testing only: set FIREBASE_AUTH_EMULATOR when generating runtime
+// config to point the client at the Auth emulator. No effect in production.
+const emulatorHost = String(
+  (typeof window !== 'undefined' && (window as any).__SWMS_CONFIG__?.FIREBASE_AUTH_EMULATOR) || '',
+).trim();
+if (emulatorHost) {
+  connectAuthEmulator(firebaseAuth, `http://${emulatorHost}`, { disableWarnings: true });
+}
+
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });

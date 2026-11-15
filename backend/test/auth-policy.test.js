@@ -6,6 +6,7 @@ import {
   isNotificationTargetRole,
   isStrongPassword,
   tokenVersionMatches,
+  usesFirebasePasswordProvider,
 } from '../src/auth-policy.js';
 
 test('password policy requires length, uppercase, and a special character', () => {
@@ -24,6 +25,12 @@ test('each login portal accepts only its intended role', () => {
   assert.equal(canUseLoginPortal('user', 'worker'), false);
   assert.equal(canUseLoginPortal('worker', 'admin'), false);
   assert.equal(canUseLoginPortal('user', 'unknown'), false);
+});
+
+test('only Firebase password identities use the verification-link policy', () => {
+  assert.equal(usesFirebasePasswordProvider({ firebase: { sign_in_provider: 'password' } }), true);
+  assert.equal(usesFirebasePasswordProvider({ firebase: { sign_in_provider: 'google.com' } }), false);
+  assert.equal(usesFirebasePasswordProvider({}), false);
 });
 
 test('token versions revoke old sessions without invalidating legacy version-zero tokens', () => {
