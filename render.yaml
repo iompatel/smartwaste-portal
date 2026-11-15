@@ -1,7 +1,7 @@
 services:
   - type: web
     name: smartwaste-backend
-    env: node
+    runtime: node
     plan: free
     rootDir: backend
     autoDeployTrigger: commit
@@ -31,7 +31,7 @@ services:
 
   - type: web
     name: smartwaste-admin-backend
-    env: node
+    runtime: node
     plan: free
     rootDir: backend
     autoDeployTrigger: commit
@@ -69,9 +69,9 @@ services:
       - key: SEED_ADMIN_PASSWORD
         sync: false
 
-  - type: static
+  - type: web
+    runtime: static
     name: smartwasteportal
-    plan: free
     autoDeployTrigger: commit
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist/frontend/browser
@@ -108,9 +108,9 @@ services:
       - key: API_BASE_URL
         value: https://smartwaste-backend-5zei.onrender.com/api
 
-  - type: static
+  - type: web
+    runtime: static
     name: smartwasteworker
-    plan: free
     rootDir: frontend
     autoDeployTrigger: commit
     buildCommand: npm ci && npm run build:worker
@@ -148,9 +148,9 @@ services:
       - key: API_BASE_URL
         value: https://smartwaste-backend-5zei.onrender.com/api
 
-  - type: static
+  - type: web
+    runtime: static
     name: smartwasteadmin
-    plan: free
     rootDir: frontend
     autoDeployTrigger: commit
     buildCommand: npm ci && npm run build:admin
