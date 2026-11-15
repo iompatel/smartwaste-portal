@@ -498,15 +498,23 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         this.theme.set(storedTheme);
       }
 
-      if (path.includes('worker') || host.startsWith('worker') || port === '4400' || param === 'worker') {
-        this.consoleMode.set('worker');
-        this.role.set('worker');
-      } else if (path.includes('admin') || host.startsWith('admin') || port === '4300' || param === 'admin') {
-        this.consoleMode.set('admin');
-        this.role.set('admin');
-      } else {
-        this.consoleMode.set('citizen');
-        this.role.set('citizen');
+      const configuredConsole = String((window as any).__SWMS_CONFIG__?.CONSOLE_MODE ?? '');
+      const detectedConsole: 'citizen' | 'worker' | 'admin' =
+        path.includes('worker') || host.startsWith('worker') || port === '4400' || param === 'worker'
+          ? 'worker'
+          : path.includes('admin') || host.startsWith('admin') || port === '4300' || param === 'admin'
+            ? 'admin'
+            : 'citizen';
+      // A deploy that declares its console is authoritative, so the worker site
+      // cannot render the citizen login (and its Google button) on an odd host.
+      const consoleMode: 'citizen' | 'worker' | 'admin' =
+        configuredConsole === 'worker' || configuredConsole === 'admin' || configuredConsole === 'citizen'
+          ? configuredConsole
+          : detectedConsole;
+
+      this.consoleMode.set(consoleMode);
+      this.role.set(consoleMode);
+      if (consoleMode === 'citizen') {
         this.authView.set(path.includes('signup') ? 'signup' : 'login');
       }
 

@@ -5,14 +5,14 @@
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve frontend --proxy-config proxy.conf.json",
-    "start:admin": "ng serve admin --port 4300 --proxy-config proxy.conf.json",
-    "start:worker": "ng serve worker --port 4400 --proxy-config proxy.conf.json",
-    "build": "node scripts/generate-runtime-config.mjs && ng build frontend",
-    "build:admin": "node scripts/generate-runtime-config.mjs && ng build admin",
-    "build:worker": "node scripts/generate-runtime-config.mjs && ng build worker",
+    "start": "node scripts/generate-runtime-config.mjs citizen && ng serve frontend --proxy-config proxy.conf.json",
+    "start:admin": "node scripts/generate-runtime-config.mjs admin && ng serve admin --port 4300 --proxy-config proxy.conf.json",
+    "start:worker": "node scripts/generate-runtime-config.mjs worker && ng serve worker --port 4400 --proxy-config proxy.conf.json",
+    "build": "node scripts/generate-runtime-config.mjs citizen && ng build frontend",
+    "build:admin": "node scripts/generate-runtime-config.mjs admin && ng build admin",
+    "build:worker": "node scripts/generate-runtime-config.mjs worker && ng build worker",
     "watch": "ng build --watch --configuration development",
-    "dev": "ng serve frontend --proxy-config proxy.conf.json"
+    "dev": "node scripts/generate-runtime-config.mjs citizen && ng serve frontend --proxy-config proxy.conf.json"
   },
   "dependencies": {
     "@angular/animations": "^19.2.25",
