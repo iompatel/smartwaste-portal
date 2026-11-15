@@ -77,10 +77,8 @@ const ADMIN_SESSION_COOKIE = adminCookieName(IS_PRODUCTION);
 // SHA-256 of the header value that only the Cloudflare edge gate can add. When
 // set, direct hits on the Render origin are rejected even if the host is known.
 const ADMIN_EDGE_SECRET_HASH = String(process.env.ADMIN_EDGE_SECRET_HASH ?? '');
-const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL ?? 'admin@smartwaste.com');
+const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL);
 const SEED_ADMIN_PASSWORD = String(process.env.SEED_ADMIN_PASSWORD ?? '');
-const SEED_WORKER_EMAIL = normalizeEmail(process.env.SEED_WORKER_EMAIL ?? 'worker@smartwaste.com');
-const SEED_WORKER_PASSWORD = String(process.env.SEED_WORKER_PASSWORD ?? 'Worker#123');
 
 if (IS_PRODUCTION && PUBLIC_AUTH_ENABLED && !process.env.PUBLIC_FRONTEND_URL) {
   throw new Error('PUBLIC_FRONTEND_URL is required by the public backend.');
@@ -114,7 +112,7 @@ const USER_ROLES = ['admin', 'worker', 'user'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
-const LEGACY_ADMIN_PASSWORDS = ['admin123', 'Admin#123'];
+const LEGACY_ADMIN_PASSWORDS = [];
 
 async function hashPassword(value) {
   return bcrypt.hash(String(value), SALT_ROUNDS);
@@ -859,11 +857,7 @@ async function autoAssignUnassignedTickets(limit = 25) {
 }
 
 async function ensureSeedAdmin() {
-  if (!SEED_ADMIN_PASSWORD) {
-    if ((await User.countDocuments({ role: 'admin' })) === 0) {
-      // eslint-disable-next-line no-console
-      console.warn('No admin exists. Set SEED_ADMIN_PASSWORD once to bootstrap one.');
-    }
+  if (!SEED_ADMIN_EMAIL || !SEED_ADMIN_PASSWORD) {
     return null;
   }
 
@@ -875,15 +869,6 @@ async function ensureSeedAdmin() {
   if (existing) {
     if (existing.role !== 'admin') {
       throw new Error('SEED_ADMIN_EMAIL already belongs to a non-admin account.');
-    }
-
-    for (const legacyPassword of LEGACY_ADMIN_PASSWORDS) {
-      if (await comparePassword(legacyPassword, existing.passwordHash)) {
-        existing.passwordHash = await hashPassword(SEED_ADMIN_PASSWORD);
-        existing.updatedAt = new Date();
-        await existing.save();
-        break;
-      }
     }
     return existing;
   }
@@ -900,43 +885,6 @@ async function ensureSeedAdmin() {
     role: 'admin',
     address: 'Administration',
     profileImage: null,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-  });
-}
-
-async function ensureSeedWorker() {
-  const existing = await User.findOne({ email: SEED_WORKER_EMAIL });
-  if (existing) {
-    if (existing.role === 'worker') {
-      if (!existing.workerOnline) {
-        existing.workerOnline = true;
-        existing.workerLastSeenAt = new Date();
-        await existing.save();
-      }
-      return existing;
-    }
-    return existing;
-  }
-
-  const now = new Date();
-  return User.create({
-    id: await nextId('users'),
-    firstName: 'Field',
-    lastName: 'Operative',
-    gender: 'Other',
-    mobile: '9876543210',
-    email: SEED_WORKER_EMAIL,
-    passwordHash: await hashPassword(SEED_WORKER_PASSWORD),
-    role: 'worker',
-    address: 'City Operations Depot, Sector 4',
-    profileImage: null,
-    workerOnline: true,
-    workerLastSeenAt: now,
-    workerSkills: ['Organic', 'Plastic', 'Electronic', 'Hazardous', 'General'],
-    workerVehicleType: 'Heavy Compactor',
-    workerVehicleNumber: 'SW-FLEET-01',
     createdAt: now,
     updatedAt: now,
     lastLoginAt: null,
@@ -961,15 +909,32 @@ async function ensureUserExistsInFirebase(localUser) {
   });
 }
 
+async function purgeDemoAccounts() {
+  const demoEmails = [
+    'admin@smartwaste.com',
+    'worker@smartwaste.com',
+    'user@smartwaste.com',
+  ];
+  const demoUsers = await User.find({ email: { $in: demoEmails } });
+  if (demoUsers.length > 0) {
+    const demoIds = demoUsers.map((u) => u.id);
+    await Promise.all([
+      User.deleteMany({ id: { $in: demoIds } }),
+      Notification.deleteMany({ userId: { $in: demoIds } }),
+      Ticket.deleteMany({ userId: { $in: demoIds } }),
+      HireRequest.deleteMany({ userId: { $in: demoIds } }),
+    ]);
+  }
+}
+
 async function seedData() {
+  await purgeDemoAccounts();
+
   const userCount = await User.countDocuments();
   if (userCount > 0) {
     await syncCounter('users', User);
     if (ADMIN_AUTH_ENABLED) {
       await ensureSeedAdmin();
-    }
-    if (PUBLIC_AUTH_ENABLED) {
-      await ensureSeedWorker();
     }
     await Promise.all([
       syncCounter('tickets', Ticket),
@@ -984,9 +949,6 @@ async function seedData() {
 
   if (ADMIN_AUTH_ENABLED) {
     await ensureSeedAdmin();
-  }
-  if (PUBLIC_AUTH_ENABLED) {
-    await ensureSeedWorker();
   }
 
   await syncCounter('users', User);
