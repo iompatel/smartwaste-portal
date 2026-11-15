@@ -79,6 +79,8 @@ const ADMIN_SESSION_COOKIE = adminCookieName(IS_PRODUCTION);
 const ADMIN_EDGE_SECRET_HASH = String(process.env.ADMIN_EDGE_SECRET_HASH ?? '');
 const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL ?? 'admin@smartwaste.com');
 const SEED_ADMIN_PASSWORD = String(process.env.SEED_ADMIN_PASSWORD ?? '');
+const SEED_WORKER_EMAIL = normalizeEmail(process.env.SEED_WORKER_EMAIL ?? 'worker@smartwaste.com');
+const SEED_WORKER_PASSWORD = String(process.env.SEED_WORKER_PASSWORD ?? 'Worker#123');
 
 if (IS_PRODUCTION && PUBLIC_AUTH_ENABLED && !process.env.PUBLIC_FRONTEND_URL) {
   throw new Error('PUBLIC_FRONTEND_URL is required by the public backend.');
@@ -904,6 +906,43 @@ async function ensureSeedAdmin() {
   });
 }
 
+async function ensureSeedWorker() {
+  const existing = await User.findOne({ email: SEED_WORKER_EMAIL });
+  if (existing) {
+    if (existing.role === 'worker') {
+      if (!existing.workerOnline) {
+        existing.workerOnline = true;
+        existing.workerLastSeenAt = new Date();
+        await existing.save();
+      }
+      return existing;
+    }
+    return existing;
+  }
+
+  const now = new Date();
+  return User.create({
+    id: await nextId('users'),
+    firstName: 'Field',
+    lastName: 'Operative',
+    gender: 'Other',
+    mobile: '9876543210',
+    email: SEED_WORKER_EMAIL,
+    passwordHash: await hashPassword(SEED_WORKER_PASSWORD),
+    role: 'worker',
+    address: 'City Operations Depot, Sector 4',
+    profileImage: null,
+    workerOnline: true,
+    workerLastSeenAt: now,
+    workerSkills: ['Organic', 'Plastic', 'Electronic', 'Hazardous', 'General'],
+    workerVehicleType: 'Heavy Compactor',
+    workerVehicleNumber: 'SW-FLEET-01',
+    createdAt: now,
+    updatedAt: now,
+    lastLoginAt: null,
+  });
+}
+
 async function ensureUserExistsInFirebase(localUser) {
   if (!localUser || !isFirebaseEnabled()) {
     return;
@@ -929,6 +968,9 @@ async function seedData() {
     if (ADMIN_AUTH_ENABLED) {
       await ensureSeedAdmin();
     }
+    if (PUBLIC_AUTH_ENABLED) {
+      await ensureSeedWorker();
+    }
     await Promise.all([
       syncCounter('tickets', Ticket),
       syncCounter('hireRequests', HireRequest),
@@ -942,6 +984,9 @@ async function seedData() {
 
   if (ADMIN_AUTH_ENABLED) {
     await ensureSeedAdmin();
+  }
+  if (PUBLIC_AUTH_ENABLED) {
+    await ensureSeedWorker();
   }
 
   await syncCounter('users', User);
@@ -1033,9 +1078,20 @@ if (!IS_PRODUCTION) {
   allowedOrigins.add('http://localhost:4400');
 }
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  const normalized = String(origin).trim().replace(/\/$/, '');
+  if (allowedOrigins.has(normalized)) return true;
+  // Local development hosts on any port (4200, 4300, 4400, etc.)
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) return true;
+  // Any SmartWaste deployment on Render (smartwasteportal, smartwasteworker, smartwasteadmin, etc.)
+  if (/^https:\/\/smartwaste[a-z0-9-]*\.onrender\.com$/.test(normalized)) return true;
+  return false;
+}
+
 app.use((req, res, next) => {
   const origin = String(req.headers.origin ?? '').replace(/\/$/, '');
-  if (origin && !allowedOrigins.has(origin)) {
+  if (origin && !isAllowedOrigin(origin)) {
     return res.status(403).json({ message: 'Origin is not allowed.' });
   }
   return next();
@@ -1055,8 +1111,7 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin(origin, callback) {
-      const normalized = String(origin ?? '').replace(/\/$/, '');
-      callback(null, !origin || allowedOrigins.has(normalized));
+      callback(null, isAllowedOrigin(origin));
     },
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Admin-CSRF'],
@@ -1066,6 +1121,16 @@ app.use(
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
+  keyGenerator: (req) => {
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const rawIp =
+      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') ||
+      req.ip ||
+      '127.0.0.1';
+    const clientIp = ipKeyGenerator(rawIp);
+    return email ? `${email}:${clientIp}` : clientIp;
+  },
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests, please try again in a moment.' },

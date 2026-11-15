@@ -28,9 +28,16 @@ export class ApiService {
       if (runtimeConfig?.API_BASE_URL) {
         this.apiBase = runtimeConfig.API_BASE_URL.replace(/\/api\/?$/, '');
       } else {
-        const port = window.location.port;
-        // When served on 4200 directly without proxy, target localhost:4000
-        this.apiBase = port === '4000' ? '' : 'http://localhost:4000';
+        const hostname = window.location.hostname || '';
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        if (isLocal) {
+          const port = window.location.port;
+          // When served on 4000 directly (e.g. unified SSR/backend), use relative path
+          this.apiBase = port === '4000' ? '' : 'http://localhost:4000';
+        } else {
+          // Default to live production backend on non-localhost origins
+          this.apiBase = 'https://smartwaste-backend-5zei.onrender.com';
+        }
       }
     }
   }
@@ -99,6 +106,7 @@ export class ApiService {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...(options.headers as Record<string, string>),
     };
 
@@ -111,7 +119,50 @@ export class ApiService {
     }
 
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = `${this.apiBase}${path}`;
+    const url = this.apiBase ? `${this.apiBase}${path}` : path;
+
+    const parseResponse = async (res: Response): Promise<{ body: any; isJson: boolean; rawText: string }> => {
+      let rawText = '';
+      try {
+        rawText = await res.text();
+      } catch {
+        rawText = '';
+      }
+
+      let body: any = null;
+      let isJson = false;
+      if (rawText && rawText.trim()) {
+        try {
+          body = JSON.parse(rawText);
+          isJson = true;
+        } catch {
+          body = null;
+          isJson = false;
+        }
+      }
+      return { body, isJson, rawText };
+    };
+
+    const buildError = (res: Response, body: any, _rawText: string): Error => {
+      let msg = body?.message;
+      if (!msg) {
+        if (res.status === 429) {
+          msg = 'Too many login attempts. Please wait a moment and try again.';
+        } else if (res.status === 401) {
+          msg = 'Invalid operative credentials.';
+        } else if (res.status === 403) {
+          msg = 'Access denied. You do not have permission for this portal.';
+        } else if (res.status >= 500) {
+          msg = 'Server temporarily unavailable. Please try again shortly.';
+        } else {
+          msg = `Request failed (${res.status})`;
+        }
+      }
+      const error: any = new Error(msg);
+      error.status = res.status;
+      if (body?.code) error.code = body.code;
+      return error;
+    };
 
     try {
       const response = await fetch(url, {
@@ -120,55 +171,50 @@ export class ApiService {
         credentials: 'include',
       });
 
+      const { body, isJson, rawText } = await parseResponse(response);
+
       if (!response.ok) {
-        let msg =
-          response.status === 429
-            ? 'Too many login attempts. Please wait a moment and try again.'
-            : `Request failed (${response.status})`;
-        let body: any = null;
-        try {
-          body = await response.json();
-          msg = body.message || msg;
-        } catch {
-          // ignore
-        }
-        const error: any = new Error(msg);
-        error.status = response.status;
-        if (body?.code) error.code = body.code;
-        throw error;
+        throw buildError(response, body, rawText);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return (await response.json()) as T;
+      // Detect SPA HTML rewrite responses (e.g. index.html returned instead of API JSON)
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('text/html') || rawText.trim().startsWith('<!doctype html') || rawText.trim().startsWith('<html')) {
+        throw new Error('API server returned an unexpected response. Please ensure backend is reachable.');
       }
-      return {} as T;
+
+      if (isJson && body !== null) {
+        return body as T;
+      }
+      return (body ?? {}) as T;
     } catch (err: any) {
-      // If fetching from localhost:4000 directly failed with connection error, try relative path (/api)
-      if (this.apiBase && err.message?.includes('fetch')) {
-        const response = await fetch(path, {
-          ...options,
-          headers,
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          let msg =
-            response.status === 429
-              ? 'Too many login attempts. Please wait a moment and try again.'
-              : `Request failed (${response.status})`;
-          let body: any = null;
-          try {
-            body = await response.json();
-            msg = body.message || msg;
-          } catch {
-            // ignore
+      // If fetching from this.apiBase failed with network error, try fallback relative path if url was absolute
+      if (this.apiBase && (err.name === 'TypeError' || err.message?.toLowerCase().includes('fetch'))) {
+        try {
+          const fallbackRes = await fetch(path, {
+            ...options,
+            headers,
+            credentials: 'include',
+          });
+
+          const { body, isJson, rawText } = await parseResponse(fallbackRes);
+
+          if (!fallbackRes.ok) {
+            throw buildError(fallbackRes, body, rawText);
           }
-          const error: any = new Error(msg);
-          error.status = response.status;
-          if (body?.code) error.code = body.code;
-          throw error;
+
+          const fallbackCt = fallbackRes.headers.get('content-type') || '';
+          if (fallbackCt.includes('text/html') || rawText.trim().startsWith('<!doctype html') || rawText.trim().startsWith('<html')) {
+            throw new Error('Backend service is currently connecting. Please try again in a few seconds.');
+          }
+
+          if (isJson && body !== null) {
+            return body as T;
+          }
+          return (body ?? {}) as T;
+        } catch (fallbackErr: any) {
+          throw fallbackErr;
         }
-        return (await response.json()) as T;
       }
       throw err;
     }
