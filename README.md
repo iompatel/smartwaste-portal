@@ -175,14 +175,13 @@ Expected response includes:
 Database readiness is available separately at `http://localhost:4000/api/ready` and returns
 `503` while MongoDB is disconnected.
 
-## Demo Accounts
+## Creating Accounts
 
-- Worker: `worker@smartwaste.com` / `Worker#123` (use `/worker-console`)
-- User: `user@smartwaste.com` / `User#123` (use `/login`)
-
-Demo users are not seeded in production unless `SEED_DEMO_USERS=true`. There is no default admin
-password. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` for one startup to create an admin, then
-remove `SEED_ADMIN_PASSWORD` from the environment. Existing data is not overwritten.
+- Citizens create their own accounts from the public **Create resident account** form.
+- Workers are created by an administrator from **Admin Console → Accounts**.
+- There is no default admin password. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` for one
+  startup to create an admin, then remove `SEED_ADMIN_PASSWORD` from the environment. Existing data
+  is not overwritten.
 
 The admin deployment must be placed behind Cloudflare Access, Tailscale, a VPN, or another
 identity-aware proxy. A separate Render URL alone is still public.

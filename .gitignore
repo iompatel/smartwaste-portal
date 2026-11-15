@@ -75,3 +75,6 @@ frontend/dist/
 /backups/
 
 .wrangler/
+
+# Generated at build time from API_BASE_URL
+frontend/public/assets/runtime-config.js

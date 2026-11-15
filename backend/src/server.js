@@ -16,6 +16,7 @@ import {
 import {
   PASSWORD_POLICY_MESSAGE,
   canUseLoginPortal,
+  isNotificationTargetRole,
   isStrongPassword,
   tokenVersionMatches,
 } from './auth-policy.js';
@@ -69,7 +70,6 @@ const ADMIN_SESSION_COOKIE = adminCookieName(IS_PRODUCTION);
 const ADMIN_EDGE_SECRET_HASH = String(process.env.ADMIN_EDGE_SECRET_HASH ?? '');
 const SEED_ADMIN_EMAIL = normalizeEmail(process.env.SEED_ADMIN_EMAIL ?? 'admin@smartwaste.com');
 const SEED_ADMIN_PASSWORD = String(process.env.SEED_ADMIN_PASSWORD ?? '');
-const SEED_DEMO_USERS = process.env.SEED_DEMO_USERS === 'true' || !IS_PRODUCTION;
 
 if (IS_PRODUCTION && PUBLIC_AUTH_ENABLED && !process.env.PUBLIC_FRONTEND_URL) {
   throw new Error('PUBLIC_FRONTEND_URL is required by the public backend.');
@@ -103,10 +103,6 @@ const USER_ROLES = ['admin', 'worker', 'user'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
-const DEMO_PASSWORDS = {
-  'worker@smartwaste.com': 'Worker#123',
-  'user@smartwaste.com': 'User#123',
-};
 const LEGACY_ADMIN_PASSWORDS = ['admin123', 'Admin#123'];
 
 async function hashPassword(value) {
@@ -739,65 +735,6 @@ async function autoAssignUnassignedTickets(limit = 25) {
   return assigned;
 }
 
-function defaultPasswordForKnownDemoUsers(email) {
-  const normalizedEmail = normalizeEmail(email);
-
-  return (
-    DEMO_PASSWORDS[normalizedEmail] ??
-    `Temp#${createAdminSecret().slice(0, 16)}`
-  );
-}
-
-async function ensureDemoUsers() {
-  const records = [
-    {
-      email: 'worker@smartwaste.com',
-      role: 'worker',
-      firstName: 'Field',
-      lastName: 'Worker',
-      gender: 'Male',
-      mobile: '8888888888',
-      address: 'North Sector',
-      workerOnline: true,
-    },
-    {
-      email: 'user@smartwaste.com',
-      role: 'user',
-      firstName: 'Citizen',
-      lastName: 'User',
-      gender: 'Female',
-      mobile: '7777777777',
-      address: 'Lakeview Block',
-      workerOnline: false,
-    },
-  ];
-
-  for (const record of records) {
-    let user = await User.findOne({ email: record.email });
-    if (user && user.role !== record.role) {
-      throw new Error(`${record.email} belongs to the wrong role for demo mode.`);
-    }
-    if (!user) {
-      const now = new Date();
-      user = await User.create({
-        id: await nextId('users'),
-        ...record,
-        passwordHash: await hashPassword(DEMO_PASSWORDS[record.email]),
-        profileImage: null,
-        createdAt: now,
-        updatedAt: now,
-        lastLoginAt: null,
-      });
-      continue;
-    }
-    if (!(await comparePassword(DEMO_PASSWORDS[record.email], user.passwordHash))) {
-      user.passwordHash = await hashPassword(DEMO_PASSWORDS[record.email]);
-      user.updatedAt = new Date();
-      await user.save();
-    }
-  }
-}
-
 async function ensureSeedAdmin() {
   if (!SEED_ADMIN_PASSWORD) {
     if ((await User.countDocuments({ role: 'admin' })) === 0) {
@@ -859,39 +796,15 @@ async function ensureUserExistsInFirebase(localUser) {
   const displayName = `${localUser.firstName} ${localUser.lastName}`.trim();
   await createFirebaseUser({
     email: localUser.email,
-    password: defaultPasswordForKnownDemoUsers(localUser.email),
+    password: `Temp#${createAdminSecret()}`,
     displayName: displayName || 'Smart Waste User',
   });
-}
-
-async function syncDefaultDemoUsersToFirebase() {
-  if (!PUBLIC_AUTH_ENABLED || !SEED_DEMO_USERS || !isFirebaseEnabled()) {
-    return;
-  }
-
-  const emails = ['worker@smartwaste.com', 'user@smartwaste.com'];
-  for (const email of emails) {
-    const localUser = await User.findOne({ email }).lean();
-    if (!localUser) {
-      continue;
-    }
-
-    try {
-      await ensureUserExistsInFirebase(localUser);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(`Failed to sync Firebase demo user: ${email}`, error?.message ?? error);
-    }
-  }
 }
 
 async function seedData() {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
     await syncCounter('users', User);
-    if (PUBLIC_AUTH_ENABLED && SEED_DEMO_USERS) {
-      await ensureDemoUsers();
-    }
     if (ADMIN_AUTH_ENABLED) {
       await ensureSeedAdmin();
     }
@@ -910,104 +823,7 @@ async function seedData() {
     await ensureSeedAdmin();
   }
 
-  if (!PUBLIC_AUTH_ENABLED || !SEED_DEMO_USERS) {
-    await syncCounter('users', User);
-    return;
-  }
-
-  const now = new Date();
-  const workerUser = {
-    id: await nextId('users'),
-    firstName: 'Field',
-    lastName: 'Worker',
-    gender: 'Male',
-    mobile: '8888888888',
-    email: 'worker@smartwaste.com',
-    passwordHash: await hashPassword(DEMO_PASSWORDS['worker@smartwaste.com']),
-    role: 'worker',
-    address: 'North Sector',
-    profileImage: null,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-    workerOnline: true,
-  };
-
-  const citizenUser = {
-    id: await nextId('users'),
-    firstName: 'Citizen',
-    lastName: 'User',
-    gender: 'Female',
-    mobile: '7777777777',
-    email: 'user@smartwaste.com',
-    passwordHash: await hashPassword(DEMO_PASSWORDS['user@smartwaste.com']),
-    role: 'user',
-    address: 'Lakeview Block',
-    profileImage: null,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-  };
-
-  await User.insertMany([workerUser, citizenUser]);
-
-  await Ticket.insertMany([
-    {
-      id: await nextId('tickets'),
-      ticketCode: 'SWM-1001',
-      userId: citizenUser.id,
-      workerId: workerUser.id,
-      wasteType: 'Mixed Waste',
-      description: 'Overflowing waste at bus stop near market gate.',
-      mediaData: null,
-      locationAddress: 'Bus Stop, Central Market',
-      status: 'in_progress',
-      priority: 'high',
-      statusHistory: [
-        { status: 'pending', actorId: citizenUser.id, actorRole: 'user', createdAt: now },
-        { status: 'in_progress', actorId: workerUser.id, actorRole: 'worker', createdAt: now },
-      ],
-      acceptedAt: now,
-      startedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: await nextId('tickets'),
-      ticketCode: 'SWM-1002',
-      userId: citizenUser.id,
-      workerId: null,
-      wasteType: 'Dry Waste',
-      description: 'Plastic bags dumped near community park entrance.',
-      mediaData: null,
-      locationAddress: 'Community Park, Lakeview',
-      status: 'pending',
-      priority: 'medium',
-      statusHistory: [
-        { status: 'pending', actorId: citizenUser.id, actorRole: 'user', createdAt: now },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-  ]);
-
-  await Notification.create({
-    id: await nextId('notifications'),
-    userId: citizenUser.id,
-    title: 'Welcome to Smart Waste',
-    message: 'Track and report waste issues in real-time.',
-    createdAt: now,
-  });
-
-  await Promise.all([
-    syncCounter('users', User),
-    syncCounter('tickets', Ticket),
-    syncCounter('hireRequests', HireRequest),
-    syncCounter('notifications', Notification),
-    syncCounter('adminActivities', AdminActivity),
-    syncCounter('ticketMessages', TicketMessage),
-    syncCounter('reviews', Review),
-  ]);
+  await syncCounter('users', User);
 }
 
 async function migrateTicketLifecycle() {
@@ -1281,6 +1097,7 @@ async function sendLoginResponse(user, res) {
   user.lastLoginAt = new Date();
   await user.save();
 
+  clearAdminCookie(res);
   const token = generateToken(user);
   return res.json({ token, user: sanitizeUser(user) });
 }
@@ -1348,7 +1165,7 @@ async function handleAdminLogin(req, res) {
 
   if (LEGACY_ADMIN_PASSWORDS.includes(String(password))) {
     return res.status(403).json({
-      message: 'This public demo password is disabled. Set SEED_ADMIN_PASSWORD and restart once.',
+      message: 'This legacy password is disabled. Set a unique admin password and restart once.',
     });
   }
 
@@ -1756,7 +1573,7 @@ app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => 
   });
 });
 
-app.get('/api/dashboard/summary', authMiddleware, async (_req, res) => {
+app.get('/api/dashboard/summary', authMiddleware, requireRoles('admin'), async (_req, res) => {
   const [totalUsers, totalWorkers, onlineWorkers, totalTickets, pendingTickets] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ role: 'worker' }),
@@ -2101,7 +1918,7 @@ app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req,
   const { title, purpose, workAddress } = req.body ?? {};
   const cleanTitle = cleanBoundedText(title, 150);
   const cleanPurpose = cleanBoundedText(purpose, 1_000);
-  const cleanWorkAddress = cleanBoundedText(workAddress ?? req.user.address, 500);
+  const cleanWorkAddress = cleanBoundedText(workAddress || req.user.address, 500);
   if (!cleanTitle || !cleanPurpose || !cleanWorkAddress) {
     return res.status(400).json({ message: 'Hire request fields are invalid or too long.' });
   }
@@ -2857,25 +2674,52 @@ app.get('/api/notifications', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/notifications', authMiddleware, requireRoles('admin'), async (req, res) => {
-  const { title, message, userId = null } = req.body ?? {};
+  const { title, message, userId = null, targetRole = null } = req.body ?? {};
   const cleanTitle = cleanBoundedText(title, 200);
   const cleanMessage = cleanBoundedText(message, 1_000);
   const targetUserId = userId === null || userId === '' ? null : parseNumericId(userId);
-  if (!cleanTitle || !cleanMessage || (userId !== null && userId !== '' && !targetUserId)) {
+  const cleanTargetRole = typeof targetRole === 'string' ? targetRole.trim() : '';
+  if (
+    !cleanTitle ||
+    !cleanMessage ||
+    (userId !== null && userId !== '' && !targetUserId) ||
+    (targetUserId && cleanTargetRole) ||
+    (cleanTargetRole && !isNotificationTargetRole(cleanTargetRole))
+  ) {
     return res.status(400).json({ message: 'Notification fields are invalid or too long.' });
   }
   if (targetUserId && !(await User.exists({ id: targetUserId }))) {
     return res.status(404).json({ message: 'Notification recipient not found.' });
   }
 
-  await createNotification({ title: cleanTitle, message: cleanMessage, userId: targetUserId });
+  if (cleanTargetRole) {
+    const recipients = await User.find({ role: cleanTargetRole }, { id: 1 }).lean();
+    await Promise.all(
+      recipients.map((recipient) =>
+        createNotification({ userId: recipient.id, title: cleanTitle, message: cleanMessage }),
+      ),
+    );
+  } else {
+    await createNotification({ title: cleanTitle, message: cleanMessage, userId: targetUserId });
+  }
+
   await createAdminActivity({
     adminUser: req.user,
     sessionLabel: req.sessionLabel,
     action: 'Notification Sent',
-    targetType: targetUserId ? 'targeted-notification' : 'broadcast-notification',
+    targetType: targetUserId
+      ? 'targeted-notification'
+      : cleanTargetRole
+        ? `${cleanTargetRole}-notification`
+        : 'broadcast-notification',
     targetId: targetUserId,
-    summary: `Sent notification "${cleanTitle}"${targetUserId ? ` to user #${targetUserId}` : ' to all users'}.`,
+    summary: `Sent notification "${cleanTitle}"${
+      targetUserId
+        ? ` to user #${targetUserId}`
+        : cleanTargetRole
+          ? ` to all ${cleanTargetRole}s`
+          : ' to all users'
+    }.`,
   });
 
   res.status(201).json({ message: 'Notification sent.' });
@@ -2946,7 +2790,6 @@ async function bootstrap() {
   if (locationConn) await locationConn.asPromise();
   await seedData();
   await migrateTicketLifecycle();
-  await syncDefaultDemoUsersToFirebase();
 
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console

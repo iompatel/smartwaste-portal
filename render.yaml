@@ -28,8 +28,6 @@ services:
         sync: false
       - key: WORKER_FRONTEND_URL
         sync: false
-      - key: SEED_DEMO_USERS
-        value: "false"
 
   - type: web
     name: smartwaste-admin-backend
@@ -70,8 +68,6 @@ services:
         sync: false
       - key: SEED_ADMIN_PASSWORD
         sync: false
-      - key: SEED_DEMO_USERS
-        value: "false"
 
   - type: static
     name: smartwasteportal

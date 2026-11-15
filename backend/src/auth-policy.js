@@ -18,3 +18,7 @@ export function canUseLoginPortal(role, portal) {
 export function tokenVersionMatches(payload, user) {
   return Number(payload?.tokenVersion ?? 0) === Number(user?.tokenVersion ?? 0);
 }
+
+export function isNotificationTargetRole(value) {
+  return ['user', 'worker', 'admin'].includes(value);
+}
