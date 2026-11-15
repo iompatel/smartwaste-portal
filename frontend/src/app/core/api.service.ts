@@ -121,7 +121,10 @@ export class ApiService {
       });
 
       if (!response.ok) {
-        let msg = `Request failed (${response.status})`;
+        let msg =
+          response.status === 429
+            ? 'Too many login attempts. Please wait a moment and try again.'
+            : `Request failed (${response.status})`;
         let body: any = null;
         try {
           body = await response.json();
@@ -149,7 +152,10 @@ export class ApiService {
           credentials: 'include',
         });
         if (!response.ok) {
-          let msg = `Request failed (${response.status})`;
+          let msg =
+            response.status === 429
+              ? 'Too many login attempts. Please wait a moment and try again.'
+              : `Request failed (${response.status})`;
           let body: any = null;
           try {
             body = await response.json();

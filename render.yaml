@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: SERVICE_MODE
-        value: public
+        value: combined
       - key: MONGO_URI
         sync: false
       - key: WORKER_LOCATION_MONGO_URI

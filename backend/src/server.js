@@ -63,7 +63,7 @@ const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/smart_wast
 // Optional second database for high-churn worker location pings. When unset, everything stays on MONGO_URI.
 const WORKER_LOCATION_MONGO_URI = process.env.WORKER_LOCATION_MONGO_URI ?? '';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const SERVICE_MODE = process.env.SERVICE_MODE ?? (IS_PRODUCTION ? 'public' : 'combined');
+const SERVICE_MODE = process.env.SERVICE_MODE ?? 'combined';
 if (!['public', 'admin', 'combined'].includes(SERVICE_MODE)) {
   throw new Error('SERVICE_MODE must be public, admin, or combined.');
 }
@@ -1064,25 +1064,29 @@ app.use(
 );
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
+  windowMs: 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.' },
+  message: { message: 'Too many requests, please try again in a moment.' },
 });
 
 const adminAuthLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 10,
-  // Production admin requests have already passed the verified Cloudflare edge above.
-  keyGenerator: (req) =>
-    ipKeyGenerator(
-      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') || req.ip,
-    ),
+  windowMs: 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => {
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const rawIp =
+      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') ||
+      req.ip ||
+      '127.0.0.1';
+    const clientIp = ipKeyGenerator(rawIp);
+    return email ? `${email}:${clientIp}` : clientIp;
+  },
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many failed admin login attempts. Try again in five minutes.' },
+  message: { message: 'Too many admin login attempts. Please wait a moment and try again.' },
 });
 
 const ticketCreateLimiter = rateLimit({
