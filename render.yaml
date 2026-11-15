@@ -18,7 +18,16 @@ services:
       - key: MONGO_URI
         sync: false
       - key: WORKER_LOCATION_MONGO_URI
-        # Optional: second free MongoDB cluster for live GPS pings. Leave unset to use MONGO_URI.
+        # Optional: second free MongoDB cluster for live GPS pings & chat messages. Leave unset to use MONGO_URI.
+        sync: false
+      - key: CF_ACCOUNT_ID
+        sync: false
+      - key: CF_D1_DATABASE_ID
+        sync: false
+      - key: CF_API_TOKEN
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        # Optional: Firebase Storage bucket for offloading images (5 GB free).
         sync: false
       - key: JWT_SECRET
         generateValue: true
@@ -48,6 +57,14 @@ services:
       - key: MONGO_URI
         sync: false
       - key: WORKER_LOCATION_MONGO_URI
+        sync: false
+      - key: CF_ACCOUNT_ID
+        sync: false
+      - key: CF_D1_DATABASE_ID
+        sync: false
+      - key: CF_API_TOKEN
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
         sync: false
       - key: JWT_SECRET
         generateValue: true

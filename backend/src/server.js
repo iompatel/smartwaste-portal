@@ -44,6 +44,14 @@ import {
   isFreshWorkerLocation,
   normalizeWorkerLocation,
 } from './location-policy.js';
+import { fastCache } from './cache.js';
+import { uploadMedia } from './storage.js';
+import {
+  isD1Configured,
+  initD1Tables,
+  D1WorkerLocation,
+  D1TicketMessage,
+} from './cloudflare-d1.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -211,6 +219,9 @@ const userSchema = new mongoose.Schema(
   { versionKey: false, collection: 'users' },
 );
 
+// High-efficiency worker availability and heartbeat index
+userSchema.index({ role: 1, workerOnline: 1, workerLastSeenAt: -1 });
+
 const ticketStatusEventSchema = new mongoose.Schema(
   {
     status: { type: String, required: true, enum: TICKET_STATUSES },
@@ -282,6 +293,8 @@ const adminActivitySchema = new mongoose.Schema(
   { versionKey: false, collection: 'admin_activities' },
 );
 
+adminActivitySchema.index({ createdAt: -1 });
+
 const hireRequestSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
@@ -328,6 +341,8 @@ const adminSessionSchema = new mongoose.Schema(
   { versionKey: false, collection: 'admin_sessions' },
 );
 
+adminSessionSchema.index({ sessionHash: 1, expiresAt: 1 });
+
 // Email-verification-link policy: citizens are stored here (max 24h) until they
 // click the Firebase verification link; the real account is created only then.
 const PENDING_REGISTRATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -360,6 +375,9 @@ const ticketMessageSchema = new mongoose.Schema(
   { versionKey: false, collection: 'ticket_messages' },
 );
 
+// Chronological chat ordering index
+ticketMessageSchema.index({ ticketId: 1, createdAt: 1 });
+
 const reviewSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
@@ -372,6 +390,9 @@ const reviewSchema = new mongoose.Schema(
   },
   { versionKey: false, collection: 'reviews' },
 );
+
+// Worker review aggregation index
+reviewSchema.index({ workerId: 1, createdAt: -1 });
 
 const workerLocationSchema = new mongoose.Schema(
   {
@@ -393,19 +414,81 @@ const AdminActivity = mongoose.model('AdminActivity', adminActivitySchema);
 const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
 const PendingRegistration = mongoose.model('PendingRegistration', pendingRegistrationSchema);
-const TicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
 const Review = mongoose.model('Review', reviewSchema);
-// WorkerLocation lives on its own connection when WORKER_LOCATION_MONGO_URI is set (free-tier storage split),
-// otherwise on the default connection so local dev needs zero config.
+
+// Secondary database sharding with fail-safe dynamic fallback proxies for GPS and Chat
 let locationConn = null;
+let isLocationConnHealthy = false;
 if (WORKER_LOCATION_MONGO_URI) {
-  locationConn = mongoose.createConnection(WORKER_LOCATION_MONGO_URI);
-  locationConn.on('connected', () => console.log('[db] worker-location database connected'));
-  locationConn.on('error', (err) => console.error('[db] worker-location database error:', err.message));
+  locationConn = mongoose.createConnection(WORKER_LOCATION_MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+  });
+  locationConn.on('connected', () => {
+    isLocationConnHealthy = true;
+    console.log('[db] Secondary database connected successfully.');
+  });
+  locationConn.on('error', (err) => {
+    isLocationConnHealthy = false;
+    console.error('[db] Secondary database error (fallback active):', err.message);
+  });
+  locationConn.on('disconnected', () => {
+    isLocationConnHealthy = false;
+    console.warn('[db] Secondary database disconnected (fallback active).');
+  });
 }
-const WorkerLocation = locationConn
+
+const PrimaryWorkerLocation = mongoose.model('WorkerLocation', workerLocationSchema);
+const SecondaryWorkerLocation = locationConn
   ? locationConn.model('WorkerLocation', workerLocationSchema)
-  : mongoose.model('WorkerLocation', workerLocationSchema);
+  : null;
+
+const PrimaryTicketMessage = mongoose.model('TicketMessage', ticketMessageSchema);
+const SecondaryTicketMessage = locationConn
+  ? locationConn.model('TicketMessage', ticketMessageSchema)
+  : null;
+
+function getActiveModel(d1Model, secondaryMongoModel, primaryModel) {
+  if (isD1Configured() && d1Model) {
+    return d1Model;
+  }
+  if (locationConn && (locationConn.readyState === 1 || isLocationConnHealthy) && secondaryMongoModel) {
+    return secondaryMongoModel;
+  }
+  return primaryModel;
+}
+
+const WorkerLocation = new Proxy(PrimaryWorkerLocation, {
+  get(_target, prop) {
+    const model = getActiveModel(D1WorkerLocation, SecondaryWorkerLocation, PrimaryWorkerLocation);
+    const val = model[prop];
+    return typeof val === 'function' ? val.bind(model) : val;
+  },
+  apply(_target, thisArg, argumentsList) {
+    const model = getActiveModel(D1WorkerLocation, SecondaryWorkerLocation, PrimaryWorkerLocation);
+    return Reflect.apply(model, thisArg, argumentsList);
+  },
+  construct(_target, argumentsList, newTarget) {
+    const model = getActiveModel(D1WorkerLocation, SecondaryWorkerLocation, PrimaryWorkerLocation);
+    return Reflect.construct(model, argumentsList, newTarget);
+  },
+});
+
+const TicketMessage = new Proxy(PrimaryTicketMessage, {
+  get(_target, prop) {
+    const model = getActiveModel(D1TicketMessage, SecondaryTicketMessage, PrimaryTicketMessage);
+    const val = model[prop];
+    return typeof val === 'function' ? val.bind(model) : val;
+  },
+  apply(_target, thisArg, argumentsList) {
+    const model = getActiveModel(D1TicketMessage, SecondaryTicketMessage, PrimaryTicketMessage);
+    return Reflect.apply(model, thisArg, argumentsList);
+  },
+  construct(_target, argumentsList, newTarget) {
+    const model = getActiveModel(D1TicketMessage, SecondaryTicketMessage, PrimaryTicketMessage);
+    return Reflect.construct(model, argumentsList, newTarget);
+  },
+});
 
 async function nextId(key) {
   const counter = await Counter.findOneAndUpdate(
@@ -543,6 +626,8 @@ async function buildTicketRecords(rows, viewer = null) {
     );
     return {
       ...record,
+      hasMedia: Boolean(ticket.mediaData),
+      hasCompletionMedia: Boolean(ticket.completionMediaData),
       slaDueAt,
       slaOverdue: !isClosedTicket(record.status) && slaDueAt.getTime() < Date.now(),
       requester: userMap.get(Number(record.userId)) ?? null,
@@ -602,27 +687,38 @@ function buildTicketDetailsMessage(ticket, requester) {
 }
 
 async function getBusyWorkerIds() {
+  const cached = fastCache.get('workers:busy');
+  if (cached) {
+    return cached;
+  }
+
   const rows = await HireRequest.find(
     { status: 'assigned', assignedWorkerId: { $ne: null } },
     { assignedWorkerId: 1 },
   ).lean();
 
-  return new Set(
+  const busySet = new Set(
     rows
       .map((row) => Number(row.assignedWorkerId))
       .filter((value) => Number.isFinite(value) && value > 0),
   );
+  fastCache.set('workers:busy', busySet, 5000);
+  return busySet;
 }
 
 async function pickFreeWorkerIdForTicket(wasteType = '') {
-  const workers = await User.find(
-    {
-      role: 'worker',
-      workerOnline: true,
-      workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
-    },
-    { id: 1, workerSkills: 1 },
-  ).lean();
+  let workers = fastCache.get('workers:online');
+  if (!workers) {
+    workers = await User.find(
+      {
+        role: 'worker',
+        workerOnline: true,
+        workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
+      },
+      { id: 1, workerSkills: 1 },
+    ).lean();
+    fastCache.set('workers:online', workers, 5000);
+  }
   const normalizedWasteType = String(wasteType).trim().toLowerCase();
   const skilledWorkers = workers.filter((worker) => {
     const skills = Array.isArray(worker.workerSkills) ? worker.workerSkills : [];
@@ -682,14 +778,18 @@ async function pickFreeWorkerIdForTicket(wasteType = '') {
 
 async function autoAssignUnassignedTickets(limit = 25) {
   const busy = await getBusyWorkerIds();
-  const workers = await User.find(
-    {
-      role: 'worker',
-      workerOnline: true,
-      workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
-    },
-    { id: 1 },
-  ).lean();
+  let workers = fastCache.get('workers:online');
+  if (!workers) {
+    workers = await User.find(
+      {
+        role: 'worker',
+        workerOnline: true,
+        workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
+      },
+      { id: 1, workerSkills: 1 },
+    ).lean();
+    fastCache.set('workers:online', workers, 5000);
+  }
   const freeIds = workers
     .map((worker) => Number(worker.id))
     .filter((id) => Number.isFinite(id) && id > 0 && !busy.has(id));
@@ -1236,14 +1336,24 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/ready', (_req, res) => {
   const primaryConnected = mongoose.connection.readyState === 1;
-  const locationConnected = !locationConn || locationConn.readyState === 1;
-  const connected = primaryConnected && locationConnected;
+  const d1Enabled = isD1Configured();
+  const secondaryMongoConfigured = Boolean(WORKER_LOCATION_MONGO_URI);
+  let secondaryStatus = 'shared-with-primary';
+  if (d1Enabled) {
+    secondaryStatus = 'cloudflare-d1';
+  } else if (secondaryMongoConfigured) {
+    secondaryStatus = isLocationConnHealthy || (locationConn && locationConn.readyState === 1)
+      ? 'connected'
+      : 'fallback-to-primary';
+  }
+
+  const connected = primaryConnected;
   res.status(connected ? 200 : 503).json({
     status: connected ? 'ready' : 'unavailable',
     time: new Date().toISOString(),
     databases: {
       primary: primaryConnected ? 'connected' : 'disconnected',
-      workerLocations: locationConnected ? 'connected' : 'disconnected',
+      secondary: secondaryStatus,
     },
   });
 });
@@ -1573,7 +1683,8 @@ app.put('/api/me', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
 
-  Object.assign(user, next, { profileImage: nextProfileImage, updatedAt: new Date() });
+  const storedProfileImage = await uploadMedia(nextProfileImage, 'profiles');
+  Object.assign(user, next, { profileImage: storedProfileImage, updatedAt: new Date() });
   await user.save();
   if (req.user.role === 'admin') {
     await createAdminActivity({
@@ -1610,6 +1721,7 @@ app.put(
       },
       { new: true },
     );
+    fastCache.invalidate('workers:');
     if (online) {
       await autoAssignUnassignedTickets(25);
     } else {
@@ -1965,8 +2077,11 @@ app.get('/api/tickets', authMiddleware, async (req, res) => {
   const role = req.user.role;
   let rows = [];
 
+  const includeMedia = req.query?.includeMedia === 'true';
+  const projection = includeMedia ? {} : { mediaData: 0, completionMediaData: 0 };
+
   if (role === 'user') {
-    rows = await Ticket.find({ userId: req.user.id }).sort({ updatedAt: -1 }).limit(200);
+    rows = await Ticket.find({ userId: req.user.id }, projection).sort({ updatedAt: -1 }).limit(200);
   } else if (role === 'worker') {
     const busy = await HireRequest.findOne(
       { assignedWorkerId: req.user.id, status: 'assigned' },
@@ -1974,7 +2089,7 @@ app.get('/api/tickets', authMiddleware, async (req, res) => {
     ).lean();
 
     if (busy) {
-      rows = await Ticket.find({ workerId: req.user.id, status: 'completed' })
+      rows = await Ticket.find({ workerId: req.user.id, status: 'completed' }, projection)
         .sort({ updatedAt: -1 })
         .limit(200);
       return res.json(await buildTicketRecords(rows, req.user));
@@ -1983,12 +2098,27 @@ app.get('/api/tickets', authMiddleware, async (req, res) => {
     // Attempt to distribute any unassigned tickets when a free worker opens the tickets view.
     await autoAssignUnassignedTickets(10);
 
-    rows = await Ticket.find({ workerId: req.user.id }).sort({ updatedAt: -1 }).limit(200);
+    rows = await Ticket.find({ workerId: req.user.id }, projection).sort({ updatedAt: -1 }).limit(200);
   } else {
-    rows = await Ticket.find().sort({ updatedAt: -1 }).limit(200);
+    rows = await Ticket.find({}, projection).sort({ updatedAt: -1 }).limit(200);
   }
 
   res.json(await buildTicketRecords(rows, req.user));
+});
+
+app.get('/api/tickets/:id', authMiddleware, async (req, res) => {
+  const id = parseNumericId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
+
+  const ticket = await Ticket.findOne({ id });
+  if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+
+  if (!canAccessTicket(req.user, ticket)) {
+    return res.status(403).json({ message: 'No permission to view this ticket.' });
+  }
+
+  const [record] = await buildTicketRecords([ticket], req.user);
+  return res.json(record);
 });
 
 app.get('/api/hire-requests', authMiddleware, async (req, res) => {
@@ -2310,6 +2440,7 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
 
+  const storedMedia = await uploadMedia(mediaData, 'tickets');
   const now = new Date();
   const id = await nextId('tickets');
   const ticket = await Ticket.create({
@@ -2319,7 +2450,7 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     workerId: null,
     wasteType: cleanWasteType,
     description: cleanDescription,
-    mediaData,
+    mediaData: storedMedia,
     locationAddress: cleanLocation,
     status: 'pending',
     priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
@@ -2335,6 +2466,8 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     createdAt: now,
     updatedAt: now,
   });
+
+  fastCache.invalidate('workers:');
 
   const ticketDetailsMessage = buildTicketDetailsMessage(ticket, req.user);
   const assignedWorkerId = await pickFreeWorkerIdForTicket(cleanWasteType);
@@ -2492,7 +2625,7 @@ app.put(
         });
       }
       ticket.completedAt = now;
-      ticket.completionMediaData = completionMediaData;
+      ticket.completionMediaData = await uploadMedia(completionMediaData, 'completion');
       ticket.completionCode = null;
       ticket.completionCodeHash = null;
       appendTicketStatus(ticket, status, req.user, 'Work completed with OTP verification.', now);
@@ -2504,6 +2637,7 @@ app.put(
     }
 
     await ticket.save();
+    fastCache.invalidate('workers:');
     if (userNotification) await createNotification(userNotification);
     if (status === 'completed') await autoAssignUnassignedTickets(25);
     const [record] = await buildTicketRecords([ticket], req.user);
@@ -2607,7 +2741,7 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
 
   ticket.wasteType = nextWasteType;
   ticket.description = nextDescription;
-  ticket.mediaData = nextMediaData;
+  ticket.mediaData = await uploadMedia(nextMediaData, 'tickets');
   ticket.locationAddress = nextLocation;
   ticket.priority = TICKET_PRIORITIES.includes(req.body?.priority)
     ? req.body.priority
@@ -2746,6 +2880,7 @@ app.post('/api/tickets/:id/review', authMiddleware, requireRoles('user'), async 
     comment,
     createdAt: new Date(),
   });
+  fastCache.invalidate(`reviews:${ticket.workerId}`);
   await createNotification({
     userId: ticket.workerId,
     title: 'New Worker Rating',
@@ -2757,16 +2892,23 @@ app.post('/api/tickets/:id/review', authMiddleware, requireRoles('user'), async 
 app.get('/api/workers/:id/reviews', authMiddleware, async (req, res) => {
   const workerId = parseNumericId(req.params.id);
   if (!workerId) return res.status(400).json({ message: 'Invalid worker id.' });
+  const cacheKey = `reviews:${workerId}`;
+  const cached = fastCache.get(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
   const [summary] = await Review.aggregate([
     { $match: { workerId } },
     { $group: { _id: '$workerId', ratingAverage: { $avg: '$rating' }, ratingCount: { $sum: 1 } } },
   ]);
   const reviews = await Review.find({ workerId }).sort({ createdAt: -1 }).limit(20);
-  return res.json({
+  const payload = {
     ratingAverage: summary?.ratingAverage ?? 0,
     ratingCount: summary?.ratingCount ?? 0,
     reviews: reviews.map((review) => cleanRecord(review)),
-  });
+  };
+  fastCache.set(cacheKey, payload, 30000);
+  return res.json(payload);
 });
 
 app.get('/api/notifications', authMiddleware, async (req, res) => {
@@ -2901,9 +3043,30 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ message: 'Internal server error.' });
 });
 
+const MONGO_OPTIONS = {
+  maxPoolSize: 50,
+  minPoolSize: 5,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+
 async function bootstrap() {
-  await mongoose.connect(MONGO_URI);
-  if (locationConn) await locationConn.asPromise();
+  await mongoose.connect(MONGO_URI, MONGO_OPTIONS);
+  if (isD1Configured()) {
+    await initD1Tables();
+  }
+  if (locationConn) {
+    try {
+      await Promise.race([
+        locationConn.asPromise(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Secondary connection timeout')), 5000)),
+      ]);
+      isLocationConnHealthy = true;
+    } catch (err) {
+      isLocationConnHealthy = false;
+      console.warn('[db] Secondary connection could not be established immediately, fallback active:', err.message);
+    }
+  }
   await seedData();
   await migrateTicketLifecycle();
 

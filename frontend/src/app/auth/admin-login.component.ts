@@ -65,14 +65,22 @@ import { Role } from '../smartwaste/data';
                 <app-icon name="lock" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="admin-password"
-                  type="password"
+                  [type]="showPassword() ? 'text' : 'password'"
                   required
                   [(ngModel)]="password"
                   name="password"
                   autocomplete="current-password"
-                  [class]="inputCls + ' pl-10'"
+                  [class]="inputCls + ' pl-10 pr-10'"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  (click)="showPassword.set(!showPassword())"
+                  class="absolute inset-y-0 right-3 my-auto flex items-center bg-transparent border-none p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                  [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                >
+                  <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" class="size-4"></app-icon>
+                </button>
               </div>
             </div>
 
@@ -120,6 +128,7 @@ export class AdminLoginComponent implements OnInit {
   password = '';
   errorMessage = signal<string>('');
   submitting = signal<boolean>(false);
+  showPassword = signal<boolean>(false);
 
   inputCls = inputClassName;
 

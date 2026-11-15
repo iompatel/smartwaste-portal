@@ -27,7 +27,7 @@ This project is a complete **web portal** implementation with:
 
 ## Tech Stack
 
-- Frontend: Angular 20 (standalone components, SCSS)
+- Frontend: Angular 19 (standalone components, Tailwind CSS v4)
 - Backend: Node.js, Express 5, MongoDB, Mongoose
 - Public auth: Firebase/backend JWT bridge
 - Admin auth: short-lived HttpOnly cookie, DB-backed session, and CSRF protection

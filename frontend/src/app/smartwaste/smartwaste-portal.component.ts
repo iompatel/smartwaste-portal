@@ -414,6 +414,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   onDuty = signal<boolean>(false);
   workerLocation = signal<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   private dutyTimer?: number;
+  private popstateListener?: () => void;
 
   currentUser = computed(() => this.auth.currentUser());
   isLoggedIn = computed(() => this.auth.isLoggedIn());
@@ -518,6 +519,15 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         this.authView.set(path.includes('signup') ? 'signup' : 'login');
       }
 
+      this.view.set(this.getViewFromPath(path));
+
+      this.popstateListener = () => {
+        if (typeof window !== 'undefined') {
+          this.view.set(this.getViewFromPath(window.location.pathname));
+        }
+      };
+      window.addEventListener('popstate', this.popstateListener);
+
       await this.auth.initialized;
       const user = this.auth.currentUser();
       if (user) {
@@ -583,6 +593,21 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.stopDutyHeartbeat();
+    if (typeof window !== 'undefined' && this.popstateListener) {
+      window.removeEventListener('popstate', this.popstateListener);
+    }
+  }
+
+  private getViewFromPath(pathname: string): View {
+    const raw = pathname.toLowerCase().replace(/^\//, '').split('/')[0];
+    if (raw === 'accounts' || raw === 'admin-accounts') return 'accounts';
+    if (raw === 'broadcast' || raw === 'admin-broadcast') return 'broadcast';
+    if (raw === 'activity' || raw === 'admin-activity') return 'activity';
+    if (raw === 'tickets') return 'tickets';
+    if (raw === 'hire') return 'hire';
+    if (raw === 'profile') return 'profile';
+    if (raw === 'settings') return 'settings';
+    return 'overview';
   }
 
   private startDutyHeartbeat() {
@@ -626,6 +651,12 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   onNavigate(nextView: View) {
     this.view.set(nextView);
     this.mobileNavOpen.set(false);
+    if (typeof window !== 'undefined') {
+      const targetPath = nextView === 'overview' ? '/dashboard' : `/${nextView}`;
+      if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+        window.history.pushState({ view: nextView }, '', targetPath);
+      }
+    }
   }
 
   async onAuthSuccess(newRole: Role) {

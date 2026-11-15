@@ -37,6 +37,9 @@ export function isValidImageData(value, { required = false } = {}) {
     return !required;
   }
   const text = String(value);
+  if (/^https?:\/\/[^\s$.?#].[^\s]*$/i.test(text) && text.length <= 2048) {
+    return true;
+  }
   return (
     text.length <= MAX_IMAGE_DATA_LENGTH &&
     /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(text)

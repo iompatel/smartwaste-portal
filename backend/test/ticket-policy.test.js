@@ -26,6 +26,9 @@ test('ticket media accepts bounded image data only', () => {
   assert.equal(isValidImageData(null, { required: true }), false);
   assert.equal(isValidImageData('data:image/jpeg;base64,YQ=='), true);
   assert.equal(isValidImageData('data:text/html;base64,YQ=='), false);
+  assert.equal(isValidImageData('https://storage.googleapis.com/smartwaste/ticket123.jpg'), true);
+  assert.equal(isValidImageData('http://example.com/image.png'), true);
+  assert.equal(isValidImageData('javascript:alert(1)'), false);
 });
 
 test('closed statuses and SLA targets are stable', () => {
