@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -24,6 +24,7 @@ import { cn } from '../shared/utils';
     AvatarComponent,
     BrandMarkComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (open()) {
       <button

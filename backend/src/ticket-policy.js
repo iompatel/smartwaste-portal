@@ -37,7 +37,10 @@ export function isValidImageData(value, { required = false } = {}) {
     return !required;
   }
   const text = String(value);
-  if (/^https?:\/\/[^\s$.?#].[^\s]*$/i.test(text) && text.length <= 2048) {
+  if (
+    text.length <= 2048 &&
+    /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[^\s/]+\/o\/[^\s]+$/i.test(text)
+  ) {
     return true;
   }
   return (

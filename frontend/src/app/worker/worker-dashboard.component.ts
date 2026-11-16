@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
@@ -10,7 +10,7 @@ import {
   SurfaceComponent,
   ToggleComponent,
 } from '../shared/ui-components';
-import { Ticket, View } from '../smartwaste/data';
+import { Ticket, View, isClosedStatus } from '../smartwaste/data';
 
 @Component({
   selector: 'app-worker-dashboard',
@@ -26,6 +26,7 @@ import { Ticket, View } from '../smartwaste/data';
     SurfaceComponent,
     ToggleComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <!-- Hero Banner (Field Operations) -->
@@ -234,7 +235,7 @@ export class WorkerDashboardComponent {
     day: 'numeric',
   });
 
-  assignedCount = computed(() => this.tickets().filter((t) => t.status !== 'Completed').length);
+  assignedCount = computed(() => this.tickets().filter((t) => !isClosedStatus(t.status)).length);
   collectedCount = computed(() => this.tickets().filter((t) => t.status === 'Completed').length);
   totalCount = computed(() => this.tickets().length);
   assignedCountText = computed(() => String(this.assignedCount()).padStart(2, '0'));
@@ -246,7 +247,7 @@ export class WorkerDashboardComponent {
   completionRateText = computed(() => `${this.completionRate()}%`);
 
   routeTickets = computed(() => {
-    return this.tickets().filter((t) => t.status !== 'Completed').slice(0, 3);
+    return this.tickets().filter((t) => !isClosedStatus(t.status)).slice(0, 3);
   });
 
   openDirections() {

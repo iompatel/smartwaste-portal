@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractBase64Buffer, uploadMedia, isCloudStorageConfigured } from '../src/storage.js';
+import {
+  deleteMedia,
+  extractBase64Buffer,
+  firebaseMediaPath,
+  uploadMedia,
+} from '../src/storage.js';
 
 test('extractBase64Buffer extracts buffer, mime, and extension correctly', () => {
   const dataUri = 'data:image/jpeg;base64,aGVsbG8=';
@@ -32,4 +37,26 @@ test('uploadMedia transparently falls back to inline Base64 when cloud unconfigu
 test('uploadMedia handles null and empty gracefully', async () => {
   assert.equal(await uploadMedia(null), null);
   assert.equal(await uploadMedia(''), '');
+});
+
+test('non-Firebase media URLs are never treated as owned files', async () => {
+  assert.equal(firebaseMediaPath('https://example.com/photo.jpg'), null);
+  assert.equal(await deleteMedia('https://example.com/photo.jpg'), false);
+});
+
+test('firebaseMediaPath extracts only paths from the configured bucket shape', () => {
+  assert.equal(
+    firebaseMediaPath(
+      'https://firebasestorage.googleapis.com/v0/b/test-bucket/o/profiles%2Fphoto.jpg?alt=media&token=x',
+      'test-bucket',
+    ),
+    'profiles/photo.jpg',
+  );
+  assert.equal(
+    firebaseMediaPath(
+      'https://firebasestorage.googleapis.com/v0/b/other/o/profiles%2Fphoto.jpg',
+      'test-bucket',
+    ),
+    null,
+  );
 });

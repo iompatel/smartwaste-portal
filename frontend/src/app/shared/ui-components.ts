@@ -11,6 +11,7 @@ import {
   computed,
   input,
   output,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
@@ -25,6 +26,7 @@ export const inputClassName =
   selector: 'app-brand-mark',
   standalone: true,
   imports: [IconComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex items-center gap-2.5">
       <span
@@ -47,6 +49,7 @@ export class BrandMarkComponent {
 @Component({
   selector: 'app-avatar',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <span
       [class]="classes()"
@@ -77,6 +80,7 @@ export class AvatarComponent {
 @Component({
   selector: 'app-live-dot',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <span [class]="classes()">
       <span class="absolute inline-flex size-full animate-ping rounded-full bg-brand opacity-50"></span>
@@ -95,6 +99,7 @@ export class LiveDotComponent {
 @Component({
   selector: 'app-status-badge',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <span [class]="classes()">
       <span class="size-1.5 rounded-full bg-current"></span>
@@ -110,6 +115,8 @@ export class StatusBadgeComponent {
     const tone =
       s === 'Completed' || s === 'Confirmed' || s === 'On route' || s === 'Online'
         ? 'bg-success/10 text-success'
+        : s === 'Cancelled'
+          ? 'bg-danger/10 text-danger'
         : s === 'In progress' || s === 'Pending' || s === 'Open'
           ? 'bg-primary/10 text-primary'
           : s === 'Scheduled'
@@ -125,6 +132,7 @@ export class StatusBadgeComponent {
 @Component({
   selector: 'app-priority-badge',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <span [class]="classes()">
       {{ priority() }}
@@ -152,6 +160,7 @@ export class PriorityBadgeComponent {
 @Component({
   selector: 'app-surface',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div [class]="classes()">
       <ng-content></ng-content>
@@ -172,6 +181,7 @@ export class SurfaceComponent {
 @Component({
   selector: 'app-section-header',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex items-start justify-between gap-4">
       <div class="flex min-w-0 flex-col gap-1.5">
@@ -203,6 +213,7 @@ export class SectionHeaderComponent {
   selector: 'app-metric-card',
   standalone: true,
   imports: [SurfaceComponent, IconComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <app-surface [class]="'p-4 sm:p-5 ' + class()">
       <div class="flex items-start justify-between gap-3">
@@ -249,6 +260,7 @@ export class MetricCardComponent {
 @Component({
   selector: 'app-progress-bar',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
       <div
@@ -272,6 +284,7 @@ export class ProgressBarComponent {
 @Component({
   selector: 'app-score-ring',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div
       class="relative flex size-[132px] shrink-0 items-center justify-center rounded-full p-[7px] sm:size-[154px]"
@@ -302,6 +315,7 @@ export class ScoreRingComponent {
   selector: 'app-toggle',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <button
       type="button"
@@ -333,6 +347,7 @@ export class ToggleComponent {
   selector: 'app-modal',
   standalone: true,
   imports: [ButtonDirective, IconComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div
       class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-5"
@@ -416,6 +431,7 @@ export class ModalComponent implements OnInit, OnDestroy {
   selector: 'app-toast',
   standalone: true,
   imports: [IconComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div
       role="status"
@@ -449,6 +465,7 @@ export class ToastComponent {
   selector: 'app-text-link',
   standalone: true,
   imports: [IconComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <button
       type="button"
@@ -467,6 +484,7 @@ export class TextLinkComponent {
 @Component({
   selector: 'app-field-label',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <label
       [attr.for]="htmlFor()"

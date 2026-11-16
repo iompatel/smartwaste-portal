@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -17,13 +17,12 @@ export interface ServiceOption {
   title: string;
   description: string;
   icon: string;
-  price: string;
 }
 
 export const services: ServiceOption[] = [
-  { title: 'Home cleaning', description: 'A fresh start for your space.', icon: 'home', price: 'From $48' },
-  { title: 'Garden cleanup', description: 'Make your outdoors feel new.', icon: 'leaf', price: 'From $36' },
-  { title: 'Bulk waste pickup', description: 'For the things that do not fit.', icon: 'truck', price: 'From $64' },
+  { title: 'Home cleaning', description: 'A fresh start for your space.', icon: 'home' },
+  { title: 'Garden cleanup', description: 'Make your outdoors feel new.', icon: 'leaf' },
+  { title: 'Bulk waste pickup', description: 'For the things that do not fit.', icon: 'truck' },
 ];
 
 @Component({
@@ -39,6 +38,7 @@ export const services: ServiceOption[] = [
     StatusBadgeComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <section class="relative isolate overflow-hidden rounded-[26px] border border-brand/15 bg-hero p-6 sm:p-8">
@@ -52,7 +52,7 @@ export const services: ServiceOption[] = [
             A helping hand, when you need it<span class="text-brand">.</span>
           </h1>
           <p class="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            Book a verified local operative for the jobs that need a little extra care. Transparent pricing, no surprises.
+            Request a verified local operative and follow every assignment update in one place.
           </p>
         </div>
       </section>
@@ -84,7 +84,6 @@ export const services: ServiceOption[] = [
                   </span>
                   <span class="mt-3 text-xs font-medium text-foreground">{{ service.title }}</span>
                   <span class="mt-1 text-[10px] leading-4 text-muted-foreground">{{ service.description }}</span>
-                  <span class="mt-3 text-[11px] font-medium text-brand">{{ service.price }}</span>
                 </button>
               }
             </div>
@@ -162,7 +161,6 @@ export const services: ServiceOption[] = [
                       <app-icon name="calendar-days" class="size-3"></app-icon>
                       {{ booking.date }}
                     </span>
-                    <span class="font-medium text-foreground">{{ booking.price }}</span>
                   </div>
                 </div>
               }
@@ -185,13 +183,6 @@ export class CitizenHireViewComponent {
   note = '';
 
   submit() {
-    const price =
-      this.selectedService() === 'Home cleaning'
-        ? '$48'
-        : this.selectedService() === 'Garden cleanup'
-          ? '$36'
-          : '$64';
-
     const newBooking: Booking = {
       id: `BK-${210 + this.bookings().length}`,
       title: this.selectedService(),
@@ -202,7 +193,6 @@ export class CitizenHireViewComponent {
         day: 'numeric',
       }),
       status: 'Pending',
-      price,
       purpose: this.note.trim() || 'Residential maintenance and waste collection',
       address: this.address.trim(),
     };
@@ -222,6 +212,7 @@ export class CitizenHireViewComponent {
     StatusBadgeComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5">
       <app-section-header
@@ -260,7 +251,6 @@ export class CitizenHireViewComponent {
               <p class="mt-2 line-clamp-2 text-xs text-muted-foreground">{{ booking.purpose }}</p>
             }
             <div class="mt-5 flex items-center justify-between border-t border-border/60 pt-4">
-              <span class="text-sm font-semibold text-foreground">{{ booking.price }}</span>
               @if (booking.status === 'Confirmed') {
                 <button
                   type="button"
@@ -290,6 +280,7 @@ export class WorkerHireViewComponent {
   selector: 'app-hire-view',
   standalone: true,
   imports: [CommonModule, CitizenHireViewComponent, WorkerHireViewComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (worker()) {
       <app-worker-hire-view

@@ -7,9 +7,19 @@
 const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID ?? '';
 const CF_D1_DATABASE_ID = process.env.CF_D1_DATABASE_ID ?? '';
 const CF_API_TOKEN = process.env.CF_API_TOKEN ?? '';
+let d1Ready = false;
 
 export function isD1Configured() {
   return Boolean(CF_ACCOUNT_ID && CF_D1_DATABASE_ID && CF_API_TOKEN);
+}
+
+export function isD1PartiallyConfigured() {
+  const configuredValues = [CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN].filter(Boolean).length;
+  return configuredValues > 0 && configuredValues < 3;
+}
+
+export function isD1Ready() {
+  return d1Ready;
 }
 
 export const D1_SCHEMA_SQL = `
@@ -68,8 +78,12 @@ export async function queryD1(sql, params = []) {
       throw new Error(`Cloudflare D1 Query Failed: ${err}`);
     }
 
+    d1Ready = true;
     const firstResult = data.result?.[0];
     return firstResult?.results ?? [];
+  } catch (error) {
+    d1Ready = false;
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -79,7 +93,10 @@ export async function queryD1(sql, params = []) {
  * Auto-initializes D1 tables if D1 is configured.
  */
 export async function initD1Tables() {
-  if (!isD1Configured()) return false;
+  if (!isD1Configured()) {
+    d1Ready = false;
+    return false;
+  }
   try {
     const statements = D1_SCHEMA_SQL.trim()
       .split(';')
@@ -90,8 +107,10 @@ export async function initD1Tables() {
       await queryD1(stmt);
     }
     console.log('[d1] Cloudflare D1 tables initialized successfully.');
+    d1Ready = true;
     return true;
   } catch (err) {
+    d1Ready = false;
     console.warn('[d1] Cloudflare D1 initialization error (will use fallback):', err.message);
     return false;
   }
@@ -173,6 +192,11 @@ export const D1WorkerLocation = {
     const workerId = Number(filter.workerId);
     await queryD1('DELETE FROM worker_locations WHERE worker_id = ?;', [workerId]);
     return { acknowledged: true, deletedCount: 1 };
+  },
+
+  async deleteExpired(now = new Date()) {
+    await queryD1('DELETE FROM worker_locations WHERE expires_at <= ?;', [new Date(now).getTime()]);
+    return { acknowledged: true };
   },
 };
 

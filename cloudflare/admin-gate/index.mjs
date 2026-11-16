@@ -37,6 +37,16 @@ export default {
       const expected = `Basic ${btoa(`${env.BASIC_USER}:${env.BASIC_PASS}`)}`;
       const provided = request.headers.get('Authorization') ?? '';
       if (!timingSafeEqual(provided, expected)) {
+        if (env.ADMIN_RATE_LIMITER) {
+          const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+          const { success } = await env.ADMIN_RATE_LIMITER.limit({ key: clientIp });
+          if (!success) {
+            return new Response('Too many authentication attempts', {
+              status: 429,
+              headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
+            });
+          }
+        }
         const isApiRequest = url.pathname === '/api' || url.pathname.startsWith('/api/');
         return new Response(
           isApiRequest

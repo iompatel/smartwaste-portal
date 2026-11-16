@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, input, output, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
@@ -38,8 +38,12 @@ import { BackendTicket } from '../core/api.types';
     ActivityAreaChartComponent,
     WastePieChartComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
+      @if (error()) {
+        <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs text-danger">{{ error() }}</p>
+      }
       <!-- Admin Hero (City Command) -->
       <section class="flex flex-col justify-between gap-5 rounded-[26px] border border-primary/15 bg-admin-hero p-6 sm:p-8 md:flex-row md:items-end">
         <div>
@@ -284,6 +288,7 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   });
 
   adminName = computed(() => this.auth.currentUser()?.firstName || 'Administrator');
+  error = signal<string>('');
 
   constructor(
     private adminService: AdminService,
@@ -303,8 +308,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         this.activeReports.set(String(summary.totalTickets - summary.pendingTickets).padStart(2, '0'));
         this.workersOnlineText.set(`${summary.onlineWorkers}/${summary.totalWorkers}`);
       }
-    } catch {
-      // keep defaults until the admin session is ready
+    } catch (error: any) {
+      this.error.set(error?.message || 'Some dashboard data could not be loaded.');
     }
 
     try {
@@ -321,14 +326,16 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
             rating: user.ratingAverage ? user.ratingAverage.toFixed(1) : '—',
           })),
       );
-    } catch {
+    } catch (error: any) {
       this.workers.set([]);
+      this.error.set(error?.message || 'Some dashboard data could not be loaded.');
     }
 
     try {
       this.tickets.set(await this.ticketService.getTickets());
-    } catch {
+    } catch (error: any) {
       this.tickets.set([]);
+      this.error.set(error?.message || 'Some dashboard data could not be loaded.');
     }
   }
 

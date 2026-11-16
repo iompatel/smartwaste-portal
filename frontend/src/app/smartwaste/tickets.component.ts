@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -13,9 +13,18 @@ import {
   SurfaceComponent,
   inputClassName,
 } from '../shared/ui-components';
-import { Priority, Ticket } from './data';
+import { Priority, Ticket, isClosedStatus } from './data';
 import { TicketService } from '../core/ticket.service';
 import { cn } from '../shared/utils';
+
+export interface TicketDraft {
+  title: string;
+  category: string;
+  address: string;
+  priority: Priority;
+  description: string;
+  mediaData: string | null;
+}
 
 @Component({
   selector: 'app-tickets-view',
@@ -29,6 +38,7 @@ import { cn } from '../shared/utils';
     StatusBadgeComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -53,7 +63,7 @@ import { cn } from '../shared/utils';
         <div class="min-w-0">
           <!-- Filter Tabs -->
           <div class="flex items-center gap-1 rounded-full bg-muted p-1 sm:w-fit" role="tablist" aria-label="Filter reports">
-            @for (item of (['All', 'Open', 'Completed']); track item) {
+            @for (item of (['All', 'Open', 'Completed', 'Cancelled']); track item) {
               <button
                 type="button"
                 role="tab"
@@ -75,7 +85,7 @@ import { cn } from '../shared/utils';
                 <div class="flex items-start gap-3">
                   <span
                     class="flex size-11 shrink-0 items-center justify-center rounded-[14px]"
-                    [ngClass]="ticket.status === 'Completed' ? 'bg-brand/10 text-brand' : 'bg-primary/10 text-primary'"
+                    [ngClass]="ticket.status === 'Completed' ? 'bg-brand/10 text-brand' : ticket.status === 'Cancelled' ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'"
                   >
                     <app-icon name="trash-2" class="size-5"></app-icon>
                   </span>
@@ -98,7 +108,7 @@ import { cn } from '../shared/utils';
                   <span class="ml-auto text-[10px] text-muted-foreground">{{ ticket.time }}</span>
                 </div>
 
-                @if (ticket.code && ticket.status !== 'Completed') {
+                @if (ticket.code && !isClosedStatus(ticket.status)) {
                   <div class="mt-4 flex items-center justify-between gap-3 rounded-[14px] bg-muted/60 px-3.5 py-3">
                     <div>
                       <p class="text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">Your completion code</p>
@@ -185,6 +195,7 @@ import { cn } from '../shared/utils';
   `
 })
 export class TicketsViewComponent {
+  readonly isClosedStatus = isClosedStatus;
   tickets = input.required<Ticket[]>();
   search = input<string>('');
   report = output<void>();
@@ -200,7 +211,11 @@ export class TicketsViewComponent {
     return list.filter((ticket) => {
       const matchesFilter =
         f === 'All' ||
-        (f === 'Open' ? ticket.status !== 'Completed' : ticket.status === 'Completed');
+        (f === 'Open'
+          ? !isClosedStatus(ticket.status)
+          : f === 'Completed'
+            ? ticket.status === 'Completed'
+            : ticket.status === 'Cancelled');
       const matchesSearch =
         !q ||
         `${ticket.title} ${ticket.id} ${ticket.address} ${ticket.category}`
@@ -212,8 +227,9 @@ export class TicketsViewComponent {
 
   getFilterCount(f: string): number {
     if (f === 'All') return this.tickets().length;
-    if (f === 'Open') return this.tickets().filter((t) => t.status !== 'Completed').length;
-    return this.tickets().filter((t) => t.status === 'Completed').length;
+    if (f === 'Open') return this.tickets().filter((t) => !isClosedStatus(t.status)).length;
+    if (f === 'Completed') return this.tickets().filter((t) => t.status === 'Completed').length;
+    return this.tickets().filter((t) => t.status === 'Cancelled').length;
   }
 }
 
@@ -228,6 +244,7 @@ export class TicketsViewComponent {
     ModalComponent,
     FieldLabelComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <app-modal
       title="Report a waste issue"
@@ -374,7 +391,7 @@ export class TicketsViewComponent {
 })
 export class ReportModalComponent {
   close = output<void>();
-  create = output<Ticket>();
+  create = output<TicketDraft>();
 
   inputCls = inputClassName;
 
@@ -421,15 +438,11 @@ export class ReportModalComponent {
 
     const title = this.title.trim() || `${this.category()} collection report`;
     const note = this.description.trim();
-    const newTicket: Ticket = {
-      id: `SW-${1050 + Math.floor(Math.random() * 40)}`,
+    const newTicket: TicketDraft = {
       title,
       category: this.category(),
       address: this.address.trim(),
-      status: 'Pending',
       priority: this.priority(),
-      time: 'Just now',
-      code: String(Math.floor(100000 + Math.random() * 900000)),
       // The API stores one description field, so keep the citizen's title in it.
       description: note ? `${title} — ${note}` : title,
       mediaData: this.mediaData(),
@@ -452,6 +465,7 @@ export class ReportModalComponent {
     StatusBadgeComponent,
     PriorityBadgeComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <app-modal
       [title]="ticket().title"
@@ -496,7 +510,7 @@ export class ReportModalComponent {
         </div>
       </div>
 
-      @if (ticket().code && ticket().status !== 'Completed') {
+      @if (ticket().code && !isClosedStatus(ticket().status)) {
         <div class="mt-4 flex items-center justify-between gap-4 rounded-[18px] border border-brand/20 bg-brand/10 p-5">
           <div>
             <p class="flex items-center gap-1.5 text-xs font-medium text-brand">
@@ -614,6 +628,7 @@ export class ReportModalComponent {
   `
 })
 export class TicketDetailModalComponent implements OnInit {
+  readonly isClosedStatus = isClosedStatus;
   ticket = input.required<Ticket>();
   close = output<void>();
 
@@ -714,6 +729,7 @@ export class TicketDetailModalComponent implements OnInit {
     StatusBadgeComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -804,7 +820,7 @@ export class WorkerRoutesViewComponent {
   startRoute = output<Ticket>();
 
   activeRouteTickets = computed(() => {
-    return this.tickets().filter((t) => t.status !== 'Completed');
+    return this.tickets().filter((t) => !isClosedStatus(t.status));
   });
   completedCount = computed(() => this.tickets().filter((ticket) => ticket.status === 'Completed').length);
 
@@ -830,6 +846,7 @@ export class WorkerRoutesViewComponent {
     ModalComponent,
     FieldLabelComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <app-modal
       title="Verify collection"

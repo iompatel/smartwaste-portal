@@ -18,6 +18,15 @@ export interface BackendUser {
   lastLoginAt?: string | null;
 }
 
+export interface BackendPublicWorker {
+  id: number;
+  firstName: string;
+  lastName: string;
+  role: 'worker';
+  ratingAverage?: number;
+  ratingCount?: number;
+}
+
 export interface BackendTicket {
   id: number;
   ticketCode: string;
@@ -43,7 +52,7 @@ export interface BackendTicket {
   slaDueAt?: string;
   slaOverdue?: boolean;
   requester?: BackendUser | null;
-  assignedWorker?: BackendUser | null;
+  assignedWorker?: BackendUser | BackendPublicWorker | null;
   review?: { rating: number; comment?: string } | null;
 }
 
@@ -60,7 +69,7 @@ export interface BackendHireRequest {
   workAddress: string;
   status: 'pending' | 'assigned' | 'completed' | 'cancelled';
   assignedWorkerId?: number | null;
-  assignedWorker?: BackendUser | null;
+  assignedWorker?: BackendUser | BackendPublicWorker | null;
   createdAt: string;
   updatedAt: string;
 }

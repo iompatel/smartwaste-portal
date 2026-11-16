@@ -68,14 +68,31 @@ export async function getFirebaseUserByEmail(email) {
   }
 }
 
-export async function createFirebaseUser({ email, password, displayName }) {
+export async function getFirebaseUserByUid(uid) {
   if (!firebaseEnabled) {
-    throw new Error('Firebase Admin is not configured.');
+    return null;
   }
 
-  return getAuth().createUser({
-    email,
-    password,
-    displayName,
-  });
+  try {
+    return await getAuth().getUser(String(uid));
+  } catch (error) {
+    if (error?.code === 'auth/user-not-found') return null;
+    throw error;
+  }
+}
+
+export async function updateFirebaseUser(uid, changes) {
+  if (!firebaseEnabled) throw new Error('Firebase Admin is not configured.');
+  return getAuth().updateUser(String(uid), changes);
+}
+
+export async function deleteFirebaseUser(uid) {
+  if (!firebaseEnabled || !uid) return false;
+  try {
+    await getAuth().deleteUser(String(uid));
+    return true;
+  } catch (error) {
+    if (error?.code === 'auth/user-not-found') return false;
+    throw error;
+  }
 }

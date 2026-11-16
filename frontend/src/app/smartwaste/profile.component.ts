@@ -1,4 +1,4 @@
-import { Component, computed, input, OnInit, output, signal } from '@angular/core';
+import { Component, computed, input, OnInit, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -28,6 +28,7 @@ import { BackendUser } from '../core/api.types';
     SectionHeaderComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <app-section-header
@@ -267,6 +268,7 @@ export class ProfileViewComponent implements OnInit {
     SectionHeaderComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <app-section-header

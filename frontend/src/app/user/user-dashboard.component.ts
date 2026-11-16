@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
@@ -12,7 +12,7 @@ import {
   SurfaceComponent,
   TextLinkComponent,
 } from '../shared/ui-components';
-import { Booking, Ticket, View } from '../smartwaste/data';
+import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
 
 @Component({
   selector: 'app-citizen-dashboard',
@@ -30,6 +30,7 @@ import { Booking, Ticket, View } from '../smartwaste/data';
     SurfaceComponent,
     TextLinkComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       <!-- Hero Banner (Citizen Portal) -->
@@ -387,7 +388,7 @@ export class CitizenDashboardComponent {
   activityTab = signal<'tickets' | 'bookings'>('tickets');
 
   reportCount = computed(() => this.tickets().length);
-  openCount = computed(() => this.tickets().filter((t) => t.status !== 'Completed').length);
+  openCount = computed(() => this.tickets().filter((t) => !isClosedStatus(t.status)).length);
   completedCount = computed(() => this.tickets().filter((t) => t.status === 'Completed').length);
   bookingCount = computed(() => this.bookings().length);
 
@@ -416,7 +417,7 @@ export class CitizenDashboardComponent {
     if (!list || list.length === 0) return null;
     return (
       list.find((t) => t.status === 'In progress') ??
-      list.find((t) => t.status !== 'Completed') ??
+      list.find((t) => !isClosedStatus(t.status)) ??
       null
     );
   });

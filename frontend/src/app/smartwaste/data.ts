@@ -9,7 +9,7 @@ export type View =
   | 'broadcast'
   | 'activity';
 
-export type TicketStatus = 'In progress' | 'Pending' | 'Completed' | 'Scheduled';
+export type TicketStatus = 'In progress' | 'Pending' | 'Completed' | 'Cancelled' | 'Scheduled';
 export type Priority = 'High' | 'Medium' | 'Low';
 
 export interface Ticket {
@@ -35,11 +35,14 @@ export interface Booking {
   title: string;
   worker: string;
   date: string;
-  status: 'Confirmed' | 'Pending' | 'Completed';
-  price: string;
+  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
   purpose?: string;
   address?: string;
   raw?: any;
+}
+
+export function isClosedStatus(status: TicketStatus | Booking['status']): boolean {
+  return status === 'Completed' || status === 'Cancelled';
 }
 
 export interface NavItem {
@@ -79,4 +82,3 @@ export const navByRole: Record<Role, NavItem[]> = {
 export const secondaryNav: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: 'settings-2' },
 ];
-

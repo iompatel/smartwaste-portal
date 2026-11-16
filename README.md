@@ -1,7 +1,7 @@
 # Smart Waste Management System (Web Portal)
 
 This project is a complete **web portal** implementation with:
-- Separate public, worker, and private-admin Angular builds (`frontend/`)
+- One shared Angular application deployed in fixed citizen, worker, and admin modes (`frontend/`)
 - Node.js + Express + MongoDB backend (`backend/`)
 
 ## Current Portal Features
@@ -27,12 +27,12 @@ This project is a complete **web portal** implementation with:
 
 ## Tech Stack
 
-- Frontend: Angular 19 (standalone components, Tailwind CSS v4)
+- Frontend: Angular 22 (standalone components, Tailwind CSS v4)
 - Backend: Node.js, Express 5, MongoDB, Mongoose
 - Public auth: Firebase/backend JWT bridge
 - Admin auth: short-lived HttpOnly cookie, DB-backed session, and CSRF protection
-- Database: MongoDB at `MONGO_URI`, with optional live-location storage at
-  `WORKER_LOCATION_MONGO_URI`
+- Database: MongoDB at `MONGO_URI`, with one optional startup-selected auxiliary store:
+  Cloudflare D1 or `WORKER_LOCATION_MONGO_URI`
 
 ## Firebase Setup
 
@@ -73,7 +73,7 @@ Default backend URI:
 MONGO_URI=mongodb://127.0.0.1:27017/smart_waste_portal
 ```
 
-### Optional second database for live GPS
+### Optional auxiliary database for live GPS and chat
 
 The main database keeps users, tickets, messages, notifications, reviews, and hire requests.
 Live worker GPS pings can use a separate MongoDB database because they are independent,
@@ -84,9 +84,11 @@ MONGO_URI=mongodb+srv://USER:PASSWORD@PRIMARY/smart_waste_portal
 WORKER_LOCATION_MONGO_URI=mongodb+srv://USER:PASSWORD@LOCATIONS/smart_waste_locations
 ```
 
-`WORKER_LOCATION_MONGO_URI` is optional. When it is blank, locations use `MONGO_URI`, so local
-development and existing deployments remain unchanged. Both backend services must receive the same
-two URI values. `/api/ready` reports each connection separately.
+Cloudflare D1 is authoritative when all three `CF_*` variables are configured; otherwise
+`WORKER_LOCATION_MONGO_URI` is authoritative when set. The backend refuses to start if the configured
+store is unavailable, rather than silently writing to another database. When neither is configured,
+the primary MongoDB is used. `/api/ready` reports the selected store and returns 503 when it is
+unavailable.
 
 MongoDB Atlas Free clusters (formerly M0) can host this setup. Atlas currently limits each Free
 cluster to 0.5 GB including indexes and 100 operations/second, with one Free cluster per Atlas
@@ -96,9 +98,9 @@ organization policies. Keep both clusters in the same region as Render to avoid 
 See the official [Atlas Free cluster limits](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/).
 
 This split gives the location workload a separate free quota; it does not make every request faster.
-Free tiers are suitable for demos and low traffic, not a production SLA. Ticket/profile images are
-the largest storage risk because they are stored as document data; move those files to object storage
-before database size becomes a concern rather than adding more application databases.
+Free tiers are suitable for demos and low traffic, not a production SLA. Configure
+`FIREBASE_STORAGE_BUCKET` to move ticket/profile images out of MongoDB; the backend creates download
+tokens and removes owned files when records are replaced or deleted.
 
 Do not split tickets, users, and assignments across databases: those flows depend on each other and
 would become slower and lose simple atomic updates. The compound indexes declared by the backend
@@ -200,9 +202,8 @@ free plan), deploy the Access application instead, set `REQUIRE_CF_ACCESS=true`,
 1. Deploy `smartwaste-admin-backend` and `smartwaste-admin` from `render.yaml`.
 2. Point the admin app's `API_BASE_URL` to `https://admin.example.com/api`, and set the backend's
    `ADMIN_FRONTEND_URL` to the exact admin-app origin.
-3. Give public and admin backends the same `MONGO_URI` and, when enabled, the same
-   `WORKER_LOCATION_MONGO_URI`. Their `SERVICE_MODE` values are pinned to `public` and `admin` in
-   `render.yaml`.
+3. Give public and admin backends the same database, D1, Firebase Admin, and storage settings. Their
+   `SERVICE_MODE` values are pinned to `public` and `admin` in `render.yaml`.
 4. Set `SEED_ADMIN_EMAIL` and a unique `SEED_ADMIN_PASSWORD` on the admin backend for its first
    startup.
 5. Confirm the admin account exists, then remove `SEED_ADMIN_PASSWORD` from Render.

@@ -253,7 +253,7 @@ export class ApiService {
       accepted: 'Scheduled',
       in_progress: 'In progress',
       completed: 'Completed',
-      cancelled: 'Completed',
+      cancelled: 'Cancelled',
     };
 
     const priorityMap: Record<string, Priority> = {
@@ -296,24 +296,16 @@ export class ApiService {
 
   // Map Backend HireRequest to UI Booking
   mapHireToUi(h: BackendHireRequest): Booking {
-    const statusMap: Record<string, 'Confirmed' | 'Pending' | 'Completed'> = {
+    const statusMap: Record<string, Booking['status']> = {
       pending: 'Pending',
       assigned: 'Confirmed',
       completed: 'Completed',
-      cancelled: 'Completed',
+      cancelled: 'Cancelled',
     };
 
     const workerName = h.assignedWorker
       ? `${h.assignedWorker.firstName} ${h.assignedWorker.lastName}`.trim()
       : 'Awaiting operative';
-
-    const priceMap: Record<string, string> = {
-      'Home cleaning': '$48',
-      'Garden cleanup': '$36',
-      'Bulk waste pickup': '$64',
-      'Balcony deep clean': '$48',
-      'Garage clear-out': '$72',
-    };
 
     return {
       id: h.requestCode || `BK-${h.id}`,
@@ -326,7 +318,6 @@ export class ApiService {
         day: 'numeric',
       }),
       status: statusMap[h.status] || 'Pending',
-      price: priceMap[h.title] || '$48',
       purpose: h.purpose,
       address: h.workAddress,
       raw: h,

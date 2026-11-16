@@ -57,3 +57,20 @@ test('keeps the Basic credential at the edge', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('rate limits failed Basic authentication by client IP', async () => {
+  const response = await worker.fetch(
+    new Request('https://admin.smartwaste.dpdns.org/', {
+      headers: { 'CF-Connecting-IP': '192.0.2.1' },
+    }),
+    {
+      BASIC_USER: 'admin',
+      BASIC_PASS: 'secret',
+      EDGE_SECRET: 'edge',
+      ADMIN_RATE_LIMITER: { limit: async () => ({ success: false }) },
+    },
+  );
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('retry-after'), '60');
+});

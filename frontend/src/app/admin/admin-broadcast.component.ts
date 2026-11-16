@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -20,6 +20,7 @@ import { AdminService } from '../core/admin.service';
     SectionHeaderComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
       <app-surface class="p-5 sm:p-7">
@@ -83,6 +84,9 @@ import { AdminService } from '../core/admin.service';
               Broadcast sent.
             </p>
           }
+          @if (error()) {
+            <p role="alert" class="text-xs text-danger">{{ error() }}</p>
+          }
         </form>
       </app-surface>
 
@@ -118,6 +122,7 @@ export class AdminBroadcastComponent implements OnInit {
   message = '';
   audience: '' | 'user' | 'worker' = '';
   sent = signal<boolean>(false);
+  error = signal<string>('');
   recentDispatches = signal<Array<{ title: string; audience: string; time: string }>>([]);
 
   constructor(private adminService: AdminService) {}
@@ -156,6 +161,7 @@ export class AdminBroadcastComponent implements OnInit {
     if (!this.title.trim() || !this.message.trim()) return;
 
     try {
+      this.error.set('');
       await this.adminService.sendBroadcast({
         title: this.title.trim(),
         message: this.message.trim(),
@@ -168,7 +174,7 @@ export class AdminBroadcastComponent implements OnInit {
       setTimeout(() => this.sent.set(false), 3500);
     } catch (err: any) {
       this.sent.set(false);
-      console.error('Failed to send broadcast:', err);
+      this.error.set(err?.message || 'Could not send the broadcast.');
     }
   }
 }

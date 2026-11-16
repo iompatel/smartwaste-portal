@@ -26,9 +26,19 @@ test('ticket media accepts bounded image data only', () => {
   assert.equal(isValidImageData(null, { required: true }), false);
   assert.equal(isValidImageData('data:image/jpeg;base64,YQ=='), true);
   assert.equal(isValidImageData('data:text/html;base64,YQ=='), false);
-  assert.equal(isValidImageData('https://storage.googleapis.com/smartwaste/ticket123.jpg'), true);
-  assert.equal(isValidImageData('http://example.com/image.png'), true);
+  assert.equal(isValidImageData('https://storage.googleapis.com/smartwaste/ticket123.jpg'), false);
+  assert.equal(isValidImageData('http://example.com/image.png'), false);
   assert.equal(isValidImageData('javascript:alert(1)'), false);
+});
+
+test('ticket media rejects third-party tracking URLs', () => {
+  assert.equal(isValidImageData('https://attacker.example/tracker.png'), false);
+  assert.equal(
+    isValidImageData(
+      'https://firebasestorage.googleapis.com/v0/b/test-bucket/o/tickets%2Fphoto.jpg?alt=media&token=x',
+    ),
+    true,
+  );
 });
 
 test('closed statuses and SLA targets are stable', () => {

@@ -1,7 +1,7 @@
 # SmartWaste Frontend Redesign Plan
 
 ## Project Overview
-- Angular 20 standalone components
+- Angular 22 standalone components
 - Three portals: User (4200), Worker (4400), Admin (4300)
 - Shared shell, components, services
 - Firebase auth + custom backend API
@@ -387,7 +387,7 @@ Wide: >= 1440px
 ### Auth Pages
 - `src/app/pages/auth/login.component.{html,ts}`
 - `src/app/pages/auth/signup.component.{html,ts}`
-- `src/app/pages/auth/forgot-password.component.{html,ts}`
+- Password reset is intentionally omitted until Firebase can send the reset email end to end.
 - `src/app/pages/auth/admin-login.component.{html,ts}`
 - `src/app/pages/auth/auth.component.scss` - Complete rewrite
 

@@ -1,4 +1,4 @@
-import { Component, computed, Directive, input } from '@angular/core';
+import { Component, computed, Directive, input, ChangeDetectionStrategy } from '@angular/core';
 import { cn } from './utils';
 
 export type ButtonVariant = 'default' | 'brand' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
@@ -67,6 +67,7 @@ export class ButtonDirective {
 @Component({
   selector: 'app-button',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <button
       [type]="type()"

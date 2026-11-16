@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, ChangeDetectionStrategy } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ICONS } from './icons.data';
 
@@ -17,6 +17,7 @@ import { ICONS } from './icons.data';
       [innerHTML]="svgContent()"
     ></svg>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     :host {
       display: inline-flex;

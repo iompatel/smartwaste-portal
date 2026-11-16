@@ -11,3 +11,11 @@ routes = [
 
 [vars]
 BASIC_USER = "admin"
+
+[[ratelimits]]
+name = "ADMIN_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

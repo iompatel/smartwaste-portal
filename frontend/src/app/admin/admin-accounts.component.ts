@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, input, signal } from '@angular/core';
+import { Component, OnInit, computed, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   AvatarComponent,
@@ -17,6 +17,7 @@ import { BackendUser } from '../core/api.types';
     SectionHeaderComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5">
       <app-section-header
@@ -25,6 +26,9 @@ import { BackendUser } from '../core/api.types';
         description="Review citizens, field operatives, and administrative access."
       >
       </app-section-header>
+      @if (error()) {
+        <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs text-danger">{{ error() }}</p>
+      }
 
       <app-surface class="p-5 sm:p-6">
         <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -95,6 +99,7 @@ import { BackendUser } from '../core/api.types';
 export class AdminAccountsComponent implements OnInit {
   search = input<string>('');
   accounts = signal<BackendUser[]>([]);
+  error = signal<string>('');
   workerCount = computed(() => this.accounts().filter((user) => user.role === 'worker').length);
   filteredAccounts = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -112,8 +117,9 @@ export class AdminAccountsComponent implements OnInit {
     try {
       const users = await this.adminService.getUsers();
       this.accounts.set(users ?? []);
-    } catch {
+    } catch (error: any) {
       this.accounts.set([]);
+      this.error.set(error?.message || 'Could not load accounts.');
     }
   }
 

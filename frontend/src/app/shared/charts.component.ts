@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface ActivityDataPoint {
@@ -17,6 +17,7 @@ export interface CategoryDataPoint {
   selector: 'app-activity-area-chart',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="relative flex h-full w-full select-none flex-col" (mouseleave)="hoverIndex.set(null)">
       <svg
@@ -231,6 +232,7 @@ export class ActivityAreaChartComponent {
   selector: 'app-waste-pie-chart',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="relative mx-auto flex h-[190px] w-full items-center justify-center select-none" (mouseleave)="hoverItem.set(null)">
       <svg class="size-[190px] overflow-visible" viewBox="-100 -100 200 200">

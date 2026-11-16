@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, effect, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
@@ -21,6 +21,7 @@ import {
 import {
   HandoverModalComponent,
   ReportModalComponent,
+  TicketDraft,
   TicketDetailModalComponent,
   TicketsViewComponent,
   WorkerRoutesViewComponent,
@@ -46,6 +47,7 @@ import {
   Role,
   Ticket,
   View,
+  isClosedStatus,
   navByRole,
   roleMeta,
 } from './data';
@@ -85,6 +87,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     WorkerLoginComponent,
     AdminLoginComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (!isLoggedIn() || (consoleMode() === 'admin' && currentUser()?.role !== 'admin') || (consoleMode() === 'worker' && currentUser()?.role !== 'worker') || (consoleMode() === 'citizen' && currentUser()?.role !== 'user')) {
       @if (consoleMode() === 'worker') {
@@ -447,6 +450,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   workerLocation = signal<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   private dutyTimer?: number;
   private popstateListener?: () => void;
+  private themeMedia?: MediaQueryList;
+  private themeMediaListener?: (event: MediaQueryListEvent) => void;
 
   currentUser = computed(() => this.auth.currentUser());
   isLoggedIn = computed(() => this.auth.isLoggedIn());
@@ -486,7 +491,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   });
 
   activeRouteCount = computed(() => {
-    return this.tickets().filter((t) => t.status !== 'Completed').length;
+    return this.tickets().filter((t) => !isClosedStatus(t.status)).length;
   });
 
   constructor(
@@ -569,9 +574,10 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         else if (user.role === 'user' && this.consoleMode() === 'citizen') this.role.set('citizen');
       }
 
-      const media = window.matchMedia('(prefers-color-scheme: dark)');
-      this.systemDark.set(media.matches);
-      media.addEventListener('change', (e) => this.systemDark.set(e.matches));
+      this.themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+      this.systemDark.set(this.themeMedia.matches);
+      this.themeMediaListener = (event) => this.systemDark.set(event.matches);
+      this.themeMedia.addEventListener('change', this.themeMediaListener);
     }
 
     if (this.isLoggedIn()) {
@@ -581,38 +587,22 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
 
   async loadData() {
     if (!this.isLoggedIn()) return;
-
-    try {
-      const liveTickets = await this.ticketService.getTickets();
-      if (liveTickets && liveTickets.length > 0) {
-        this.tickets.set(liveTickets.map((t) => this.apiService.mapTicketToUi(t)));
-      } else {
-        this.tickets.set([]);
-      }
-    } catch {
-      // Retain the last successful snapshot during transient API failures.
+    const [ticketsResult, hiresResult, notificationsResult] = await Promise.allSettled([
+      this.ticketService.getTickets(),
+      this.hireService.getHireRequests(),
+      this.adminService.getNotifications(),
+    ]);
+    if (ticketsResult.status === 'fulfilled') {
+      this.tickets.set(ticketsResult.value.map((ticket) => this.apiService.mapTicketToUi(ticket)));
     }
-
-    try {
-      const liveHires = await this.hireService.getHireRequests();
-      if (liveHires && liveHires.length > 0) {
-        this.bookings.set(liveHires.map((h) => this.apiService.mapHireToUi(h)));
-      } else {
-        this.bookings.set([]);
-      }
-    } catch {
-      // Retain the last successful snapshot during transient API failures.
+    if (hiresResult.status === 'fulfilled') {
+      this.bookings.set(hiresResult.value.map((hire) => this.apiService.mapHireToUi(hire)));
     }
-
-    try {
-      const liveNotifs = await this.adminService.getNotifications();
-      if (liveNotifs && liveNotifs.length > 0) {
-        this.notifications.set(liveNotifs);
-      } else {
-        this.notifications.set([]);
-      }
-    } catch {
-      // Retain the last successful snapshot during transient API failures.
+    if (notificationsResult.status === 'fulfilled') {
+      this.notifications.set(notificationsResult.value);
+    }
+    if ([ticketsResult, hiresResult, notificationsResult].some((result) => result.status === 'rejected')) {
+      this.toast.set('Some live data could not be refreshed. Showing the last available view.');
     }
 
     const user = this.currentUser();
@@ -628,6 +618,9 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     this.stopDutyHeartbeat();
     if (typeof window !== 'undefined' && this.popstateListener) {
       window.removeEventListener('popstate', this.popstateListener);
+    }
+    if (this.themeMedia && this.themeMediaListener) {
+      this.themeMedia.removeEventListener('change', this.themeMediaListener);
     }
   }
 
@@ -733,12 +726,12 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     try {
       await this.adminService.markAllNotificationsRead();
       this.notifications.update((list) => list.map((n) => ({ ...n, read: true })));
-    } catch (err) {
-      console.warn('Mark all read failed:', err);
+    } catch (err: any) {
+      this.toast.set(err?.message || 'Could not mark notifications as read.');
     }
   }
 
-  async createTicket(ticket: Ticket) {
+  async createTicket(ticket: TicketDraft) {
     try {
       const created = await this.ticketService.createTicket({
         wasteType: ticket.category,

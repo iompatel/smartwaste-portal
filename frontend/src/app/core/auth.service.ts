@@ -333,11 +333,19 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    const role = this.currentRole();
     try {
       await this.api.request('/api/auth/logout', { method: 'POST' });
     } catch {
       // ignore
     } finally {
+      if (role === 'citizen') {
+        const [{ signOut }, { firebaseAuth }] = await Promise.all([
+          import('firebase/auth'),
+          import('./firebase'),
+        ]);
+        await signOut(firebaseAuth).catch(() => undefined);
+      }
       this.api.clearAuth();
       this.currentUser.set(null);
     }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import {
@@ -16,6 +16,7 @@ import { AdminService } from '../core/admin.service';
     SectionHeaderComponent,
     SurfaceComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5">
       <app-section-header
@@ -23,6 +24,9 @@ import { AdminService } from '../core/admin.service';
         title="Audit activity"
         description="A transparent record of every administrative change."
       ></app-section-header>
+      @if (error()) {
+        <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs text-danger">{{ error() }}</p>
+      }
 
       <app-surface class="p-5 sm:p-7">
         <div class="flex items-center gap-2 rounded-[14px] bg-brand/10 px-4 py-3 text-xs text-brand">
@@ -57,6 +61,7 @@ import { AdminService } from '../core/admin.service';
 })
 export class AdminActivityComponent implements OnInit {
   audits = signal<Array<{ action: string; actor: string; target: string; time: string; icon: string }>>([]);
+  error = signal<string>('');
 
   constructor(private adminService: AdminService) {}
 
@@ -72,8 +77,9 @@ export class AdminActivityComponent implements OnInit {
           icon: 'shield-check',
         })),
       );
-    } catch {
+    } catch (error: any) {
       this.audits.set([]);
+      this.error.set(error?.message || 'Could not load audit activity.');
     }
   }
 }

@@ -8,9 +8,11 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 
 import {
-  createFirebaseUser,
+  deleteFirebaseUser,
   getFirebaseUserByEmail,
+  getFirebaseUserByUid,
   isFirebaseEnabled,
+  updateFirebaseUser,
   verifyFirebaseIdToken,
 } from './firebase-admin.js';
 import {
@@ -45,9 +47,11 @@ import {
   normalizeWorkerLocation,
 } from './location-policy.js';
 import { fastCache } from './cache.js';
-import { uploadMedia } from './storage.js';
+import { deleteMedia, uploadMedia } from './storage.js';
 import {
   isD1Configured,
+  isD1PartiallyConfigured,
+  isD1Ready,
   initD1Tables,
   D1WorkerLocation,
   D1TicketMessage,
@@ -150,6 +154,9 @@ function sanitizeUser(user) {
   const safe = cleanRecord(user);
   delete safe.passwordHash;
   delete safe.tokenVersion;
+  delete safe.firebaseUid;
+  delete safe.firebaseProvider;
+  delete safe.disabled;
   return safe;
 }
 
@@ -199,15 +206,18 @@ const counterSchema = new mongoose.Schema(
 const userSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    gender: { type: String, required: true, trim: true },
-    mobile: { type: String, required: true, trim: true },
+    firstName: { type: String, required: true, trim: true, maxlength: 100 },
+    lastName: { type: String, required: true, trim: true, maxlength: 100 },
+    gender: { type: String, required: true, enum: ['Female', 'Male', 'Other'] },
+    mobile: { type: String, required: true, trim: true, maxlength: 15 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     role: { type: String, required: true, enum: USER_ROLES },
-    address: { type: String, required: true, trim: true },
+    address: { type: String, required: true, trim: true, maxlength: 500 },
     profileImage: { type: String, default: null },
+    firebaseUid: { type: String, unique: true, sparse: true },
+    firebaseProvider: { type: String, default: null },
+    disabled: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     lastLoginAt: { type: Date, default: null },
@@ -268,6 +278,7 @@ const notificationSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true, unique: true },
     userId: { type: Number, default: null },
+    targetRole: { type: String, enum: USER_ROLES, default: null },
     title: { type: String, required: true, trim: true },
     message: { type: String, required: true, trim: true },
     readBy: { type: [Number], default: [] },
@@ -276,7 +287,7 @@ const notificationSchema = new mongoose.Schema(
   { versionKey: false, collection: 'notifications' },
 );
 
-notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, targetRole: 1, createdAt: -1 });
 
 const adminActivitySchema = new mongoose.Schema(
   {
@@ -325,6 +336,13 @@ const hireRequestSchema = new mongoose.Schema(
 
 hireRequestSchema.index({ status: 1, assignedWorkerId: 1 });
 hireRequestSchema.index({ userId: 1, updatedAt: -1 });
+hireRequestSchema.index(
+  { assignedWorkerId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: 'assigned', assignedWorkerId: { $type: 'number' } },
+  },
+);
 
 const adminSessionSchema = new mongoose.Schema(
   {
@@ -350,16 +368,28 @@ const PENDING_REGISTRATION_TTL_MS = 24 * 60 * 60 * 1000;
 const pendingRegistrationSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    gender: { type: String, required: true, trim: true },
-    mobile: { type: String, required: true, trim: true },
-    address: { type: String, required: true, trim: true },
+    firebaseUid: { type: String, required: true, trim: true },
+    firebaseProvider: { type: String, default: 'password' },
+    firstName: { type: String, required: true, trim: true, maxlength: 100 },
+    lastName: { type: String, required: true, trim: true, maxlength: 100 },
+    gender: { type: String, required: true, enum: ['Female', 'Male', 'Other'] },
+    mobile: { type: String, required: true, trim: true, maxlength: 15 },
+    address: { type: String, required: true, trim: true, maxlength: 500 },
     profileImage: { type: String, default: null },
     createdAt: { type: Date, default: Date.now },
     expiresAt: { type: Date, required: true, expires: 0 },
   },
   { versionKey: false, collection: 'pending_registrations' },
+);
+
+const deletedIdentitySchema = new mongoose.Schema(
+  {
+    emailHash: { type: String, required: true, unique: true },
+    firebaseUidHash: { type: String, sparse: true },
+    deletedAt: { type: Date, default: Date.now },
+    deletedByAdminId: { type: Number, required: true },
+  },
+  { versionKey: false, collection: 'deleted_identities' },
 );
 
 const ticketMessageSchema = new mongoose.Schema(
@@ -414,11 +444,15 @@ const AdminActivity = mongoose.model('AdminActivity', adminActivitySchema);
 const HireRequest = mongoose.model('HireRequest', hireRequestSchema);
 const AdminSession = mongoose.model('AdminSession', adminSessionSchema);
 const PendingRegistration = mongoose.model('PendingRegistration', pendingRegistrationSchema);
+const DeletedIdentity = mongoose.model('DeletedIdentity', deletedIdentitySchema);
 const Review = mongoose.model('Review', reviewSchema);
 
-// Secondary database sharding with fail-safe dynamic fallback proxies for GPS and Chat
+// GPS and chat use one store selected before the server accepts traffic. We do
+// not switch stores at runtime because doing so would split or hide data.
 let locationConn = null;
 let isLocationConnHealthy = false;
+let auxiliaryStore = 'primary';
+let d1CleanupTimer = null;
 if (WORKER_LOCATION_MONGO_URI) {
   locationConn = mongoose.createConnection(WORKER_LOCATION_MONGO_URI, {
     serverSelectionTimeoutMS: 5000,
@@ -430,11 +464,11 @@ if (WORKER_LOCATION_MONGO_URI) {
   });
   locationConn.on('error', (err) => {
     isLocationConnHealthy = false;
-    console.error('[db] Secondary database error (fallback active):', err.message);
+    console.error('[db] Secondary database error:', err.message);
   });
   locationConn.on('disconnected', () => {
     isLocationConnHealthy = false;
-    console.warn('[db] Secondary database disconnected (fallback active).');
+    console.warn('[db] Secondary database disconnected.');
   });
 }
 
@@ -449,13 +483,24 @@ const SecondaryTicketMessage = locationConn
   : null;
 
 function getActiveModel(d1Model, secondaryMongoModel, primaryModel) {
-  if (isD1Configured() && d1Model) {
+  if (auxiliaryStore === 'd1' && d1Model) {
     return d1Model;
   }
-  if (locationConn && (locationConn.readyState === 1 || isLocationConnHealthy) && secondaryMongoModel) {
+  if (auxiliaryStore === 'secondary' && secondaryMongoModel) {
     return secondaryMongoModel;
   }
   return primaryModel;
+}
+
+function selectAuxiliaryStore({
+  d1Configured,
+  d1Initialized,
+  secondaryConfigured,
+  secondaryReady,
+}) {
+  if (d1Configured) return d1Initialized ? 'd1' : null;
+  if (secondaryConfigured) return secondaryReady ? 'secondary' : null;
+  return 'primary';
 }
 
 const WorkerLocation = new Proxy(PrimaryWorkerLocation, {
@@ -510,10 +555,11 @@ async function syncCounter(key, Model) {
   );
 }
 
-async function createNotification({ userId = null, title, message }) {
+async function createNotification({ userId = null, targetRole = null, title, message }) {
   const notification = await Notification.create({
     id: await nextId('notifications'),
     userId,
+    targetRole,
     title,
     message,
     readBy: [],
@@ -569,10 +615,72 @@ function cleanBoundedText(value, maxLength = MAX_TICKET_TEXT_LENGTH) {
   return text && text.length <= maxLength ? text : null;
 }
 
+function firebaseIdentity(decoded) {
+  return {
+    uid: String(decoded?.uid ?? decoded?.sub ?? '').trim(),
+    provider: String(decoded?.firebase?.sign_in_provider ?? '').trim() || null,
+  };
+}
+
+function deletedIdentityFilter(email, uid = '') {
+  const filters = [{ emailHash: hashAdminSecret(normalizeEmail(email)) }];
+  if (uid) filters.push({ firebaseUidHash: hashAdminSecret(uid) });
+  return { $or: filters };
+}
+
+function normalizeAccountProfile({ firstName, lastName, gender, mobile, address }) {
+  const allowedGenders = ['Female', 'Male', 'Other'];
+  const normalizedGender = allowedGenders.find(
+    (item) => item.toLowerCase() === String(gender ?? '').trim().toLowerCase(),
+  );
+  const profile = {
+    firstName: cleanBoundedText(firstName, 100),
+    lastName: cleanBoundedText(lastName, 100),
+    gender: normalizedGender ?? null,
+    mobile: cleanBoundedText(mobile, 15),
+    address: cleanBoundedText(address, 500),
+  };
+  if (
+    Object.values(profile).some((value) => !value) ||
+    !/^\d{10,15}$/.test(profile.mobile)
+  ) {
+    return null;
+  }
+  return profile;
+}
+
+function publicWorkerProfile(user) {
+  if (!user) return null;
+  return {
+    id: Number(user.id),
+    firstName: String(user.firstName ?? ''),
+    lastName: String(user.lastName ?? ''),
+    role: 'worker',
+    ratingAverage: Number(user.ratingAverage ?? 0),
+    ratingCount: Number(user.ratingCount ?? 0),
+  };
+}
+
+async function firebaseRecordForUser(user) {
+  if (!user || !isFirebaseEnabled()) return null;
+  if (user.firebaseUid) {
+    const byUid = await getFirebaseUserByUid(user.firebaseUid);
+    if (byUid) return byUid;
+  }
+  return getFirebaseUserByEmail(user.email);
+}
+
+function firebaseProviderFromRecord(record) {
+  return record?.providerData?.[0]?.providerId ?? null;
+}
+
 function isValidProfileImage(value) {
   if (value === null || value === undefined || value === '') return true;
   const text = String(value);
-  return isValidImageData(text) || (text.length <= 2_000 && /^https:\/\//i.test(text));
+  return (
+    isValidImageData(text) ||
+    (text.length <= 2_000 && /^https:\/\/[a-z0-9.-]*googleusercontent\.com\//i.test(text))
+  );
 }
 
 function appendTicketStatus(ticket, status, actor, note = null, at = new Date()) {
@@ -612,7 +720,7 @@ async function buildTicketRecords(rows, viewer = null) {
       : [],
     ticketIds.length ? Review.find({ ticketId: { $in: ticketIds } }).lean() : [],
   ]);
-  const userMap = new Map(users.map((user) => [Number(user.id), sanitizeUser(user)]));
+  const userMap = new Map(users.map((user) => [Number(user.id), user]));
   const reviewMap = new Map(reviews.map((review) => [Number(review.ticketId), cleanRecord(review)]));
 
   return rows.map((ticket) => {
@@ -624,14 +732,17 @@ async function buildTicketRecords(rows, viewer = null) {
     const slaDueAt = new Date(
       new Date(record.createdAt).getTime() + ticketSlaHours(record.priority) * 60 * 60 * 1000,
     );
+    const requester = userMap.get(Number(record.userId)) ?? null;
+    const worker = userMap.get(Number(record.workerId)) ?? null;
     return {
       ...record,
-      hasMedia: Boolean(ticket.mediaData),
-      hasCompletionMedia: Boolean(ticket.completionMediaData),
       slaDueAt,
       slaOverdue: !isClosedTicket(record.status) && slaDueAt.getTime() < Date.now(),
-      requester: userMap.get(Number(record.userId)) ?? null,
-      assignedWorker: userMap.get(Number(record.workerId)) ?? null,
+      requester: requester ? sanitizeUser(requester) : null,
+      assignedWorker:
+        viewer?.role === 'admin' || viewer?.id === worker?.id
+          ? sanitizeUser(worker)
+          : publicWorkerProfile(worker),
       review: reviewMap.get(Number(record.id)) ?? null,
     };
   });
@@ -687,23 +798,16 @@ function buildTicketDetailsMessage(ticket, requester) {
 }
 
 async function getBusyWorkerIds() {
-  const cached = fastCache.get('workers:busy');
-  if (cached) {
-    return cached;
-  }
-
   const rows = await HireRequest.find(
     { status: 'assigned', assignedWorkerId: { $ne: null } },
     { assignedWorkerId: 1 },
   ).lean();
 
-  const busySet = new Set(
+  return new Set(
     rows
       .map((row) => Number(row.assignedWorkerId))
       .filter((value) => Number.isFinite(value) && value > 0),
   );
-  fastCache.set('workers:busy', busySet, 5000);
-  return busySet;
 }
 
 async function pickFreeWorkerIdForTicket(wasteType = '') {
@@ -931,24 +1035,6 @@ async function ensureSeedAdmin() {
   });
 }
 
-async function ensureUserExistsInFirebase(localUser) {
-  if (!localUser || !isFirebaseEnabled()) {
-    return;
-  }
-
-  const existing = await getFirebaseUserByEmail(localUser.email);
-  if (existing) {
-    return;
-  }
-
-  const displayName = `${localUser.firstName} ${localUser.lastName}`.trim();
-  await createFirebaseUser({
-    email: localUser.email,
-    password: `Temp#${createAdminSecret()}`,
-    displayName: displayName || 'Smart Waste User',
-  });
-}
-
 async function purgeDemoAccounts() {
   const demoEmails = [
     'admin@smartwaste.com',
@@ -1084,10 +1170,9 @@ function isAllowedOrigin(origin) {
   if (!origin) return true;
   const normalized = String(origin).trim().replace(/\/$/, '');
   if (allowedOrigins.has(normalized)) return true;
-  // Local development hosts on any port (4200, 4300, 4400, etc.)
-  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) return true;
-  // Any SmartWaste deployment on Render (smartwasteportal, smartwasteworker, smartwasteadmin, etc.)
-  if (/^https:\/\/smartwaste[a-z0-9-]*\.onrender\.com$/.test(normalized)) return true;
+  if (!IS_PRODUCTION && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) {
+    return true;
+  }
   return false;
 }
 
@@ -1102,7 +1187,7 @@ app.use((req, res, next) => {
   if (!ADMIN_EDGE_SECRET_HASH || !ADMIN_AUTH_ENABLED || !IS_PRODUCTION) {
     return next();
   }
-  if (req.path === '/api/health') {
+  if (['/api/health', '/api/ready'].includes(req.path)) {
     return next();
   }
   if (!matchesAdminSecret(req.get('X-Admin-Edge') ?? '', ADMIN_EDGE_SECRET_HASH)) {
@@ -1120,16 +1205,30 @@ app.use(
   }),
 );
 
+function authClientIp(req) {
+  const rawIp =
+    (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') ||
+    req.ip ||
+    '127.0.0.1';
+  return ipKeyGenerator(rawIp);
+}
+
+const authIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  keyGenerator: authClientIp,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts from this network. Try again later.' },
+});
+
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   keyGenerator: (req) => {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
-    const rawIp =
-      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') ||
-      req.ip ||
-      '127.0.0.1';
-    const clientIp = ipKeyGenerator(rawIp);
+    const clientIp = authClientIp(req);
     return email ? `${email}:${clientIp}` : clientIp;
   },
   skipSuccessfulRequests: true,
@@ -1139,15 +1238,11 @@ const authLimiter = rateLimit({
 });
 
 const adminAuthLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   keyGenerator: (req) => {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
-    const rawIp =
-      (IS_PRODUCTION ? String(req.get('CF-Connecting-IP') ?? '').trim() : '') ||
-      req.ip ||
-      '127.0.0.1';
-    const clientIp = ipKeyGenerator(rawIp);
+    const clientIp = authClientIp(req);
     return email ? `${email}:${clientIp}` : clientIp;
   },
   skipSuccessfulRequests: true,
@@ -1187,6 +1282,7 @@ app.use('/api/auth', (req, res, next) => {
   }
   return next();
 });
+app.use('/api/auth', authIpLimiter);
 app.use('/api/auth/admin-login', adminAuthLimiter);
 app.use('/api/auth', (req, res, next) => {
   if (req.path === '/admin-login') return next();
@@ -1226,7 +1322,7 @@ async function authenticateAdminSession(req, res) {
   }
 
   const user = await User.findOne({ id: session.userId, role: 'admin' }).lean();
-  if (!user) {
+  if (!user || user.disabled) {
     await AdminSession.deleteOne({ _id: session._id });
     clearAdminCookie(res);
     return false;
@@ -1269,7 +1365,7 @@ async function authMiddleware(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await User.findOne({ id: payload.id }).lean();
 
-    if (!user) {
+    if (!user || user.disabled) {
       return res.status(401).json({ message: 'Invalid auth token' });
     }
 
@@ -1326,7 +1422,7 @@ async function handlePasswordLogin(req, res, portal) {
   }
 
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user || !(await comparePassword(String(password), user.passwordHash))) {
+  if (!user || user.disabled || !(await comparePassword(String(password), user.passwordHash))) {
     return res.status(401).json({ message: 'Invalid email or password.' });
   }
 
@@ -1364,7 +1460,7 @@ async function handleAdminLogin(req, res) {
   const passwordValid = user
     ? await comparePassword(String(password), user.passwordHash)
     : false;
-  if (!user || user.role !== 'admin' || !passwordValid) {
+  if (!user || user.disabled || user.role !== 'admin' || !passwordValid) {
     return res.status(401).json({ message: 'Invalid admin credentials.' });
   }
 
@@ -1420,24 +1516,22 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/ready', (_req, res) => {
   const primaryConnected = mongoose.connection.readyState === 1;
-  const d1Enabled = isD1Configured();
-  const secondaryMongoConfigured = Boolean(WORKER_LOCATION_MONGO_URI);
-  let secondaryStatus = 'shared-with-primary';
-  if (d1Enabled) {
-    secondaryStatus = 'cloudflare-d1';
-  } else if (secondaryMongoConfigured) {
-    secondaryStatus = isLocationConnHealthy || (locationConn && locationConn.readyState === 1)
-      ? 'connected'
-      : 'fallback-to-primary';
-  }
-
-  const connected = primaryConnected;
+  const auxiliaryConnected =
+    auxiliaryStore === 'd1'
+      ? isD1Ready()
+      : auxiliaryStore === 'secondary'
+        ? Boolean(isLocationConnHealthy && locationConn?.readyState === 1)
+        : primaryConnected;
+  const connected = primaryConnected && auxiliaryConnected;
   res.status(connected ? 200 : 503).json({
     status: connected ? 'ready' : 'unavailable',
     time: new Date().toISOString(),
     databases: {
       primary: primaryConnected ? 'connected' : 'disconnected',
-      secondary: secondaryStatus,
+      auxiliary: {
+        store: auxiliaryStore,
+        status: auxiliaryConnected ? 'connected' : 'disconnected',
+      },
     },
   });
 });
@@ -1456,7 +1550,7 @@ app.post('/api/auth/signup', async (req, res) => {
     profileImage = null,
   } = req.body ?? {};
 
-  if (!idToken || !firstName || !lastName || !mobile || !address) {
+  if (!idToken) {
     return res.status(400).json({ message: 'Please fill all mandatory fields.' });
   }
 
@@ -1472,26 +1566,44 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 
   const normalizedEmail = normalizeEmail(decoded.email);
+  const identity = firebaseIdentity(decoded);
   if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
     return res.status(400).json({ message: 'Invalid email format.' });
   }
+  if (!identity.uid) {
+    return res.status(400).json({ message: 'Firebase identity is missing.' });
+  }
+  if (
+    await DeletedIdentity.exists(deletedIdentityFilter(normalizedEmail, identity.uid))
+  ) {
+    return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
+  }
 
-  const existing = await User.findOne({ email: normalizedEmail }, { id: 1 }).lean();
+  const profile = normalizeAccountProfile({ firstName, lastName, gender, mobile, address });
+  if (!profile) {
+    return res.status(400).json({ message: 'Profile fields are invalid or too long.' });
+  }
+  if (!isValidProfileImage(profileImage)) {
+    return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
+  }
+
+  const existing = await User.findOne(
+    { $or: [{ email: normalizedEmail }, { firebaseUid: identity.uid }] },
+    { id: 1 },
+  ).lean();
   if (existing) {
     return res.status(409).json({ message: 'Email already registered.' });
   }
 
-  const storedProfileImage = profileImage ? await uploadMedia(profileImage, 'profiles') : null;
+  const storedProfileImage = profileImage || null;
   const now = new Date();
   await PendingRegistration.findOneAndUpdate(
     { email: normalizedEmail },
     {
       $set: {
-        firstName: String(firstName).trim(),
-        lastName: String(lastName).trim(),
-        gender: String(gender).trim(),
-        mobile: String(mobile).trim(),
-        address: String(address).trim(),
+        firebaseUid: identity.uid,
+        firebaseProvider: identity.provider,
+        ...profile,
         profileImage: storedProfileImage,
         createdAt: now,
         expiresAt: new Date(now.getTime() + PENDING_REGISTRATION_TTL_MS),
@@ -1522,6 +1634,10 @@ app.post('/api/auth/complete-signup', async (req, res) => {
   }
 
   const email = normalizeEmail(decoded.email);
+  const identity = firebaseIdentity(decoded);
+  if (!identity.uid) {
+    return res.status(400).json({ message: 'Firebase identity is missing.' });
+  }
   if (decoded.email_verified !== true) {
     return res.status(403).json({
       code: 'EMAIL_NOT_VERIFIED',
@@ -1529,8 +1645,20 @@ app.post('/api/auth/complete-signup', async (req, res) => {
     });
   }
 
-  const existing = await User.findOne({ email });
+  if (await DeletedIdentity.exists(deletedIdentityFilter(email, identity.uid))) {
+    return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
+  }
+
+  const existing = await User.findOne({
+    $or: [{ email }, { firebaseUid: identity.uid }],
+  });
   if (existing) {
+    if (existing.disabled) {
+      return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
+    }
+    if (existing.firebaseUid && existing.firebaseUid !== identity.uid) {
+      return res.status(409).json({ message: 'Email is linked to another identity.' });
+    }
     if (!canUseLoginPortal(existing.role, 'public')) {
       return res.status(403).json({
         message:
@@ -1538,6 +1666,10 @@ app.post('/api/auth/complete-signup', async (req, res) => {
             ? 'Admin accounts must use the Admin Console.'
             : 'Worker accounts must use the Worker Console.',
       });
+    }
+    if (!existing.firebaseUid) {
+      existing.firebaseUid = identity.uid;
+      existing.firebaseProvider = identity.provider;
     }
     return sendLoginResponse(existing, res);
   }
@@ -1549,8 +1681,15 @@ app.post('/api/auth/complete-signup', async (req, res) => {
   if (!pending) {
     return res.status(410).json({ message: 'Registration expired. Please sign up again.' });
   }
+  if (pending.firebaseUid && pending.firebaseUid !== identity.uid) {
+    return res.status(409).json({ message: 'Registration belongs to another identity.' });
+  }
 
   const now = new Date();
+  const storedProfileImage = pending.profileImage
+    ? await uploadMedia(pending.profileImage, 'profiles')
+    : null;
+  const uploadedProfileImage = storedProfileImage !== pending.profileImage;
   let user;
   try {
     user = await User.create({
@@ -1563,7 +1702,9 @@ app.post('/api/auth/complete-signup', async (req, res) => {
       passwordHash: await hashPassword(createAdminSecret()),
       role: 'user',
       address: pending.address,
-      profileImage: pending.profileImage,
+      profileImage: storedProfileImage,
+      firebaseUid: identity.uid,
+      firebaseProvider: identity.provider,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,
@@ -1572,10 +1713,12 @@ app.post('/api/auth/complete-signup', async (req, res) => {
     if (err?.code === 11000) {
       user = await User.findOne({ email });
       if (user) {
+        if (uploadedProfileImage) await deleteMedia(storedProfileImage).catch(() => undefined);
         await PendingRegistration.deleteOne({ email });
         return sendLoginResponse(user, res);
       }
     }
+    if (uploadedProfileImage) await deleteMedia(storedProfileImage).catch(() => undefined);
     throw err;
   }
 
@@ -1632,8 +1775,15 @@ app.post('/api/auth/firebase-login', async (req, res) => {
   }
 
   const email = normalizeEmail(decoded.email);
+  const identity = firebaseIdentity(decoded);
   if (!email) {
     return res.status(400).json({ message: 'No email found in Firebase token.' });
+  }
+  if (!identity.uid) {
+    return res.status(400).json({ message: 'Firebase identity is missing.' });
+  }
+  if (await DeletedIdentity.exists(deletedIdentityFilter(email, identity.uid))) {
+    return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
   }
 
   // Email-verification policy: password-provider logins must have a verified
@@ -1646,7 +1796,14 @@ app.post('/api/auth/firebase-login', async (req, res) => {
     });
   }
 
-  let user = await User.findOne({ email });
+  let user = await User.findOne({ firebaseUid: identity.uid });
+  if (!user) user = await User.findOne({ email });
+  if (user?.disabled) {
+    return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
+  }
+  if (user?.firebaseUid && user.firebaseUid !== identity.uid) {
+    return res.status(409).json({ message: 'Email is linked to another identity.' });
+  }
   if (user && !canUseLoginPortal(user.role, 'public')) {
     return res.status(403).json({
       message:
@@ -1670,60 +1827,82 @@ app.post('/api/auth/firebase-login', async (req, res) => {
     const nameParts = fullName.split(/\s+/).filter(Boolean);
     const derivedFirstName = nameParts[0] ?? 'Firebase';
     const derivedLastName = nameParts.slice(1).join(' ') || 'User';
-
-    user = await User.create({
-      id: await nextId('users'),
-      firstName: String(pending?.firstName ?? firstName ?? derivedFirstName).trim(),
-      lastName: String(pending?.lastName ?? lastName ?? derivedLastName).trim(),
-      gender: String(pending?.gender ?? gender).trim(),
-      mobile: String(pending?.mobile ?? mobile).trim(),
-      email,
-      passwordHash: await hashPassword(createAdminSecret()),
-      role: 'user',
-      address: String(pending?.address ?? address).trim(),
-      profileImage: profileImage ?? pending?.profileImage ?? decoded.picture ?? null,
-      createdAt: now,
-      updatedAt: now,
-      lastLoginAt: now,
+    if (pending?.firebaseUid && pending.firebaseUid !== identity.uid) {
+      return res.status(409).json({ message: 'Registration belongs to another identity.' });
+    }
+    const profile = normalizeAccountProfile({
+      firstName: pending?.firstName ?? firstName ?? derivedFirstName,
+      lastName: pending?.lastName ?? lastName ?? derivedLastName,
+      gender: pending?.gender ?? gender,
+      mobile: pending?.mobile ?? mobile,
+      address: pending?.address ?? address,
     });
+    const nextProfileImage = profileImage ?? pending?.profileImage ?? decoded.picture ?? null;
+    if (!profile || !isValidProfileImage(nextProfileImage)) {
+      return res.status(400).json({ message: 'Firebase profile fields are invalid or too long.' });
+    }
+    const storedProfileImage = nextProfileImage
+      ? await uploadMedia(nextProfileImage, 'profiles')
+      : null;
+    const uploadedProfileImage = storedProfileImage !== nextProfileImage;
+
+    let createdNewUser = false;
+    try {
+      user = await User.create({
+        id: await nextId('users'),
+        ...profile,
+        email,
+        passwordHash: await hashPassword(createAdminSecret()),
+        role: 'user',
+        profileImage: storedProfileImage,
+        firebaseUid: identity.uid,
+        firebaseProvider: identity.provider,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+      });
+      createdNewUser = true;
+    } catch (error) {
+      if (uploadedProfileImage) await deleteMedia(storedProfileImage).catch(() => undefined);
+      if (error?.code === 11000) {
+        user = await User.findOne({ $or: [{ email }, { firebaseUid: identity.uid }] });
+      }
+      if (!user) throw error;
+    }
+    if (user.disabled) {
+      return res.status(403).json({ message: 'This account is disabled. Contact an administrator.' });
+    }
+    if (!canUseLoginPortal(user.role, 'public')) {
+      return res.status(403).json({ message: 'This account must use its assigned staff console.' });
+    }
 
     await PendingRegistration.deleteOne({ email });
 
-    await createNotification({
-      userId: user.id,
-      title: 'Account Created',
-      message: 'Welcome to Smart Waste Management System.',
-    });
+    if (createdNewUser) {
+      await createNotification({
+        userId: user.id,
+        title: 'Account Created',
+        message: 'Welcome to Smart Waste Management System.',
+      });
+    }
+  } else {
+    let changed = false;
+    if (!user.firebaseUid) {
+      user.firebaseUid = identity.uid;
+      user.firebaseProvider = identity.provider;
+      changed = true;
+    }
+    if (user.email !== email) {
+      if (await User.exists({ email, id: { $ne: user.id } })) {
+        return res.status(409).json({ message: 'Email already belongs to another account.' });
+      }
+      user.email = email;
+      changed = true;
+    }
+    if (changed) await user.save();
   }
 
   return sendLoginResponse(user, res);
-});
-
-app.post('/api/auth/forgot-password', async (req, res) => {
-  const email = normalizeEmail(req.body?.email);
-  if (!email) {
-    return res.status(400).json({ message: 'Email is required.' });
-  }
-
-  const user = await User.findOne({ email, role: 'user' }).lean();
-
-  try {
-    if (user) {
-      await ensureUserExistsInFirebase(user);
-    }
-  } catch {
-    return res.status(500).json({ message: 'Unable to prepare reset for this account.' });
-  }
-
-  if (user) {
-    await createNotification({
-      userId: user.id,
-      title: 'Password Reset Requested',
-      message: 'Password reset requested. Check your email inbox and spam folder.',
-    });
-  }
-
-  return res.json({ message: 'If email exists, reset instructions were sent.' });
 });
 
 app.post('/api/auth/logout', authMiddleware, async (req, res) => {
@@ -1738,14 +1917,16 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
     });
     await AdminSession.deleteOne({ _id: req.adminSessionId });
     clearAdminCookie(res);
-  } else if (req.user.role === 'worker') {
-    await Promise.all([
-      User.updateOne(
-        { id: req.user.id, role: 'worker' },
-        { $set: { workerOnline: false, workerLastSeenAt: null } },
-      ),
-      WorkerLocation.deleteOne({ workerId: req.user.id }),
-    ]);
+  } else {
+    const update = { $inc: { tokenVersion: 1 } };
+    if (req.user.role === 'worker') {
+      update.$set = { workerOnline: false, workerLastSeenAt: null };
+    }
+    await User.updateOne({ id: req.user.id }, update);
+    if (req.user.role === 'worker') {
+      await WorkerLocation.deleteOne({ workerId: req.user.id });
+      fastCache.invalidate('workers:');
+    }
   }
 
   return res.json({ message: 'Logged out successfully.' });
@@ -1780,9 +1961,20 @@ app.put('/api/me', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
 
+  const oldProfileImage = user.profileImage ?? null;
   const storedProfileImage = await uploadMedia(nextProfileImage, 'profiles');
   Object.assign(user, next, { profileImage: storedProfileImage, updatedAt: new Date() });
-  await user.save();
+  try {
+    await user.save();
+  } catch (error) {
+    if (storedProfileImage !== oldProfileImage) {
+      await deleteMedia(storedProfileImage).catch(() => undefined);
+    }
+    throw error;
+  }
+  if (oldProfileImage && oldProfileImage !== storedProfileImage) {
+    await deleteMedia(oldProfileImage);
+  }
   if (req.user.role === 'admin') {
     await createAdminActivity({
       adminUser: user,
@@ -1975,6 +2167,16 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
   if (!isStrongPassword(password)) {
     return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
   }
+  const profile = normalizeAccountProfile({
+    firstName,
+    lastName,
+    gender: gender ?? 'Other',
+    mobile,
+    address,
+  });
+  if (!profile) {
+    return res.status(400).json({ message: 'Profile fields are invalid or too long.' });
+  }
   if (!isValidProfileImage(profileImage)) {
     return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
@@ -1989,23 +2191,26 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
 
   const storedProfileImage = profileImage ? await uploadMedia(profileImage, 'profiles') : null;
   const now = new Date();
-  const user = await User.create({
-    id: await nextId('users'),
-    firstName: String(firstName).trim(),
-    lastName: String(lastName).trim(),
-    gender: String(gender ?? 'Other').trim(),
-    mobile: String(mobile).trim(),
-    email: normalizedEmail,
-    passwordHash: await hashPassword(String(password)),
-    role: allowedRole,
-    address: String(address).trim(),
-    profileImage: storedProfileImage,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-    workerOnline: false,
-    workerSkills: allowedRole === 'worker' ? normalizedSkills : [],
-  });
+  let user;
+  try {
+    user = await User.create({
+      id: await nextId('users'),
+      ...profile,
+      email: normalizedEmail,
+      passwordHash: await hashPassword(String(password)),
+      role: allowedRole,
+      profileImage: storedProfileImage,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: null,
+      workerOnline: false,
+      workerSkills: allowedRole === 'worker' ? normalizedSkills : [],
+    });
+  } catch (error) {
+    await deleteMedia(storedProfileImage).catch(() => undefined);
+    throw error;
+  }
+  await DeletedIdentity.deleteOne({ emailHash: hashAdminSecret(normalizedEmail) });
 
   await createAdminActivity({
     adminUser: req.user,
@@ -2054,18 +2259,62 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
       return res.status(409).json({ message: 'Reassign active worker jobs before changing role.' });
     }
   }
-  existing.firstName = String(req.body?.firstName ?? existing.firstName);
-  existing.lastName = String(req.body?.lastName ?? existing.lastName);
-  existing.gender = String(req.body?.gender ?? existing.gender);
-  existing.mobile = String(req.body?.mobile ?? existing.mobile);
-  existing.email = nextEmail;
-  existing.role = role;
-  existing.address = String(req.body?.address ?? existing.address);
-  const nextProfileImage = req.body?.profileImage ?? existing.profileImage ?? null;
+  const profile = normalizeAccountProfile({
+    firstName: req.body?.firstName ?? existing.firstName,
+    lastName: req.body?.lastName ?? existing.lastName,
+    gender: req.body?.gender ?? existing.gender,
+    mobile: req.body?.mobile ?? existing.mobile,
+    address: req.body?.address ?? existing.address,
+  });
+  if (!profile) {
+    return res.status(400).json({ message: 'Profile fields are invalid or too long.' });
+  }
+  const oldEmail = existing.email;
+  const oldProfileImage = existing.profileImage ?? null;
+  const nextProfileImage = req.body?.profileImage ?? oldProfileImage;
   if (!isValidProfileImage(nextProfileImage)) {
     return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
-  existing.profileImage = nextProfileImage ? await uploadMedia(nextProfileImage, 'profiles') : null;
+  const storedProfileImage = nextProfileImage
+    ? await uploadMedia(nextProfileImage, 'profiles')
+    : null;
+
+  let firebaseRecord = null;
+  let firebaseEmailUpdated = false;
+  if (nextEmail !== oldEmail) {
+    if (existing.firebaseUid && !isFirebaseEnabled()) {
+      if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
+      return res.status(503).json({ message: 'Firebase identity service is unavailable.' });
+    }
+    firebaseRecord = await firebaseRecordForUser(existing);
+    if (firebaseRecord) {
+      if (firebaseRecord.providerData?.some((provider) => provider.providerId === 'google.com')) {
+        if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
+        return res.status(409).json({
+          message: 'Google account emails are managed by Google and cannot be changed here.',
+        });
+      }
+      try {
+        await updateFirebaseUser(firebaseRecord.uid, { email: nextEmail });
+        firebaseEmailUpdated = true;
+      } catch (error) {
+        if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
+        if (error?.code === 'auth/email-already-exists') {
+          return res.status(409).json({ message: 'Email already exists in Firebase.' });
+        }
+        throw error;
+      }
+    }
+  }
+
+  Object.assign(existing, profile);
+  existing.email = nextEmail;
+  existing.role = role;
+  existing.profileImage = storedProfileImage;
+  if (firebaseRecord) {
+    existing.firebaseUid = firebaseRecord.uid;
+    existing.firebaseProvider = firebaseProviderFromRecord(firebaseRecord);
+  }
   if (existing.role === 'worker' && Array.isArray(req.body?.workerSkills)) {
     existing.workerSkills = req.body.workerSkills
       .map((skill) => String(skill).trim())
@@ -2077,7 +2326,20 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
     existing.workerSkills = [];
   }
   existing.updatedAt = new Date();
-  await existing.save();
+  try {
+    await existing.save();
+  } catch (error) {
+    if (firebaseEmailUpdated && firebaseRecord) {
+      await updateFirebaseUser(firebaseRecord.uid, { email: oldEmail }).catch(() => undefined);
+    }
+    if (storedProfileImage !== oldProfileImage) {
+      await deleteMedia(storedProfileImage).catch(() => undefined);
+    }
+    throw error;
+  }
+  if (oldProfileImage && oldProfileImage !== storedProfileImage) {
+    await deleteMedia(oldProfileImage);
+  }
   if (previousRole === 'admin' && existing.role !== 'admin') {
     await AdminSession.deleteMany({ userId: existing.id });
   }
@@ -2109,56 +2371,86 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
     return res.status(404).json({ message: 'User not found.' });
   }
 
-  const ownedTickets = await Ticket.find({ userId: id }, { id: 1 }).lean();
+  const ownedTickets = await Ticket.find(
+    { userId: id },
+    { id: 1, mediaData: 1, completionMediaData: 1 },
+  ).lean();
   const ownedTicketIds = ownedTickets.map((ticket) => Number(ticket.id));
   const now = new Date();
+  user.disabled = true;
+  user.tokenVersion = Number(user.tokenVersion ?? 0) + 1;
+  await user.save();
 
-  await Promise.all([
-    User.deleteOne({ id }),
-    Ticket.deleteMany({ userId: id }),
-    Ticket.updateMany(
-      { workerId: id, status: { $nin: ['completed', 'cancelled'] } },
-      {
-        $set: { workerId: null, status: 'pending', updatedAt: now },
-        $push: {
-          statusHistory: {
-            status: 'pending',
-            actorId: req.user.id,
-            actorRole: 'admin',
-            note: 'Worker account removed; returned to dispatch queue.',
-            createdAt: now,
-          },
-        },
+  const firebaseRecord = await firebaseRecordForUser(user);
+  await DeletedIdentity.findOneAndUpdate(
+    { emailHash: hashAdminSecret(user.email) },
+    {
+      $set: {
+        firebaseUidHash:
+          firebaseRecord?.uid || user.firebaseUid
+            ? hashAdminSecret(firebaseRecord?.uid ?? user.firebaseUid)
+            : undefined,
+        deletedAt: now,
+        deletedByAdminId: req.user.id,
       },
-    ),
-    HireRequest.deleteMany({ userId: id }),
-    HireRequest.updateMany(
-      { assignedWorkerId: id, status: 'assigned' },
-      {
-        $set: {
-          assignedWorkerId: null,
+    },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
+  if (firebaseRecord) await deleteFirebaseUser(firebaseRecord.uid);
+
+  const mediaUrls = [
+    user.profileImage,
+    ...ownedTickets.flatMap((ticket) => [ticket.mediaData, ticket.completionMediaData]),
+  ].filter(Boolean);
+  for (const mediaUrl of new Set(mediaUrls)) await deleteMedia(mediaUrl);
+
+  await Ticket.deleteMany({ userId: id });
+  await Ticket.updateMany(
+    { workerId: id, status: { $nin: ['completed', 'cancelled'] } },
+    {
+      $set: { workerId: null, status: 'pending', updatedAt: now },
+      $push: {
+        statusHistory: {
           status: 'pending',
-          assignedByAdminId: null,
-          assignedAt: null,
-          completedAt: null,
-          updatedAt: new Date(),
+          actorId: req.user.id,
+          actorRole: 'admin',
+          note: 'Worker account removed; returned to dispatch queue.',
+          createdAt: now,
         },
       },
-    ),
-    Notification.deleteMany({ userId: id }),
-    AdminSession.deleteMany({ userId: id }),
-    TicketMessage.deleteMany({
-      $or: [{ senderId: id }, ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : [])],
-    }),
-    Review.deleteMany({
-      $or: [
-        { userId: id },
-        { workerId: id },
-        ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : []),
-      ],
-    }),
-    WorkerLocation.deleteOne({ workerId: id }),
-  ]);
+    },
+  );
+  await HireRequest.deleteMany({ userId: id });
+  await HireRequest.updateMany(
+    { assignedWorkerId: id, status: 'assigned' },
+    {
+      $set: {
+        assignedWorkerId: null,
+        status: 'pending',
+        assignedByAdminId: null,
+        assignedAt: null,
+        completedAt: null,
+        updatedAt: now,
+      },
+    },
+  );
+  await Notification.deleteMany({ userId: id });
+  await Notification.updateMany({ readBy: id }, { $pull: { readBy: id } });
+  await AdminSession.deleteMany({ userId: id });
+  await PendingRegistration.deleteMany({ email: user.email });
+  await TicketMessage.deleteMany({
+    $or: [{ senderId: id }, ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : [])],
+  });
+  await Review.deleteMany({
+    $or: [
+      { userId: id },
+      { workerId: id },
+      ...(ownedTicketIds.length ? [{ ticketId: { $in: ownedTicketIds } }] : []),
+    ],
+  });
+  await WorkerLocation.deleteOne({ workerId: id });
+  fastCache.invalidate('workers:');
+  fastCache.invalidate(`reviews:${id}`);
 
   await createAdminActivity({
     adminUser: req.user,
@@ -2168,6 +2460,8 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
     targetId: user.id,
     summary: `Deleted ${user.role} account for ${user.firstName} ${user.lastName}.`,
   });
+
+  await User.deleteOne({ id, disabled: true });
 
   return res.json({ message: 'User deleted.' });
 });
@@ -2225,11 +2519,13 @@ app.get('/api/hire-requests', authMiddleware, async (req, res) => {
   let rows = [];
 
   if (role === 'admin') {
-    rows = await HireRequest.find().sort({ updatedAt: -1 });
+    rows = await HireRequest.find().sort({ updatedAt: -1 }).limit(200);
   } else if (role === 'user') {
-    rows = await HireRequest.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+    rows = await HireRequest.find({ userId: req.user.id }).sort({ updatedAt: -1 }).limit(200);
   } else {
-    rows = await HireRequest.find({ assignedWorkerId: req.user.id }).sort({ updatedAt: -1 });
+    rows = await HireRequest.find({ assignedWorkerId: req.user.id })
+      .sort({ updatedAt: -1 })
+      .limit(200);
   }
 
   const workerIds = [
@@ -2243,7 +2539,7 @@ app.get('/api/hire-requests', authMiddleware, async (req, res) => {
   const workers = workerIds.length
     ? await User.find({ id: { $in: workerIds }, role: 'worker' }).lean()
     : [];
-  const workerMap = new Map(workers.map((worker) => [worker.id, sanitizeUser(worker)]));
+  const workerMap = new Map(workers.map((worker) => [worker.id, worker]));
 
   res.json(
     rows.map((request) => {
@@ -2252,7 +2548,9 @@ app.get('/api/hire-requests', authMiddleware, async (req, res) => {
         ...record,
         assignedWorker:
           record.assignedWorkerId && workerMap.has(record.assignedWorkerId)
-            ? workerMap.get(record.assignedWorkerId)
+            ? role === 'admin' || role === 'worker'
+              ? sanitizeUser(workerMap.get(record.assignedWorkerId))
+              : publicWorkerProfile(workerMap.get(record.assignedWorkerId))
             : null,
       };
     }),
@@ -2318,7 +2616,7 @@ app.put(
       return res.status(400).json({ message: 'Invalid request id.' });
     }
 
-    const request = await HireRequest.findOne({ id });
+    let request = await HireRequest.findOne({ id });
     if (!request) {
       return res.status(404).json({ message: 'Hire request not found.' });
     }
@@ -2342,16 +2640,31 @@ app.put(
     }
 
     const now = new Date();
-    if (!request.title) {
-      request.title = 'Personal Work';
+    try {
+      request = await HireRequest.findOneAndUpdate(
+        { id, status: { $in: ['pending', 'assigned'] } },
+        {
+          $set: {
+            title: request.title || 'Personal Work',
+            assignedWorkerId: workerId,
+            assignedByAdminId: req.user.id,
+            assignedAt: now,
+            completedAt: null,
+            status: 'assigned',
+            updatedAt: now,
+          },
+        },
+        { new: true },
+      );
+    } catch (error) {
+      if (error?.code === 11000) {
+        return res.status(409).json({ message: 'Worker is already assigned.' });
+      }
+      throw error;
     }
-    request.assignedWorkerId = workerId;
-    request.assignedByAdminId = req.user.id;
-    request.assignedAt = now;
-    request.completedAt = null;
-    request.status = 'assigned';
-    request.updatedAt = now;
-    await request.save();
+    if (!request) {
+      return res.status(409).json({ message: 'Only pending or assigned requests can be assigned.' });
+    }
 
     // When a worker is hired for personal work, they should not receive tickets.
     // Re-distribute any open tickets that were assigned to this worker.
@@ -2414,7 +2727,7 @@ app.put(
       return res.status(400).json({ message: 'Invalid request id.' });
     }
 
-    const request = await HireRequest.findOne({ id });
+    let request = await HireRequest.findOne({ id });
     if (!request) {
       return res.status(404).json({ message: 'Hire request not found.' });
     }
@@ -2428,13 +2741,21 @@ app.put(
     }
 
     const now = new Date();
-    if (!request.title) {
-      request.title = 'Personal Work';
+    request = await HireRequest.findOneAndUpdate(
+      { id, assignedWorkerId: req.user.id, status: 'assigned' },
+      {
+        $set: {
+          title: request.title || 'Personal Work',
+          status: 'completed',
+          completedAt: now,
+          updatedAt: now,
+        },
+      },
+      { new: true },
+    );
+    if (!request) {
+      return res.status(409).json({ message: 'Hire request changed before completion.' });
     }
-    request.status = 'completed';
-    request.completedAt = now;
-    request.updatedAt = now;
-    await request.save();
 
     const workerName =
       `${req.user.firstName ?? ''} ${req.user.lastName ?? ''}`.trim() || `Worker #${req.user.id}`;
@@ -2489,6 +2810,9 @@ app.delete(
     }
 
     await HireRequest.deleteOne({ id });
+    if (request.status === 'assigned') {
+      await autoAssignUnassignedTickets(25);
+    }
 
     if (req.user.role === 'admin') {
       await createAdminActivity({
@@ -2542,29 +2866,35 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
   const storedMedia = await uploadMedia(mediaData, 'tickets');
   const now = new Date();
   const id = await nextId('tickets');
-  const ticket = await Ticket.create({
-    id,
-    ticketCode: `SWM-${String(id).padStart(6, '0')}`,
-    userId: req.user.id,
-    workerId: null,
-    wasteType: cleanWasteType,
-    description: cleanDescription,
-    mediaData: storedMedia,
-    locationAddress: cleanLocation,
-    status: 'pending',
-    priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
-    statusHistory: [
-      {
-        status: 'pending',
-        actorId: req.user.id,
-        actorRole: req.user.role,
-        note: 'Ticket created.',
-        createdAt: now,
-      },
-    ],
-    createdAt: now,
-    updatedAt: now,
-  });
+  let ticket;
+  try {
+    ticket = await Ticket.create({
+      id,
+      ticketCode: `SWM-${String(id).padStart(6, '0')}`,
+      userId: req.user.id,
+      workerId: null,
+      wasteType: cleanWasteType,
+      description: cleanDescription,
+      mediaData: storedMedia,
+      locationAddress: cleanLocation,
+      status: 'pending',
+      priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
+      statusHistory: [
+        {
+          status: 'pending',
+          actorId: req.user.id,
+          actorRole: req.user.role,
+          note: 'Ticket created.',
+          createdAt: now,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    await deleteMedia(storedMedia).catch(() => undefined);
+    throw error;
+  }
 
   fastCache.invalidate('workers:');
 
@@ -2635,17 +2965,34 @@ app.put(
       return res.status(409).json({ message: 'Worker is busy with a personal hire request.' });
     }
 
-    ticket.workerId = workerId;
-    appendTicketStatus(ticket, 'assigned', req.user, `Assigned to Worker #${workerId} by admin.`);
-    await ticket.save();
+    const now = new Date();
+    const updatedTicket = await Ticket.findOneAndUpdate(
+      { id, status: ticket.status, updatedAt: ticket.updatedAt },
+      {
+        $set: { workerId, status: 'assigned', updatedAt: now },
+        $push: {
+          statusHistory: {
+            status: 'assigned',
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            note: `Assigned to Worker #${workerId} by admin.`,
+            createdAt: now,
+          },
+        },
+      },
+      { new: true },
+    );
+    if (!updatedTicket) {
+      return res.status(409).json({ message: 'Ticket changed before assignment. Refresh and retry.' });
+    }
     await Promise.all([
       createNotification({
         userId: workerId,
         title: 'New Ticket Assigned',
-        message: buildTicketDetailsMessage(ticket, await User.findOne({ id: ticket.userId }).lean()),
+        message: buildTicketDetailsMessage(updatedTicket, await User.findOne({ id: updatedTicket.userId }).lean()),
       }),
       createNotification({
-        userId: ticket.userId,
+        userId: updatedTicket.userId,
         title: 'Worker Assigned',
         message: `${ticket.ticketCode} was assigned to ${worker.firstName} ${worker.lastName}.`,
       }),
@@ -2654,12 +3001,12 @@ app.put(
         sessionLabel: req.sessionLabel,
         action: 'Ticket Assigned',
         targetType: 'ticket',
-        targetId: ticket.id,
-        summary: `Assigned ${ticket.ticketCode} to Worker #${workerId}.`,
+        targetId: updatedTicket.id,
+        summary: `Assigned ${updatedTicket.ticketCode} to Worker #${workerId}.`,
       }),
     ]);
 
-    const [record] = await buildTicketRecords([ticket], req.user);
+    const [record] = await buildTicketRecords([updatedTicket], req.user);
     return res.json(record);
   },
 );
@@ -2690,9 +3037,12 @@ app.put(
 
     const now = new Date();
     let userNotification = null;
+    const set = { status, updatedAt: now };
+    let completionMediaUrl = null;
+    let note = '';
     if (status === 'accepted') {
-      ticket.acceptedAt = now;
-      appendTicketStatus(ticket, status, req.user, 'Worker accepted the ticket.', now);
+      set.acceptedAt = now;
+      note = 'Worker accepted the ticket.';
       userNotification = {
         userId: ticket.userId,
         title: 'Worker Accepted Ticket',
@@ -2700,10 +3050,10 @@ app.put(
       };
     } else if (status === 'in_progress') {
       const completionCode = createCompletionCode();
-      ticket.startedAt = now;
-      ticket.completionCode = completionCode;
-      ticket.completionCodeHash = hashAdminSecret(completionCode);
-      appendTicketStatus(ticket, status, req.user, 'Worker started the collection.', now);
+      set.startedAt = now;
+      set.completionCode = completionCode;
+      set.completionCodeHash = hashAdminSecret(completionCode);
+      note = 'Worker started the collection.';
       userNotification = {
         userId: ticket.userId,
         title: 'Collection Started',
@@ -2723,11 +3073,12 @@ app.put(
           message: 'An after-photo (JPEG, PNG, or WebP under 2 MB) is required.',
         });
       }
-      ticket.completedAt = now;
-      ticket.completionMediaData = await uploadMedia(completionMediaData, 'completion');
-      ticket.completionCode = null;
-      ticket.completionCodeHash = null;
-      appendTicketStatus(ticket, status, req.user, 'Work completed with OTP verification.', now);
+      completionMediaUrl = await uploadMedia(completionMediaData, 'completion');
+      set.completedAt = now;
+      set.completionMediaData = completionMediaUrl;
+      set.completionCode = null;
+      set.completionCodeHash = null;
+      note = 'Work completed with OTP verification.';
       userNotification = {
         userId: ticket.userId,
         title: 'Ticket Completed',
@@ -2735,11 +3086,35 @@ app.put(
       };
     }
 
-    await ticket.save();
+    const updatedTicket = await Ticket.findOneAndUpdate(
+      {
+        id,
+        workerId: req.user.id,
+        status: ticket.status,
+        updatedAt: ticket.updatedAt,
+      },
+      {
+        $set: set,
+        $push: {
+          statusHistory: {
+            status,
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            note,
+            createdAt: now,
+          },
+        },
+      },
+      { new: true },
+    );
+    if (!updatedTicket) {
+      if (completionMediaUrl) await deleteMedia(completionMediaUrl).catch(() => undefined);
+      return res.status(409).json({ message: 'Ticket changed before this update. Refresh and retry.' });
+    }
     fastCache.invalidate('workers:');
     if (userNotification) await createNotification(userNotification);
     if (status === 'completed') await autoAssignUnassignedTickets(25);
-    const [record] = await buildTicketRecords([ticket], req.user);
+    const [record] = await buildTicketRecords([updatedTicket], req.user);
     return res.json(record);
   },
 );
@@ -2839,15 +3214,27 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
 
+  const oldMediaData = ticket.mediaData ?? null;
+  const storedMediaData = await uploadMedia(nextMediaData, 'tickets');
   ticket.wasteType = nextWasteType;
   ticket.description = nextDescription;
-  ticket.mediaData = await uploadMedia(nextMediaData, 'tickets');
+  ticket.mediaData = storedMediaData;
   ticket.locationAddress = nextLocation;
   ticket.priority = TICKET_PRIORITIES.includes(req.body?.priority)
     ? req.body.priority
     : ticket.priority;
   ticket.updatedAt = new Date();
-  await ticket.save();
+  try {
+    await ticket.save();
+  } catch (error) {
+    if (storedMediaData !== oldMediaData) {
+      await deleteMedia(storedMediaData).catch(() => undefined);
+    }
+    throw error;
+  }
+  if (oldMediaData && oldMediaData !== storedMediaData) {
+    await deleteMedia(oldMediaData);
+  }
 
   if (ticket.workerId) {
     await createNotification({
@@ -2880,11 +3267,11 @@ app.delete('/api/tickets/:id', authMiddleware, async (req, res) => {
     return res.status(409).json({ message: 'Cancel active tickets instead of deleting them.' });
   }
 
-  await Promise.all([
-    Ticket.deleteOne({ id }),
-    TicketMessage.deleteMany({ ticketId: id }),
-    Review.deleteMany({ ticketId: id }),
-  ]);
+  await TicketMessage.deleteMany({ ticketId: id });
+  await Review.deleteMany({ ticketId: id });
+  await Ticket.deleteOne({ id });
+  await deleteMedia(ticket.mediaData);
+  await deleteMedia(ticket.completionMediaData);
   if (isAdmin) {
     await createAdminActivity({
       adminUser: req.user,
@@ -3013,7 +3400,11 @@ app.get('/api/workers/:id/reviews', authMiddleware, async (req, res) => {
 
 app.get('/api/notifications', authMiddleware, async (req, res) => {
   const notifications = await Notification.find({
-    $or: [{ userId: null }, { userId: req.user.id }],
+    $or: [
+      { userId: req.user.id },
+      { userId: null, targetRole: null },
+      { userId: null, targetRole: req.user.role },
+    ],
   })
     .sort({ createdAt: -1 })
     .limit(50);
@@ -3051,12 +3442,11 @@ app.post('/api/notifications', authMiddleware, requireRoles('admin'), async (req
   }
 
   if (cleanTargetRole) {
-    const recipients = await User.find({ role: cleanTargetRole }, { id: 1 }).lean();
-    await Promise.all(
-      recipients.map((recipient) =>
-        createNotification({ userId: recipient.id, title: cleanTitle, message: cleanMessage }),
-      ),
-    );
+    await createNotification({
+      targetRole: cleanTargetRole,
+      title: cleanTitle,
+      message: cleanMessage,
+    });
   } else {
     await createNotification({ title: cleanTitle, message: cleanMessage, userId: targetUserId });
   }
@@ -3091,7 +3481,11 @@ app.put('/api/notifications/:id/read', authMiddleware, async (req, res) => {
 
   const notification = await Notification.findOne({
     id,
-    $or: [{ userId: null }, { userId: req.user.id }],
+    $or: [
+      { userId: req.user.id },
+      { userId: null, targetRole: null },
+      { userId: null, targetRole: req.user.role },
+    ],
   });
 
   if (!notification) {
@@ -3120,7 +3514,11 @@ app.put('/api/notifications/:id/read', authMiddleware, async (req, res) => {
 app.put('/api/notifications/read-all', authMiddleware, async (req, res) => {
   const result = await Notification.updateMany(
     {
-      $or: [{ userId: null }, { userId: req.user.id }],
+      $or: [
+        { userId: req.user.id },
+        { userId: null, targetRole: null },
+        { userId: null, targetRole: req.user.role },
+      ],
       readBy: { $ne: req.user.id },
     },
     { $addToSet: { readBy: req.user.id } },
@@ -3151,9 +3549,13 @@ const MONGO_OPTIONS = {
 };
 
 async function bootstrap() {
+  if (isD1PartiallyConfigured()) {
+    throw new Error('CF_ACCOUNT_ID, CF_D1_DATABASE_ID, and CF_API_TOKEN must be set together.');
+  }
   await mongoose.connect(MONGO_URI, MONGO_OPTIONS);
+  let d1Initialized = false;
   if (isD1Configured()) {
-    await initD1Tables();
+    d1Initialized = await initD1Tables();
   }
   if (locationConn) {
     try {
@@ -3164,8 +3566,27 @@ async function bootstrap() {
       isLocationConnHealthy = true;
     } catch (err) {
       isLocationConnHealthy = false;
-      console.warn('[db] Secondary connection could not be established immediately, fallback active:', err.message);
+      console.warn('[db] Secondary connection could not be established:', err.message);
     }
+  }
+  auxiliaryStore = selectAuxiliaryStore({
+    d1Configured: isD1Configured(),
+    d1Initialized,
+    secondaryConfigured: Boolean(WORKER_LOCATION_MONGO_URI),
+    secondaryReady: Boolean(isLocationConnHealthy && locationConn?.readyState === 1),
+  });
+  if (!auxiliaryStore) {
+    throw new Error('Configured GPS/chat store is unavailable; refusing to split data across stores.');
+  }
+  console.log(`[db] GPS and chat store selected: ${auxiliaryStore}`);
+  if (auxiliaryStore === 'd1') {
+    await D1WorkerLocation.deleteExpired();
+    d1CleanupTimer = setInterval(() => {
+      void D1WorkerLocation.deleteExpired().catch((error) => {
+        console.warn('[d1] Expired location cleanup failed:', error.message);
+      });
+    }, 60_000);
+    d1CleanupTimer.unref?.();
   }
   await seedData();
   await migrateTicketLifecycle();
@@ -3186,4 +3607,13 @@ if (process.env.NODE_ENV !== 'test') {
   }
 }
 
-export { app, bootstrap };
+export {
+  app,
+  bootstrap,
+  deletedIdentityFilter,
+  firebaseIdentity,
+  isAllowedOrigin,
+  normalizeAccountProfile,
+  publicWorkerProfile,
+  selectAuxiliaryStore,
+};
