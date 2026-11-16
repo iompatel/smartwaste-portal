@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
 import {
-  AvatarComponent,
   BrandMarkComponent,
   ModalComponent,
   ToastComponent,
@@ -37,6 +36,11 @@ import {
   NotificationStackComponent,
   StackNotificationItem,
 } from '../shared/notification-stack.component';
+import {
+  ProfileDropdownComponent,
+  AccountStatus,
+  AccountTheme,
+} from '../shared/profile-dropdown.component';
 import { LoginComponent } from '../auth/login.component';
 import { SignupComponent } from '../auth/signup.component';
 import { WorkerLoginComponent } from '../auth/worker-login.component';
@@ -69,7 +73,6 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     FormsModule,
     IconComponent,
     ButtonDirective,
-    AvatarComponent,
     BrandMarkComponent,
     ModalComponent,
     ToastComponent,
@@ -95,6 +98,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     WorkerLoginComponent,
     AdminLoginComponent,
     NotificationStackComponent,
+    ProfileDropdownComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -124,6 +128,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
       <div class="min-h-screen bg-background text-foreground">
         <!-- Sidebar -->
         <app-sidebar
+          [user]="currentUser()"
           [role]="role()"
           [view]="view()"
           [open]="mobileNavOpen()"
@@ -137,6 +142,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
           [userOnline]="role() === 'worker' && onDuty()"
           (close)="mobileNavOpen.set(false)"
           (navigate)="onNavigate($event)"
+          (statusChange)="onProfileStatusChange($event)"
+          (themeChange)="onProfileThemeChange($event)"
           (themeToggle)="toggleTheme()"
           (signOut)="onSignOut()"
         ></app-sidebar>
@@ -216,14 +223,19 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                   }
                 </button>
 
-                <button
-                  type="button"
-                  aria-label="Open your profile"
-                  (click)="onNavigate('profile')"
-                  class="ml-1 rounded-full transition-transform hover:scale-105 cursor-pointer"
-                >
-                  <app-avatar [initials]="displayInitials()" class="size-9" [online]="role() === 'worker' && onDuty()"></app-avatar>
-                </button>
+                <app-profile-dropdown
+                  class="ml-1"
+                  variant="compact"
+                  placement="bottom-end"
+                  [user]="currentUser()"
+                  [role]="role()"
+                  [currentTheme]="theme()"
+                  [currentStatus]="role() === 'worker' ? (onDuty() ? 'online' : 'away') : 'online'"
+                  (statusChange)="onProfileStatusChange($event)"
+                  (themeChange)="onProfileThemeChange($event)"
+                  (navigate)="onNavigate($event)"
+                  (signOut)="onSignOut()"
+                ></app-profile-dropdown>
               </div>
             </div>
           </header>
@@ -973,6 +985,19 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   setTheme(t: Theme) {
     this.theme.set(t);
     localStorage.setItem('swms_theme', t);
+  }
+
+  onProfileThemeChange(t: AccountTheme) {
+    this.setTheme(t as Theme);
+  }
+
+  onProfileStatusChange(st: AccountStatus) {
+    if (this.role() === 'worker') {
+      const shouldBeOnDuty = st === 'online';
+      if (this.onDuty() !== shouldBeOnDuty) {
+        void this.onDutyChange(shouldBeOnDuty);
+      }
+    }
   }
 
   toggleTheme() {

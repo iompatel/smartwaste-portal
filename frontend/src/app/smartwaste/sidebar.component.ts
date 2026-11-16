@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
-import { AvatarComponent, BrandMarkComponent } from '../shared/ui-components';
+import { BrandMarkComponent } from '../shared/ui-components';
+import { ProfileDropdownComponent, AccountStatus, AccountTheme } from '../shared/profile-dropdown.component';
+import { BackendUser } from '../core/api.types';
 import {
   navByRole,
   roleMeta,
@@ -21,8 +23,8 @@ import { cn } from '../shared/utils';
     FormsModule,
     IconComponent,
     ButtonDirective,
-    AvatarComponent,
     BrandMarkComponent,
+    ProfileDropdownComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -117,25 +119,25 @@ import { cn } from '../shared/utils';
       </nav>
 
       <!-- Bottom Profile -->
-      <div class="flex items-center gap-2 border-t border-sidebar-border px-1 pt-4">
-        <app-avatar [initials]="displayInitials()" [online]="userOnline()"></app-avatar>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-xs font-medium text-foreground">{{ displayName() }}</p>
-          <p class="truncate text-[10px] text-muted-foreground">{{ displaySubtitle() }}</p>
-        </div>
-        <button
-          type="button"
-          aria-label="Sign out"
-          (click)="signOut.emit()"
-          class="text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-        >
-          <app-icon name="log-out" class="size-4"></app-icon>
-        </button>
+      <div class="border-t border-sidebar-border px-0.5 pt-3">
+        <app-profile-dropdown
+          variant="full"
+          placement="top-start"
+          [user]="user()"
+          [role]="role()"
+          [currentStatus]="userOnline() ? 'online' : 'away'"
+          [currentTheme]="theme() === 'dark' ? 'dark' : 'light'"
+          (statusChange)="statusChange.emit($event)"
+          (themeChange)="themeChange.emit($event)"
+          (navigate)="navigate.emit($event)"
+          (signOut)="signOut.emit()"
+        ></app-profile-dropdown>
       </div>
     </aside>
   `
 })
 export class SidebarComponent {
+  user = input<BackendUser | null>(null);
   role = input.required<Role>();
   view = input.required<View>();
   open = input<boolean>(false);
@@ -152,6 +154,8 @@ export class SidebarComponent {
   navigate = output<View>();
   roleChange = output<Role>();
   themeToggle = output<void>();
+  themeChange = output<AccountTheme>();
+  statusChange = output<AccountStatus>();
   signOut = output<void>();
 
   secondaryNavItems = secondaryNav;
