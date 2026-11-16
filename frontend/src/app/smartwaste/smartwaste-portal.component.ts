@@ -33,6 +33,10 @@ import {
   ProfileViewComponent,
   SettingsViewComponent,
 } from './profile.component';
+import {
+  NotificationStackComponent,
+  StackNotificationItem,
+} from '../shared/notification-stack.component';
 import { LoginComponent } from '../auth/login.component';
 import { SignupComponent } from '../auth/signup.component';
 import { WorkerLoginComponent } from '../auth/worker-login.component';
@@ -90,6 +94,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     SignupComponent,
     WorkerLoginComponent,
     AdminLoginComponent,
+    NotificationStackComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -383,48 +388,17 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
 
         @if (modal() === 'notifications') {
           <app-modal
-            title="Notifications"
-            description="Updates from your neighborhood and collections."
+            title="Notification Center"
+            description="Interactive stacked updates. Hover, tap, or swipe cards to dismiss."
             (close)="modal.set(null)"
           >
-            <div class="mb-4 flex items-center justify-between">
-              <span class="inline-flex items-center gap-2 text-[11px] text-brand">
-                <app-icon name="bell" class="size-3.5"></app-icon>Latest updates
-              </span>
-              <button
-                type="button"
-                (click)="markAllNotificationsRead()"
-                class="text-xs font-medium text-primary cursor-pointer hover:opacity-80"
-              >
-                Mark all as read
-              </button>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              @for (notification of notifications(); track notification.id; let i = $index) {
-                <div
-                  class="flex w-full items-start gap-3 rounded-[16px] p-3.5 text-left bg-muted/40"
-                  [ngClass]="isNotificationUnread(notification) ? 'bg-primary/5 border border-primary/20' : ''"
-                >
-                  <span class="flex size-9 shrink-0 items-center justify-center rounded-[12px] bg-brand/10 text-brand">
-                    <app-icon name="bell" class="size-4"></app-icon>
-                  </span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block text-xs font-medium text-foreground">{{ notification.title }}</span>
-                    <span class="mt-1 block text-[11px] leading-4 text-muted-foreground">{{ notification.message }}</span>
-                    <span class="mt-2 block text-[10px] text-muted-foreground">{{ apiService.formatTimeAgo(notification.createdAt) }}</span>
-                  </span>
-                  @if (isNotificationUnread(notification)) {
-                    <span class="mt-1 size-2 shrink-0 rounded-full bg-primary"></span>
-                  }
-                </div>
-              }
-
-              @if (notifications().length === 0) {
-                <div class="py-8 text-center text-xs text-muted-foreground">
-                  No notifications yet. You are all caught up!
-                </div>
-              }
+            <div class="py-2">
+              <app-notification-stack
+                [items]="stackNotificationItems()"
+                (dismiss)="onDismissNotification($event)"
+                (markAllRead)="markAllNotificationsRead()"
+                (selectNotification)="onSelectNotification($event)"
+              ></app-notification-stack>
             </div>
 
             <div class="mt-5 border-t border-border/60 pt-4 text-center">
@@ -483,6 +457,42 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
 
   unreadNotifCount = computed(() => {
     return this.notifications().filter((n) => !n.read).length;
+  });
+
+  stackNotificationItems = computed<StackNotificationItem[]>(() => {
+    return this.notifications().map((n) => {
+      let icon = 'bell';
+      let iconBg = 'bg-primary';
+
+      const title = (n.title || '').toLowerCase();
+      if (title.includes('message') || title.includes('chat')) {
+        icon = 'message-circle';
+        iconBg = 'bg-emerald-500';
+      } else if (title.includes('ticket') || title.includes('assigned') || title.includes('route')) {
+        icon = 'clipboard-check';
+        iconBg = 'bg-sky-500';
+      } else if (title.includes('hire') || title.includes('worker')) {
+        icon = 'briefcase-business';
+        iconBg = 'bg-indigo-500';
+      } else if (title.includes('completed') || title.includes('rating') || title.includes('review')) {
+        icon = 'check-circle';
+        iconBg = 'bg-teal-500';
+      } else if (title.includes('alert') || title.includes('urgent') || title.includes('cancelled')) {
+        icon = 'alert-triangle';
+        iconBg = 'bg-rose-500';
+      }
+
+      return {
+        id: String(n.id),
+        app: 'SmartWaste',
+        title: n.title,
+        body: n.message,
+        time: this.apiService.formatTimeAgo(n.createdAt),
+        icon,
+        iconBg,
+        read: !this.isNotificationUnread(n),
+      };
+    });
   });
 
   isDark = computed(() => {
@@ -788,6 +798,24 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
       this.notifications.update((list) => list.map((n) => ({ ...n, read: true })));
     } catch (err: any) {
       this.toast.set(err?.message || 'Could not mark notifications as read.');
+    }
+  }
+
+  async onDismissNotification(id: string) {
+    const numId = Number(id);
+    if (Number.isFinite(numId)) {
+      await this.adminService.markNotificationRead(numId).catch(() => undefined);
+      this.notifications.update((list) => list.filter((n) => String(n.id) !== id));
+    }
+  }
+
+  onSelectNotification(item: StackNotificationItem) {
+    const numId = Number(item.id);
+    if (Number.isFinite(numId)) {
+      void this.adminService.markNotificationRead(numId).catch(() => undefined);
+      this.notifications.update((list) =>
+        list.map((n) => (n.id === numId ? { ...n, read: true } : n)),
+      );
     }
   }
 
