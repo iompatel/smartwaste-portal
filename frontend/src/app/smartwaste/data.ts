@@ -57,13 +57,13 @@ export const roleMeta: Record<Role, { label: string; name: string; subtitle: str
 
 export const navByRole: Record<Role, NavItem[]> = {
   citizen: [
-    { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
+    { id: 'overview', label: 'Overview', icon: 'layout-grid' },
     { id: 'tickets', label: 'My reports', icon: 'clipboard-check' },
     { id: 'hire', label: 'Hire a worker', icon: 'briefcase-business' },
     { id: 'profile', label: 'Profile & settings', icon: 'user-round' },
   ],
   worker: [
-    { id: 'overview', label: 'Field cockpit', icon: 'layout-dashboard' },
+    { id: 'overview', label: 'Field cockpit', icon: 'layout-grid' },
     { id: 'tickets', label: 'Route queue', icon: 'route' },
     { id: 'hire', label: 'Hired tasks', icon: 'briefcase-business' },
     { id: 'profile', label: 'Field credentials', icon: 'shield-check' },

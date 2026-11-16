@@ -790,20 +790,46 @@ async function autoAssignUnassignedTickets(limit = 25) {
     ).lean();
     fastCache.set('workers:online', workers, 5000);
   }
-  const freeIds = workers
-    .map((worker) => Number(worker.id))
-    .filter((id) => Number.isFinite(id) && id > 0 && !busy.has(id));
+  const freeWorkers = workers
+    .map((w) => ({
+      id: Number(w.id),
+      skills: Array.isArray(w.workerSkills)
+        ? w.workerSkills.map((s) => String(s).toLowerCase().trim())
+        : [],
+    }))
+    .filter((w) => Number.isFinite(w.id) && w.id > 0 && !busy.has(w.id));
 
-  if (!freeIds.length) {
+  if (!freeWorkers.length) {
     return 0;
   }
 
+  const freeIds = freeWorkers.map((w) => w.id);
   const tickets = await Ticket.find({
     workerId: null,
     status: { $nin: ['completed', 'cancelled'] },
   })
     .sort({ createdAt: 1 })
     .limit(limit);
+
+  if (!tickets.length) {
+    return 0;
+  }
+
+  const counts = await Ticket.aggregate([
+    {
+      $match: {
+        workerId: { $in: freeIds },
+        status: { $nin: ['completed', 'cancelled'] },
+      },
+    },
+    { $group: { _id: '$workerId', count: { $sum: 1 } } },
+  ]);
+
+  const workloadMap = new Map(freeIds.map((id) => [id, 0]));
+  counts.forEach((row) => {
+    const id = Number(row._id);
+    if (workloadMap.has(id)) workloadMap.set(id, Number(row.count) || 0);
+  });
 
   const requesterIds = [
     ...new Set(
@@ -820,21 +846,34 @@ async function autoAssignUnassignedTickets(limit = 25) {
 
   let assigned = 0;
   for (const ticket of tickets) {
-    const workerId = await pickFreeWorkerIdForTicket(ticket.wasteType);
-    if (!workerId) {
+    const wasteType = String(ticket.wasteType ?? '').toLowerCase().trim();
+    const skilled = freeWorkers.filter((w) => w.skills.includes(wasteType));
+    const pool = skilled.length ? skilled : freeWorkers;
+
+    let selectedWorkerId = null;
+    let minLoad = Infinity;
+    for (const w of pool) {
+      const load = workloadMap.get(w.id) ?? 0;
+      if (load < minLoad || (load === minLoad && selectedWorkerId !== null && w.id < selectedWorkerId)) {
+        minLoad = load;
+        selectedWorkerId = w.id;
+      }
+    }
+
+    if (!selectedWorkerId) {
       break;
     }
 
     const updated = await Ticket.findOneAndUpdate(
       { id: ticket.id, workerId: null, status: { $nin: ['completed', 'cancelled'] } },
       {
-        $set: { workerId, status: 'assigned', updatedAt: new Date() },
+        $set: { workerId: selectedWorkerId, status: 'assigned', updatedAt: new Date() },
         $push: {
           statusHistory: {
             status: 'assigned',
             actorId: null,
             actorRole: 'system',
-            note: `Automatically assigned to Worker #${workerId}.`,
+            note: `Automatically assigned to Worker #${selectedWorkerId}.`,
             createdAt: new Date(),
           },
         },
@@ -844,9 +883,10 @@ async function autoAssignUnassignedTickets(limit = 25) {
 
     if (updated) {
       assigned += 1;
+      workloadMap.set(selectedWorkerId, minLoad + 1);
       const requester = requesterMap.get(Number(updated.userId));
       await createNotification({
-        userId: workerId,
+        userId: selectedWorkerId,
         title: 'New Ticket Assigned',
         message: buildTicketDetailsMessage(updated, requester),
       });
@@ -1122,6 +1162,19 @@ const ticketCreateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many tickets created. Try again later.' },
+});
+
+const ticketMessageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => {
+    const userId = req.user?.id ? String(req.user.id) : ipKeyGenerator(req.ip || '127.0.0.1');
+    return `ticket_msg:${userId}`;
+  },
+  validate: { ip: false, keyGeneratorIpFallback: false },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many messages sent. Please slow down.' },
 });
 
 app.use(express.json({ limit: '3mb' }));
@@ -1428,6 +1481,7 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(409).json({ message: 'Email already registered.' });
   }
 
+  const storedProfileImage = profileImage ? await uploadMedia(profileImage, 'profiles') : null;
   const now = new Date();
   await PendingRegistration.findOneAndUpdate(
     { email: normalizedEmail },
@@ -1438,7 +1492,7 @@ app.post('/api/auth/signup', async (req, res) => {
         gender: String(gender).trim(),
         mobile: String(mobile).trim(),
         address: String(address).trim(),
-        profileImage,
+        profileImage: storedProfileImage,
         createdAt: now,
         expiresAt: new Date(now.getTime() + PENDING_REGISTRATION_TTL_MS),
       },
@@ -1497,21 +1551,33 @@ app.post('/api/auth/complete-signup', async (req, res) => {
   }
 
   const now = new Date();
-  const user = await User.create({
-    id: await nextId('users'),
-    firstName: pending.firstName,
-    lastName: pending.lastName,
-    gender: pending.gender,
-    mobile: pending.mobile,
-    email,
-    passwordHash: await hashPassword(createAdminSecret()),
-    role: 'user',
-    address: pending.address,
-    profileImage: pending.profileImage,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: now,
-  });
+  let user;
+  try {
+    user = await User.create({
+      id: await nextId('users'),
+      firstName: pending.firstName,
+      lastName: pending.lastName,
+      gender: pending.gender,
+      mobile: pending.mobile,
+      email,
+      passwordHash: await hashPassword(createAdminSecret()),
+      role: 'user',
+      address: pending.address,
+      profileImage: pending.profileImage,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      user = await User.findOne({ email });
+      if (user) {
+        await PendingRegistration.deleteOne({ email });
+        return sendLoginResponse(user, res);
+      }
+    }
+    throw err;
+  }
 
   await PendingRegistration.deleteOne({ email });
 
@@ -1921,6 +1987,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     return res.status(409).json({ message: 'Email already exists.' });
   }
 
+  const storedProfileImage = profileImage ? await uploadMedia(profileImage, 'profiles') : null;
   const now = new Date();
   const user = await User.create({
     id: await nextId('users'),
@@ -1932,7 +1999,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     passwordHash: await hashPassword(String(password)),
     role: allowedRole,
     address: String(address).trim(),
-    profileImage,
+    profileImage: storedProfileImage,
     createdAt: now,
     updatedAt: now,
     lastLoginAt: null,
@@ -1994,10 +2061,11 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
   existing.email = nextEmail;
   existing.role = role;
   existing.address = String(req.body?.address ?? existing.address);
-  existing.profileImage = req.body?.profileImage ?? existing.profileImage ?? null;
-  if (!isValidProfileImage(existing.profileImage)) {
+  const nextProfileImage = req.body?.profileImage ?? existing.profileImage ?? null;
+  if (!isValidProfileImage(nextProfileImage)) {
     return res.status(400).json({ message: 'Profile image must be a JPEG, PNG, or WebP under 2 MB.' });
   }
+  existing.profileImage = nextProfileImage ? await uploadMedia(nextProfileImage, 'profiles') : null;
   if (existing.role === 'worker' && Array.isArray(req.body?.workerSkills)) {
     existing.workerSkills = req.body.workerSkills
       .map((skill) => String(skill).trim())
@@ -2699,6 +2767,7 @@ app.put('/api/tickets/:id/cancel', authMiddleware, async (req, res) => {
   ticket.completionCodeHash = null;
   appendTicketStatus(ticket, 'cancelled', req.user, String(req.body?.reason ?? 'Ticket cancelled.'));
   await ticket.save();
+  fastCache.invalidate('workers:');
   if (previousWorkerId) {
     await createNotification({
       userId: previousWorkerId,
@@ -2843,7 +2912,7 @@ app.get('/api/tickets/:id/messages', authMiddleware, async (req, res) => {
   return res.json(messages.map((message) => cleanRecord(message)));
 });
 
-app.post('/api/tickets/:id/messages', authMiddleware, async (req, res) => {
+app.post('/api/tickets/:id/messages', authMiddleware, ticketMessageLimiter, async (req, res) => {
   const id = parseNumericId(req.params.id);
   const messageText = cleanBoundedText(req.body?.message, 1000);
   if (!id) return res.status(400).json({ message: 'Invalid ticket id.' });
@@ -3107,10 +3176,14 @@ async function bootstrap() {
   });
 }
 
-try {
-  await bootstrap();
-} catch (error) {
-  // eslint-disable-next-line no-console
-  console.error('Failed to start Smart Waste API', error);
-  process.exit(1);
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    await bootstrap();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to start Smart Waste API', error);
+    process.exit(1);
+  }
 }
+
+export { app, bootstrap };

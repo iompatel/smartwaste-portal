@@ -271,7 +271,19 @@ export const D1TicketMessage = {
   },
 
   async deleteMany(filter = {}) {
-    if (filter.ticketId) {
+    if (Array.isArray(filter.$or)) {
+      for (const branch of filter.$or) {
+        await this.deleteMany(branch);
+      }
+      return { acknowledged: true };
+    }
+    if (filter.senderId !== undefined) {
+      const senderId = Number(filter.senderId);
+      if (Number.isFinite(senderId)) {
+        await queryD1('DELETE FROM ticket_messages WHERE sender_id = ?;', [senderId]);
+      }
+    }
+    if (filter.ticketId !== undefined) {
       if (typeof filter.ticketId === 'object' && Array.isArray(filter.ticketId.$in)) {
         const ids = filter.ticketId.$in.map(Number).filter(Number.isFinite);
         if (ids.length) {
@@ -280,7 +292,9 @@ export const D1TicketMessage = {
         }
       } else {
         const id = Number(filter.ticketId);
-        await queryD1('DELETE FROM ticket_messages WHERE ticket_id = ?;', [id]);
+        if (Number.isFinite(id)) {
+          await queryD1('DELETE FROM ticket_messages WHERE ticket_id = ?;', [id]);
+        }
       }
     }
     return { acknowledged: true };

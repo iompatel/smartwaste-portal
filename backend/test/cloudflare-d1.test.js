@@ -34,3 +34,20 @@ test('D1TicketMessage find provides chainable sort and limit', () => {
   const query = D1TicketMessage.find({ ticketId: 10 }).sort({ createdAt: 1 }).limit(50);
   assert.equal(typeof query.then, 'function');
 });
+
+test('D1TicketMessage deleteMany handles empty filter without throwing', async () => {
+  const result = await D1TicketMessage.deleteMany({});
+  assert.equal(result.acknowledged, true);
+});
+
+test('D1TicketMessage deleteMany with $or branches attempts cleanup for each branch', async () => {
+  // When unconfigured, a branch with senderId attempts queryD1 which throws descriptive error
+  await assert.rejects(
+    async () => {
+      await D1TicketMessage.deleteMany({
+        $or: [{ senderId: 42 }, { ticketId: 100 }],
+      });
+    },
+    { message: /Cloudflare D1 is not configured/ }
+  );
+});

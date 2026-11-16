@@ -90,7 +90,7 @@ services:
     runtime: static
     name: smartwasteportal
     autoDeployTrigger: commit
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist/frontend/browser
     headers:
       - path: /*

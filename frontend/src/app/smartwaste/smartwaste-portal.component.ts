@@ -310,7 +310,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
         <!-- Mobile Floating Bottom Navigation -->
         <nav
           aria-label="Mobile navigation"
-          class="fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-[420px] -translate-x-1/2 items-center justify-between gap-1 rounded-[28px] border border-border/80 bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl dark:border-border/60 dark:bg-[#121316]/95 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] lg:hidden"
+          class="fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-[430px] -translate-x-1/2 items-center justify-between gap-1 rounded-[30px] border border-[#e8eaed] bg-[#fdfdfd]/95 p-1.5 shadow-[0_10px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-[#26282e] dark:bg-[#111215]/95 dark:shadow-[0_12px_36px_rgba(0,0,0,0.55)] lg:hidden"
         >
           @for (item of mobileNavItems(); track item.id) {
             @let active = view() === item.id;
@@ -319,16 +319,16 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
               [attr.aria-current]="active ? 'page' : null"
               (click)="onNavigate(item.id)"
               class="group relative flex flex-1 flex-col items-center justify-center rounded-[20px] px-2 py-2 transition-all cursor-pointer"
-              [ngClass]="active ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-400' : 'text-muted-foreground hover:text-foreground'"
+              [ngClass]="active ? 'bg-[#e7eefa] text-[#2a6cd5] dark:bg-[#171e2a] dark:text-[#4e8df2]' : 'text-[#64748b] hover:text-foreground dark:text-[#9b9fa5] dark:hover:text-white'"
             >
               <app-icon
                 [name]="item.icon"
                 class="size-5 transition-transform group-active:scale-95"
-                [class.text-primary]="active"
-                [class.dark:text-sky-400]="active"
+                [class.text-[#2a6cd5]]="active"
+                [class.dark:text-[#4e8df2]]="active"
               ></app-icon>
               <span
-                class="mt-1 block max-w-[74px] truncate text-[11px] leading-tight tracking-tight text-center"
+                class="mt-1 block max-w-[76px] truncate text-[11px] leading-tight tracking-tight text-center"
                 [class.font-semibold]="active"
                 [class.font-medium]="!active"
               >

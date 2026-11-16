@@ -41,10 +41,13 @@ export class AuthService {
           else if (user.role === 'worker') this.currentRole.set('worker');
           else this.currentRole.set('citizen');
         }
-      } catch {
-        // If session expired, clear auth
-        this.api.clearAuth();
-        this.currentUser.set(null);
+      } catch (err: any) {
+        // Only clear auth if explicitly unauthorized/forbidden by the server.
+        // On network drops or Render cold-start timeouts, preserve the cached session.
+        if (err?.status === 401 || err?.status === 403) {
+          this.api.clearAuth();
+          this.currentUser.set(null);
+        }
       }
     }
 
