@@ -105,3 +105,39 @@ test('configured D1 readiness follows real REST success and failure', async () =
     delete process.env.CF_API_TOKEN;
   }
 });
+
+test('fleet reads fetch fresh locations in bulk and large account cleanup respects D1 limits', async () => {
+  const originalFetch = globalThis.fetch;
+  process.env.CF_ACCOUNT_ID = 'review-account';
+  process.env.CF_D1_DATABASE_ID = 'review-database';
+  process.env.CF_API_TOKEN = 'review-token';
+  const requests = [];
+  try {
+    const now = new Date('2026-11-16T12:00:00Z');
+    globalThis.fetch = async (_url, options) => {
+      const query = JSON.parse(options.body);
+      requests.push(query);
+      assert.ok(query.params.length <= 100, 'D1 permits at most 100 bound parameters');
+      const rows = query.sql.startsWith('SELECT') ? [{
+        worker_id: 42, latitude: 23.02, longitude: 72.57, accuracy: 10,
+        updated_at: now.getTime() - 1000, expires_at: now.getTime() + 119000,
+      }] : [];
+      return new Response(JSON.stringify({ success: true, result: [{ results: rows }] }), { status: 200 });
+    };
+    const adapter = await import(`../src/cloudflare-d1.js?fleet=${Date.now()}`);
+    const locations = await adapter.D1WorkerLocation.find({ expiresAt: { $gt: now } }).lean();
+    assert.equal(locations[0].workerId, 42);
+    assert.equal(locations[0].updatedAt.toISOString(), '2026-11-16T11:59:59.000Z');
+    assert.match(requests[0].sql, /expires_at > \?/);
+    assert.deepEqual(requests[0].params, [now.getTime()]);
+    const ids = Array.from({ length: 205 }, (_, index) => index + 1);
+    await adapter.D1TicketMessage.deleteMany({ ticketId: { $in: ids } });
+    assert.deepEqual(requests.slice(1).map((request) => request.params.length), [100, 100, 5]);
+    assert.deepEqual(requests.slice(1).flatMap((request) => request.params), ids);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.CF_ACCOUNT_ID;
+    delete process.env.CF_D1_DATABASE_ID;
+    delete process.env.CF_API_TOKEN;
+  }
+});

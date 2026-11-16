@@ -113,3 +113,73 @@ export interface TicketMessage {
   message: string;
   createdAt: string;
 }
+
+export interface AccountPayload {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  address: string;
+  gender: string;
+  role: 'admin' | 'worker' | 'user';
+  password?: string;
+  confirmPassword?: string;
+}
+
+export interface AccountActivity {
+  id: number;
+  actorId: number;
+  actorRole: 'user' | 'worker' | 'admin';
+  actorName: string;
+  actorEmail: string;
+  action: string;
+  targetType?: string | null;
+  targetId?: number | null;
+  summary: string;
+  details: Record<string, any>;
+  createdAt: string;
+}
+
+export interface ActivityPage {
+  items: AccountActivity[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ActivityFilters {
+  actorRole?: 'user' | 'worker' | 'admin';
+  actorId?: number;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface WorkerLiveLocation {
+  workerId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  workerOnline: boolean;
+  lastSeenAt: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    updatedAt: string;
+  } | null;
+  activeTickets: Array<{
+    id: number;
+    ticketCode: string;
+    status: string;
+    locationAddress: string;
+  }>;
+}
+
+export interface WorkerLocationSnapshot {
+  workers: WorkerLiveLocation[];
+  updatedAt: string;
+}

@@ -11,6 +11,10 @@ This project is a complete **web portal** implementation with:
 - Role-based dashboards (Admin, Worker, User)
 - Named routes with route guards
 - Admin panel for user, worker, ticket, notification, and hire-request operations
+- Separate Users and Workers sections with account creation, detail views, updates, and deletion
+- Downloadable user and worker PDF registers with a Smart Waste Corporation seal and work totals
+- Filterable account activity for sign-in, sign-out, worker duty changes, and ticket lifecycle events
+- Admin Google Maps fleet view with location uploads and refresh every three seconds
 - Ticket CRUD module with assignment and status changes
 - Tracked ticket lifecycle (`pending → assigned → accepted → in progress → completed`)
 - Online worker heartbeat, hybrid auto/admin dispatch, and SLA-overdue indicators
@@ -234,9 +238,34 @@ Existing admin bearer tokens are rejected after deployment; the public backend h
 endpoint, and the admin backend accepts no public or worker bearer tokens.
 
 Worker live location is stored only as the latest GPS point in `worker_locations`. It is visible
-only to the assigned requester, worker, and admin while a ticket is accepted or in progress, and it
+to the assigned requester and worker while a ticket is accepted or in progress. Administrators can
+view online workers' latest shared location in the fleet map. Each captured GPS fix
 expires automatically after two minutes. Workers must explicitly go online and grant browser
 location permission; no location history is retained.
+
+## Admin accounts, activity, and reports
+
+Use **Admin Console → Users** and **Workers** to create, view, edit, or delete accounts.
+Worker creation accepts an optional unique numeric worker ID, name, email, phone, address,
+gender, password, and password confirmation. An ID is generated when left blank. Account IDs
+cannot be changed after creation. Password changes invalidate existing sessions.
+
+**Account activity** records user and worker logins/logouts, worker online/offline transitions,
+and ticket creation, acceptance, start, completion, and cancellation from this update onward.
+Filter by role, account ID, event, and date; open an event to view its captured ticket and
+participant details. Passwords, authentication tokens, and completion OTPs are excluded.
+Earlier events cannot be reconstructed automatically. Activity records remain after account deletion.
+
+**PDF reports** downloads a user or worker account register with the corporation seal, report ID,
+issuer, page numbers, contact details, and completed/open ticket totals. Optional dates filter
+account registration dates; ticket totals cover the selected accounts' complete history.
+
+**Live worker map** refreshes every three seconds and hides offline or expired GPS fixes.
+Set `GOOGLE_MAPS_API_KEY` on the admin frontend build to enable interactive fleet markers and
+following a selected worker. Enable Maps JavaScript API and restrict the browser key to the admin
+hostname. `render.yaml` provides the variable and required map CSP sources. With no key, the page
+uses a Google Maps preview for the selected worker. Local builds can set the variable before
+running `npm run build:admin`; no key is stored in source control.
 
 Passwords created through signup or admin account management require at least 8 characters, one
 uppercase letter, and one special character.

@@ -147,7 +147,7 @@ import { BackendTicket } from '../core/api.types';
               <h2 class="text-[17px] font-semibold tracking-[-0.025em] text-foreground">Field fleet</h2>
               <p class="text-sm leading-5 text-muted-foreground">Live status from your verified operatives.</p>
             </div>
-            <app-text-link (clicked)="navigate.emit('accounts')">View all</app-text-link>
+            <app-text-link (clicked)="navigate.emit('workers')">View all</app-text-link>
           </div>
 
           <div class="mt-5 overflow-x-auto">

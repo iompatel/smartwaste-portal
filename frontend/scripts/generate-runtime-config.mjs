@@ -14,6 +14,7 @@ const consoles = ['citizen', 'worker', 'admin'];
 const payload = {
   API_BASE_URL: apiBaseUrl,
   DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
+  ...(process.env.GOOGLE_MAPS_API_KEY ? { GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY } : {}),
   ...(consoles.includes(consoleMode) ? { CONSOLE_MODE: consoleMode } : {}),
   // Optional: run the client against the local Firebase Auth emulator for e2e tests.
   ...(process.env.FIREBASE_AUTH_EMULATOR ? { FIREBASE_AUTH_EMULATOR: process.env.FIREBASE_AUTH_EMULATOR } : {}),

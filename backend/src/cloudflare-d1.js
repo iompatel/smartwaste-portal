@@ -151,6 +151,16 @@ function mapMessageRow(row) {
  * D1 Worker Location Client compatible with Mongoose model methods.
  */
 export const D1WorkerLocation = {
+  find(filter = {}) {
+    const now = filter.expiresAt?.$gt ? new Date(filter.expiresAt.$gt).getTime() : Date.now();
+    const promise = queryD1(
+      'SELECT * FROM worker_locations WHERE expires_at > ? ORDER BY worker_id ASC;',
+      [now],
+    ).then((rows) => rows.map(mapLocationRow));
+    promise.lean = () => promise;
+    return promise;
+  },
+
   async findOneAndUpdate(filter, update, _options = {}) {
     const workerId = Number(filter.workerId);
     const data = update.$set || update;
@@ -310,9 +320,10 @@ export const D1TicketMessage = {
     if (filter.ticketId !== undefined) {
       if (typeof filter.ticketId === 'object' && Array.isArray(filter.ticketId.$in)) {
         const ids = filter.ticketId.$in.map(Number).filter(Number.isFinite);
-        if (ids.length) {
-          const placeholders = ids.map(() => '?').join(', ');
-          await queryD1(`DELETE FROM ticket_messages WHERE ticket_id IN (${placeholders});`, ids);
+        for (let offset = 0; offset < ids.length; offset += 100) {
+          const batch = ids.slice(offset, offset + 100);
+          const placeholders = batch.map(() => '?').join(', ');
+          await queryD1(`DELETE FROM ticket_messages WHERE ticket_id IN (${placeholders});`, batch);
         }
       } else {
         const id = Number(filter.ticketId);

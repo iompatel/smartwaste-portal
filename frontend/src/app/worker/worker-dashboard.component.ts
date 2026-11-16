@@ -62,6 +62,7 @@ import { Ticket, View, isClosedStatus } from '../smartwaste/data';
             </div>
             <app-toggle
               [checked]="onDuty()"
+              [disabled]="availabilityPending()"
               (checkedChange)="dutyChange.emit($event)"
               label="Toggle duty availability"
             ></app-toggle>
@@ -223,6 +224,7 @@ import { Ticket, View, isClosedStatus } from '../smartwaste/data';
 export class WorkerDashboardComponent {
   tickets = input.required<Ticket[]>();
   onDuty = input.required<boolean>();
+  availabilityPending = input(false);
   location = input<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   dutyChange = output<boolean>();
   openHandover = output<Ticket>();

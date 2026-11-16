@@ -6,6 +6,10 @@ export type View =
   | 'profile'
   | 'settings'
   | 'accounts'
+  | 'users'
+  | 'workers'
+  | 'reports'
+  | 'live-map'
   | 'broadcast'
   | 'activity';
 
@@ -73,9 +77,12 @@ export const navByRole: Record<Role, NavItem[]> = {
   ],
   admin: [
     { id: 'overview', label: 'Command center', icon: 'bar-chart-3' },
-    { id: 'accounts', label: 'Accounts', icon: 'users-round' },
+    { id: 'users', label: 'Users', icon: 'user-round' },
+    { id: 'workers', label: 'Workers', icon: 'users-round' },
+    { id: 'live-map', label: 'Live worker map', icon: 'map-pin' },
+    { id: 'reports', label: 'PDF reports', icon: 'clipboard-check' },
     { id: 'broadcast', label: 'Broadcast', icon: 'bell-ring' },
-    { id: 'activity', label: 'Audit activity', icon: 'activity' },
+    { id: 'activity', label: 'Account activity', icon: 'activity' },
   ],
 };
 

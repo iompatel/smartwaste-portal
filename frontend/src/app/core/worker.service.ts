@@ -23,11 +23,12 @@ export class WorkerService {
   async updateLocation(
     latitude: number,
     longitude: number,
-    accuracy: number = 10
+    accuracy: number = 10,
+    sampledAt?: number,
   ): Promise<any> {
     return this.api.request('/api/workers/me/location', {
       method: 'PUT',
-      body: JSON.stringify({ latitude, longitude, accuracy }),
+      body: JSON.stringify({ latitude, longitude, accuracy, ...(sampledAt ? { sampledAt: new Date(sampledAt).toISOString() } : {}) }),
     });
   }
 

@@ -50,7 +50,7 @@ export async function verifyFirebaseIdToken(idToken) {
     throw new Error('Firebase Admin is not configured.');
   }
 
-  return getAuth().verifyIdToken(idToken);
+  return getAuth().verifyIdToken(idToken, true);
 }
 
 export async function getFirebaseUserByEmail(email) {

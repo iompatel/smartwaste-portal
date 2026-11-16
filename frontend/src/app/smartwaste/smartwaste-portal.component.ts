@@ -17,6 +17,8 @@ import {
   AdminActivityComponent,
   AdminBroadcastComponent,
   AdminDashboardComponent,
+  AdminLiveMapComponent,
+  AdminReportsComponent,
 } from '../admin';
 import {
   HandoverModalComponent,
@@ -82,6 +84,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     AdminAccountsComponent,
     AdminBroadcastComponent,
     AdminActivityComponent,
+    AdminLiveMapComponent,
+    AdminReportsComponent,
     LoginComponent,
     SignupComponent,
     WorkerLoginComponent,
@@ -253,6 +257,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
               <app-worker-dashboard
                 [tickets]="tickets()"
                 [onDuty]="onDuty()"
+                [availabilityPending]="availabilityPending()"
                 [location]="workerLocation()"
                 (dutyChange)="onDutyChange($event)"
                 (openHandover)="openHandover($event)"
@@ -285,8 +290,20 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
               ></app-admin-dashboard>
             }
 
-            @if (role() === 'admin' && view() === 'accounts') {
-              <app-admin-accounts [search]="search"></app-admin-accounts>
+            @if (role() === 'admin' && (view() === 'users' || view() === 'accounts')) {
+              <app-admin-accounts [search]="search" section="user"></app-admin-accounts>
+            }
+
+            @if (role() === 'admin' && view() === 'workers') {
+              <app-admin-accounts [search]="search" section="worker"></app-admin-accounts>
+            }
+
+            @if (role() === 'admin' && view() === 'reports') {
+              <app-admin-reports></app-admin-reports>
+            }
+
+            @if (role() === 'admin' && view() === 'live-map') {
+              <app-admin-live-map></app-admin-live-map>
             }
 
             @if (role() === 'admin' && view() === 'broadcast') {
@@ -447,8 +464,16 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   systemDark = signal<boolean>(false);
   toast = signal<string>('');
   onDuty = signal<boolean>(false);
+  availabilityPending = signal(false);
   workerLocation = signal<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   private dutyTimer?: number;
+  private locationTimer?: number;
+  private locationWatch?: number;
+  private lastLocationFixAt = 0;
+  private locationUploadPending = false;
+  private dataRefreshTimer?: number;
+  private refreshing = false;
+  private destroyed = false;
   private popstateListener?: () => void;
   private themeMedia?: MediaQueryList;
   private themeMediaListener?: (event: MediaQueryListEvent) => void;
@@ -465,7 +490,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   });
 
   currentRoleMeta = computed(() => roleMeta[this.role()]);
-  mobileNavItems = computed(() => navByRole[this.role()] ?? []);
+  mobileNavItems = computed(() => (navByRole[this.role()] ?? []).slice(0, 4));
 
   displayInitials = computed(() => {
     const user = this.currentUser();
@@ -485,8 +510,12 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (v === 'hire') return r === 'worker' ? 'Hired tasks' : 'Hire a worker';
     if (v === 'profile') return r === 'worker' ? 'Field credentials' : 'Profile & settings';
     if (v === 'accounts') return 'Accounts';
+    if (v === 'users') return 'Users';
+    if (v === 'workers') return 'Workers';
+    if (v === 'reports') return 'PDF reports';
+    if (v === 'live-map') return 'Live worker map';
     if (v === 'broadcast') return 'Broadcast';
-    if (v === 'activity') return 'Audit activity';
+    if (v === 'activity') return 'Account activity';
     return 'Settings';
   });
 
@@ -583,17 +612,26 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (this.isLoggedIn()) {
       await this.loadData();
     }
+    if (!this.destroyed) this.dataRefreshTimer = window.setInterval(() => {
+      if (!document.hidden && this.isLoggedIn()) void this.loadData();
+    }, 15000);
   }
 
   async loadData() {
-    if (!this.isLoggedIn()) return;
+    if (!this.isLoggedIn() || this.refreshing || this.destroyed) return;
+    this.refreshing = true;
+    const accountId = this.currentUser()?.id;
+    try {
     const [ticketsResult, hiresResult, notificationsResult] = await Promise.allSettled([
       this.ticketService.getTickets(),
       this.hireService.getHireRequests(),
       this.adminService.getNotifications(),
     ]);
+    if (this.destroyed || !this.isLoggedIn() || this.currentUser()?.id !== accountId) return;
     if (ticketsResult.status === 'fulfilled') {
       this.tickets.set(ticketsResult.value.map((ticket) => this.apiService.mapTicketToUi(ticket)));
+      const selected = this.selectedTicket();
+      if (selected) this.selectedTicket.set(this.tickets().find((ticket) => ticket.numericId === selected.numericId) ?? null);
     }
     if (hiresResult.status === 'fulfilled') {
       this.bookings.set(hiresResult.value.map((hire) => this.apiService.mapHireToUi(hire)));
@@ -606,15 +644,18 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     }
 
     const user = this.currentUser();
-    if (user?.role === 'worker') {
+    if (user?.role === 'worker' && !this.availabilityPending()) {
       this.onDuty.set(user.workerOnline ?? false);
-      if (this.onDuty()) {
+      if (this.onDuty() && !this.dutyTimer) {
         this.startDutyHeartbeat();
       }
     }
+    } finally { this.refreshing = false; }
   }
 
   ngOnDestroy() {
+    this.destroyed = true;
+    if (this.dataRefreshTimer) clearInterval(this.dataRefreshTimer);
     this.stopDutyHeartbeat();
     if (typeof window !== 'undefined' && this.popstateListener) {
       window.removeEventListener('popstate', this.popstateListener);
@@ -627,6 +668,10 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   private getViewFromPath(pathname: string): View {
     const raw = pathname.toLowerCase().replace(/^\//, '').split('/')[0];
     if (raw === 'accounts' || raw === 'admin-accounts') return 'accounts';
+    if (raw === 'users') return 'users';
+    if (raw === 'workers') return 'workers';
+    if (raw === 'reports') return 'reports';
+    if (raw === 'live-map') return 'live-map';
     if (raw === 'broadcast' || raw === 'admin-broadcast') return 'broadcast';
     if (raw === 'activity' || raw === 'admin-activity') return 'activity';
     if (raw === 'tickets') return 'tickets';
@@ -641,8 +686,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     this.broadcastLocation();
     this.dutyTimer = window.setInterval(() => {
       void this.workerService.sendHeartbeat().catch(() => undefined);
-      this.broadcastLocation();
     }, 15000);
+    this.locationTimer = window.setInterval(() => this.uploadWorkerLocation(), 3000);
   }
 
   private stopDutyHeartbeat() {
@@ -650,28 +695,43 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
       clearInterval(this.dutyTimer);
       this.dutyTimer = undefined;
     }
+    if (this.locationTimer) clearInterval(this.locationTimer);
+    this.locationTimer = undefined;
+    if (this.locationWatch !== undefined) navigator.geolocation.clearWatch(this.locationWatch);
+    this.locationWatch = undefined;
+    this.lastLocationFixAt = 0;
   }
 
   private broadcastLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
+    this.locationWatch = navigator.geolocation.watchPosition(
       (position) => {
+        if (!this.onDuty() || this.destroyed || !this.isLoggedIn()) return;
+        const firstFix = this.lastLocationFixAt === 0;
+        this.lastLocationFixAt = position.timestamp;
         this.workerLocation.set({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy ?? 10,
         });
-        void this.workerService
-          .updateLocation(
-            position.coords.latitude,
-            position.coords.longitude,
-            position.coords.accuracy ?? 10,
-          )
-          .catch(() => undefined);
+        if (firstFix) this.uploadWorkerLocation();
       },
-      () => undefined,
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 },
+      () => {
+        this.lastLocationFixAt = 0;
+        this.workerLocation.set(null);
+        this.toast.set('Location sharing is unavailable. Allow location access to appear on the live worker map.');
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
+  }
+
+  private uploadWorkerLocation() {
+    const location = this.workerLocation();
+    if (this.destroyed || !this.isLoggedIn() || this.currentUser()?.role !== 'worker' || !this.onDuty() || this.locationUploadPending || !location || !this.lastLocationFixAt) return;
+    if (Date.now() - this.lastLocationFixAt > 120000) { this.workerLocation.set(null); return; }
+    this.locationUploadPending = true;
+    void this.workerService.updateLocation(location.latitude, location.longitude, location.accuracy, this.lastLocationFixAt)
+      .catch(() => undefined).finally(() => { this.locationUploadPending = false; });
   }
 
   onNavigate(nextView: View) {
@@ -855,10 +915,15 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   }
 
   async onDutyChange(onDuty: boolean) {
-    this.onDuty.set(onDuty);
+    if (this.availabilityPending()) return;
+    const accountId = this.currentUser()?.id;
+    this.availabilityPending.set(true);
     try {
-      await this.workerService.setAvailability(onDuty);
-      if (onDuty) {
+      const updated = await this.workerService.setAvailability(onDuty);
+      if (this.destroyed || this.currentUser()?.id !== accountId) return;
+      const online = Boolean(updated.workerOnline);
+      this.onDuty.set(online);
+      if (online) {
         this.startDutyHeartbeat();
       } else {
         this.stopDutyHeartbeat();
@@ -866,15 +931,15 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
       }
       const user = this.currentUser();
       if (user) {
-        const updatedUser = { ...user, workerOnline: onDuty };
+        const updatedUser = { ...user, ...updated };
         this.auth.currentUser.set(updatedUser);
         this.apiService.setStoredUser(updatedUser);
       }
-      this.toast.set(onDuty ? 'Dispatch availability enabled.' : 'Shift paused.');
+      await this.loadData();
+      this.toast.set(online ? 'Dispatch availability enabled.' : 'Shift paused.');
     } catch (err: any) {
-      this.onDuty.set(!onDuty);
       this.toast.set(err?.message || 'Could not update duty status.');
-    }
+    } finally { this.availabilityPending.set(false); }
   }
 
   setTheme(t: Theme) {
@@ -887,6 +952,6 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   }
 
   onSearchEnter() {
-    this.onNavigate(this.role() === 'admin' ? 'accounts' : 'tickets');
+    this.onNavigate(this.role() === 'admin' ? 'users' : 'tickets');
   }
 }

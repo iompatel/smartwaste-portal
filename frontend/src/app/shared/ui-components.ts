@@ -320,10 +320,11 @@ export class ScoreRingComponent {
     <button
       type="button"
       role="switch"
+      [disabled]="disabled()"
       [attr.aria-checked]="checked()"
       [attr.aria-label]="label()"
       (click)="toggle()"
-      class="relative h-7 w-12 shrink-0 rounded-full p-1 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      class="relative h-7 w-12 shrink-0 rounded-full p-1 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
       [ngClass]="checked() ? 'bg-brand' : 'bg-muted-foreground/30'"
     >
       <span
@@ -334,11 +335,13 @@ export class ScoreRingComponent {
   `
 })
 export class ToggleComponent {
+  disabled = input(false);
   checked = input.required<boolean>();
   label = input.required<string>();
   checkedChange = output<boolean>();
 
   toggle() {
+    if (this.disabled()) return;
     this.checkedChange.emit(!this.checked());
   }
 }

@@ -49,6 +49,13 @@ import {
 import { fastCache } from './cache.js';
 import { deleteMedia, uploadMedia } from './storage.js';
 import {
+  AccountActivity,
+  accountActivitySnapshot,
+  ticketActivitySnapshot,
+  activityDateRange,
+  activityQuery,
+} from './activity.js';
+import {
   isD1Configured,
   isD1PartiallyConfigured,
   isD1Ready,
@@ -176,6 +183,20 @@ function generateToken(user) {
 function parseNumericId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function accountWriteGuard(account) {
+  const defaultTimestamp = account.$isDefault?.('updatedAt') || account.updatedAt === undefined;
+  const guard = { id: account.id, updatedAt: defaultTimestamp ? { $exists: false } : account.updatedAt };
+  const version = Number(account.tokenVersion ?? 0);
+  if (version === 0) guard.$or = [{ tokenVersion: 0 }, { tokenVersion: { $exists: false } }];
+  else guard.tokenVersion = version;
+  return guard;
+}
+
+function nextAccountTimestamp(previous) {
+  const timestamp = new Date(previous ?? 0).getTime();
+  return new Date(Math.max(Date.now(), Number.isFinite(timestamp) ? timestamp + 1 : 0));
 }
 
 function buildSessionLabel(payload) {
@@ -576,6 +597,7 @@ async function createAdminActivity({
   targetType = null,
   targetId = null,
   summary,
+  details = null,
 }) {
   if (!adminUser || adminUser.role !== 'admin' || !action || !summary) {
     return null;
@@ -596,7 +618,38 @@ async function createAdminActivity({
     createdAt: new Date(),
   });
 
+  await createAccountActivity({ actor: adminUser, action, targetType, targetId, summary, details });
+
   return cleanRecord(activity);
+}
+
+async function createAccountActivity({ actor, action, targetType = null, targetId = null, summary, details = null }) {
+  if (!actor || !USER_ROLES.includes(actor.role)) return null;
+  const actorName = `${actor.firstName ?? ''} ${actor.lastName ?? ''}`.trim() || `${actor.role} #${actor.id}`;
+  return AccountActivity.create({
+    id: await nextId('accountActivities'),
+    actorId: actor.id,
+    actorRole: actor.role,
+    actorName,
+    actorEmail: normalizeEmail(actor.email),
+    action,
+    targetType,
+    targetId: targetId === null ? null : parseNumericId(targetId),
+    summary,
+    details,
+    createdAt: new Date(),
+  });
+}
+
+async function ticketActivityDetails(ticket) {
+  const participants = await User.find({ id: { $in: [ticket.userId, ticket.workerId].filter(Boolean) } }, {
+    id: 1, firstName: 1, lastName: 1, email: 1, role: 1, mobile: 1, address: 1,
+  }).lean();
+  return {
+    ...ticketActivitySnapshot(ticket),
+    requester: accountActivitySnapshot(participants.find((user) => user.id === ticket.userId)),
+    worker: accountActivitySnapshot(participants.find((user) => user.id === ticket.workerId)),
+  };
 }
 
 function truncateText(value, maxLength = 140) {
@@ -1067,6 +1120,7 @@ async function seedData() {
       syncCounter('hireRequests', HireRequest),
       syncCounter('notifications', Notification),
       syncCounter('adminActivities', AdminActivity),
+      syncCounter('accountActivities', AccountActivity),
       syncCounter('ticketMessages', TicketMessage),
       syncCounter('reviews', Review),
     ]);
@@ -1397,6 +1451,14 @@ function requireRoles(...roles) {
 async function sendLoginResponse(user, res) {
   user.lastLoginAt = new Date();
   await user.save();
+  await createAccountActivity({
+    actor: user,
+    action: user.role === 'worker' ? 'Worker Login' : 'User Login',
+    targetType: 'session',
+    targetId: user.id,
+    summary: `Signed in to the ${user.role === 'worker' ? 'Worker Console' : 'citizen portal'}.`,
+    details: accountActivitySnapshot(user),
+  });
 
   clearAdminCookie(res);
   const token = generateToken(user);
@@ -1922,7 +1984,24 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
     if (req.user.role === 'worker') {
       update.$set = { workerOnline: false, workerLastSeenAt: null };
     }
-    await User.updateOne({ id: req.user.id }, update);
+    const previous = await User.findOneAndUpdate({ id: req.user.id }, update, { new: false });
+    if (previous) {
+      await createAccountActivity({
+        actor: previous,
+        action: previous.role === 'worker' ? 'Worker Logout' : 'User Logout',
+        targetType: 'session',
+        targetId: previous.id,
+        summary: 'Signed out of Smart Waste.',
+        details: accountActivitySnapshot(previous),
+      });
+      if (previous.role === 'worker' && previous.workerOnline) {
+        await createAccountActivity({
+          actor: previous, action: 'Worker Offline', targetType: 'worker', targetId: previous.id,
+          summary: 'Went offline on logout.',
+          details: { ...accountActivitySnapshot(previous), workerOnline: false, workerLastSeenAt: null },
+        });
+      }
+    }
     if (req.user.role === 'worker') {
       await WorkerLocation.deleteOne({ workerId: req.user.id });
       fastCache.invalidate('workers:');
@@ -1983,6 +2062,7 @@ app.put('/api/me', authMiddleware, async (req, res) => {
       targetType: 'admin',
       targetId: req.user.id,
       summary: 'Updated admin profile details.',
+      details: accountActivitySnapshot(user),
     });
   }
 
@@ -1999,17 +2079,27 @@ app.put(
       return res.status(400).json({ message: 'online must be true or false.' });
     }
 
-    const user = await User.findOneAndUpdate(
+    const now = new Date();
+    const previous = await User.findOneAndUpdate(
       { id: req.user.id, role: 'worker' },
       {
         $set: {
           workerOnline: online,
-          workerLastSeenAt: online ? new Date() : null,
-          updatedAt: new Date(),
+          workerLastSeenAt: online ? now : null,
+          updatedAt: now,
         },
       },
-      { new: true },
+      { new: false },
     );
+    if (!previous) return res.status(404).json({ message: 'Worker not found.' });
+    const user = { ...cleanRecord(previous), workerOnline: online, workerLastSeenAt: online ? now : null, updatedAt: now };
+    if (Boolean(previous.workerOnline) !== online) {
+      await createAccountActivity({
+        actor: user, action: online ? 'Worker Online' : 'Worker Offline', targetType: 'worker', targetId: user.id,
+        summary: online ? 'Went online and became available for dispatch.' : 'Went offline.',
+        details: accountActivitySnapshot(user),
+      });
+    }
     fastCache.invalidate('workers:');
     if (online) {
       await autoAssignUnassignedTickets(25);
@@ -2042,13 +2132,17 @@ app.put('/api/workers/me/location', authMiddleware, requireRoles('worker'), asyn
     return res.status(409).json({ message: 'Go online before sharing live location.' });
   }
   const now = new Date();
+  const sampledAt = req.body?.sampledAt === undefined ? now : new Date(req.body.sampledAt);
+  if (!Number.isFinite(sampledAt.getTime()) || sampledAt.getTime() > now.getTime() + 5000 || now.getTime() - sampledAt.getTime() >= WORKER_LOCATION_TTL_MS) {
+    return res.status(400).json({ message: 'Location must have a recent valid GPS timestamp.' });
+  }
   const record = await WorkerLocation.findOneAndUpdate(
     { workerId: req.user.id },
     {
       $set: {
         ...location,
-        updatedAt: now,
-        expiresAt: new Date(now.getTime() + WORKER_LOCATION_TTL_MS),
+        updatedAt: sampledAt,
+        expiresAt: new Date(sampledAt.getTime() + WORKER_LOCATION_TTL_MS),
       },
     },
     { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -2112,9 +2206,13 @@ app.get('/api/dashboard/summary', authMiddleware, requireRoles('admin'), async (
   });
 });
 
-app.get('/api/users', authMiddleware, requireRoles('admin'), async (_req, res) => {
+app.get('/api/users', authMiddleware, requireRoles('admin'), async (req, res) => {
+  const role = req.query?.role;
+  if (role && !['user', 'worker'].includes(role)) {
+    return res.status(400).json({ message: 'Account role must be user or worker.' });
+  }
   const [users, ratings] = await Promise.all([
-    User.find({}, { passwordHash: 0, profileImage: 0 }).sort({ createdAt: -1 }).limit(500),
+    User.find(role ? { role } : {}, { passwordHash: 0, profileImage: 0 }).sort({ createdAt: -1 }).limit(500),
     Review.aggregate([
       { $group: { _id: '$workerId', ratingAverage: { $avg: '$rating' }, ratingCount: { $sum: 1 } } },
     ]),
@@ -2136,6 +2234,96 @@ app.get('/api/users', authMiddleware, requireRoles('admin'), async (_req, res) =
   );
 });
 
+app.get('/api/activity', authMiddleware, requireRoles('admin'), async (req, res) => {
+  let query;
+  try {
+    query = activityQuery(req.query);
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+  const { filter, page, limit } = query;
+  const [items, total] = await Promise.all([
+    AccountActivity.find(filter).sort({ createdAt: -1, id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    AccountActivity.countDocuments(filter),
+  ]);
+  return res.json({ items: items.map(cleanRecord), total, page, limit });
+});
+
+app.get('/api/admin/worker-locations', authMiddleware, requireRoles('admin'), async (_req, res) => {
+  const now = new Date();
+  const [workers, locations, tickets] = await Promise.all([
+    User.find({ role: 'worker', disabled: { $ne: true } }, {
+      id: 1, firstName: 1, lastName: 1, email: 1, workerOnline: 1, workerLastSeenAt: 1,
+    }).sort({ firstName: 1, id: 1 }).lean(),
+    WorkerLocation.find({ expiresAt: { $gt: now } }).lean(),
+    Ticket.find({ workerId: { $ne: null }, status: { $in: ['assigned', 'accepted', 'in_progress'] } }, {
+      id: 1, ticketCode: 1, workerId: 1, status: 1, locationAddress: 1,
+    }).lean(),
+  ]);
+  const locationMap = new Map(locations.map((location) => [Number(location.workerId), location]));
+  const ticketsByWorker = new Map();
+  for (const ticket of tickets) {
+    const workerTickets = ticketsByWorker.get(ticket.workerId) ?? [];
+    workerTickets.push({ id: ticket.id, ticketCode: ticket.ticketCode, status: ticket.status, locationAddress: ticket.locationAddress });
+    ticketsByWorker.set(ticket.workerId, workerTickets);
+  }
+  return res.json({
+    workers: workers.map((worker) => {
+      const workerOnline = Boolean(worker.workerOnline) && isFreshWorkerLocation(worker.workerLastSeenAt, now.getTime());
+      const location = locationMap.get(worker.id);
+      const freshLocation = workerOnline && location && isFreshWorkerLocation(location.updatedAt, now.getTime());
+      return {
+        workerId: worker.id, firstName: worker.firstName, lastName: worker.lastName, email: worker.email,
+        workerOnline, lastSeenAt: worker.workerLastSeenAt ?? null,
+        location: freshLocation ? {
+          latitude: location.latitude, longitude: location.longitude, accuracy: location.accuracy, updatedAt: location.updatedAt,
+        } : null,
+        activeTickets: ticketsByWorker.get(worker.id) ?? [],
+      };
+    }),
+    updatedAt: now,
+  });
+});
+
+app.get('/api/admin/reports/:role', authMiddleware, requireRoles('admin'), async (req, res) => {
+  const role = req.params.role === 'users' ? 'user' : req.params.role === 'workers' ? 'worker' : null;
+  if (!role) return res.status(400).json({ message: 'Report role must be users or workers.' });
+  let period;
+  try {
+    period = activityDateRange(req.query);
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+  const filter = { role };
+  if (period.from || period.to) {
+    filter.createdAt = { ...(period.from ? { $gte: period.from } : {}), ...(period.to ? { $lte: period.to } : {}) };
+  }
+  const users = await User.find(filter, { passwordHash: 0, profileImage: 0 }).sort({ createdAt: -1 }).lean();
+  const assignmentField = role === 'worker' ? 'workerId' : 'userId';
+  const counts = users.length ? await Ticket.aggregate([
+    { $match: { [assignmentField]: { $in: users.map((user) => user.id) } } },
+    { $group: {
+      _id: `$${assignmentField}`,
+      totalTickets: { $sum: 1 },
+      completedTickets: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+      pendingTickets: { $sum: { $cond: [{ $in: ['$status', ['pending', 'assigned', 'accepted', 'in_progress']] }, 1, 0] } },
+    } },
+  ]) : [];
+  const countMap = new Map(counts.map((count) => [Number(count._id), count]));
+  const accounts = users.map((user) => {
+    const count = countMap.get(user.id);
+    return { ...sanitizeUser(user), totalTickets: count?.totalTickets ?? 0,
+      completedTickets: count?.completedTickets ?? 0, pendingTickets: count?.pendingTickets ?? 0 };
+  });
+  const { buildAccountReport } = await import('./reports.js');
+  const generatedAt = new Date();
+  const pdf = await buildAccountReport({ role, accounts, generatedBy: sanitizeUser(req.user), generatedAt, period });
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `attachment; filename="smartwaste-${req.params.role}-${generatedAt.toISOString().slice(0, 10)}.pdf"`);
+  res.set('Cache-Control', 'no-store');
+  return res.send(pdf);
+});
+
 app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) => {
   const {
     firstName,
@@ -2144,6 +2332,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     mobile,
     email,
     password,
+    confirmPassword,
     role,
     address,
     profileImage = null,
@@ -2164,8 +2353,21 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     return res.status(400).json({ message: 'Invalid email format.' });
   }
 
-  if (!isStrongPassword(password)) {
+  if (typeof password !== 'string' || !isStrongPassword(password)) {
     return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  }
+  if (typeof confirmPassword !== 'string' || password !== confirmPassword) {
+    return res.status(400).json({ message: 'Password and confirmation must match.' });
+  }
+  const suppliedId = req.body?.id;
+  const explicitId = suppliedId === undefined || suppliedId === null || suppliedId === '' ? null : parseNumericId(suppliedId);
+  if (suppliedId !== undefined && suppliedId !== null && suppliedId !== '' && (
+    !['string', 'number'].includes(typeof suppliedId) || !explicitId || allowedRole !== 'worker'
+  )) {
+    return res.status(400).json({ message: 'An explicit positive numeric ID can only be supplied for a new worker.' });
+  }
+  if (explicitId && await User.exists({ id: explicitId })) {
+    return res.status(409).json({ message: 'Account ID already exists.' });
   }
   const profile = normalizeAccountProfile({
     firstName,
@@ -2190,11 +2392,14 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
   }
 
   const storedProfileImage = profileImage ? await uploadMedia(profileImage, 'profiles') : null;
+  if (explicitId) {
+    await Counter.findOneAndUpdate({ key: 'users' }, { $max: { value: explicitId } }, { upsert: true, setDefaultsOnInsert: true });
+  }
   const now = new Date();
   let user;
   try {
     user = await User.create({
-      id: await nextId('users'),
+      id: explicitId ?? await nextId('users'),
       ...profile,
       email: normalizedEmail,
       passwordHash: await hashPassword(String(password)),
@@ -2208,6 +2413,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     });
   } catch (error) {
     await deleteMedia(storedProfileImage).catch(() => undefined);
+    if (error?.code === 11000) return res.status(409).json({ message: 'Email or account ID already exists.' });
     throw error;
   }
   await DeletedIdentity.deleteOne({ emailHash: hashAdminSecret(normalizedEmail) });
@@ -2219,6 +2425,7 @@ app.post('/api/users', authMiddleware, requireRoles('admin'), async (req, res) =
     targetType: allowedRole,
     targetId: user.id,
     summary: `Created ${allowedRole} account for ${user.firstName} ${user.lastName}.`,
+    details: accountActivitySnapshot(user),
   });
 
   res.status(201).json(sanitizeUser(user));
@@ -2233,6 +2440,17 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
   const existing = await User.findOne({ id });
   if (!existing) {
     return res.status(404).json({ message: 'User not found.' });
+  }
+  if (req.body?.id !== undefined && parseNumericId(req.body.id) !== id) {
+    return res.status(400).json({ message: 'Account IDs cannot be changed.' });
+  }
+  const nextPassword = req.body?.password;
+  const changingPassword = nextPassword !== undefined;
+  if (changingPassword && (typeof nextPassword !== 'string' || !isStrongPassword(nextPassword))) {
+    return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+  }
+  if (changingPassword && (typeof req.body?.confirmPassword !== 'string' || nextPassword !== req.body.confirmPassword)) {
+    return res.status(400).json({ message: 'Password and confirmation must match.' });
   }
 
   const role = req.body?.role ?? existing.role;
@@ -2279,81 +2497,109 @@ app.put('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res
     ? await uploadMedia(nextProfileImage, 'profiles')
     : null;
 
+  const oldAccount = typeof existing.toObject === 'function' ? existing.toObject() : { ...existing };
   let firebaseRecord = null;
-  let firebaseEmailUpdated = false;
-  if (nextEmail !== oldEmail) {
+  const firebaseChanges = {};
+  if (nextEmail !== oldEmail || (changingPassword && previousRole === 'user')) {
     if (existing.firebaseUid && !isFirebaseEnabled()) {
       if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
       return res.status(503).json({ message: 'Firebase identity service is unavailable.' });
     }
     firebaseRecord = await firebaseRecordForUser(existing);
     if (firebaseRecord) {
-      if (firebaseRecord.providerData?.some((provider) => provider.providerId === 'google.com')) {
+      const providers = firebaseRecord.providerData ?? [];
+      if (nextEmail !== oldEmail && providers.some((provider) => provider.providerId === 'google.com')) {
         if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
         return res.status(409).json({
           message: 'Google account emails are managed by Google and cannot be changed here.',
         });
       }
-      try {
-        await updateFirebaseUser(firebaseRecord.uid, { email: nextEmail });
-        firebaseEmailUpdated = true;
-      } catch (error) {
+      if (changingPassword && !providers.some((provider) => provider.providerId === 'password')) {
         if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage);
-        if (error?.code === 'auth/email-already-exists') {
-          return res.status(409).json({ message: 'Email already exists in Firebase.' });
-        }
-        throw error;
+        return res.status(409).json({ message: 'This account uses provider sign-in; its password is managed by that provider.' });
       }
+      if (nextEmail !== oldEmail) firebaseChanges.email = nextEmail;
+      if (changingPassword) firebaseChanges.password = nextPassword;
     }
   }
 
-  Object.assign(existing, profile);
-  existing.email = nextEmail;
-  existing.role = role;
-  existing.profileImage = storedProfileImage;
+  const set = { ...profile, email: nextEmail, role, profileImage: storedProfileImage,
+    updatedAt: nextAccountTimestamp(existing.updatedAt) };
+  if (changingPassword) set.passwordHash = await hashPassword(nextPassword);
+  const credentialsChanged = changingPassword || nextEmail !== oldEmail || role !== previousRole;
   if (firebaseRecord) {
-    existing.firebaseUid = firebaseRecord.uid;
-    existing.firebaseProvider = firebaseProviderFromRecord(firebaseRecord);
+    set.firebaseUid = firebaseRecord.uid;
+    set.firebaseProvider = firebaseProviderFromRecord(firebaseRecord);
   }
-  if (existing.role === 'worker' && Array.isArray(req.body?.workerSkills)) {
-    existing.workerSkills = req.body.workerSkills
+  if (role === 'worker' && Array.isArray(req.body?.workerSkills)) {
+    set.workerSkills = req.body.workerSkills
       .map((skill) => String(skill).trim())
       .filter(Boolean)
       .slice(0, 20);
   }
-  if (existing.role !== 'worker') {
-    existing.workerOnline = false;
-    existing.workerSkills = [];
+  if (role !== 'worker') {
+    set.workerOnline = false;
+    set.workerSkills = [];
   }
-  existing.updatedAt = new Date();
+  let updatedAccount;
   try {
-    await existing.save();
+    updatedAccount = await User.findOneAndUpdate(accountWriteGuard(existing), {
+      $set: set, ...(credentialsChanged ? { $inc: { tokenVersion: 1 } } : {}),
+    }, { new: true, runValidators: true });
   } catch (error) {
-    if (firebaseEmailUpdated && firebaseRecord) {
-      await updateFirebaseUser(firebaseRecord.uid, { email: oldEmail }).catch(() => undefined);
-    }
     if (storedProfileImage !== oldProfileImage) {
       await deleteMedia(storedProfileImage).catch(() => undefined);
     }
+    if (error?.code === 11000) return res.status(409).json({ message: 'Email already exists.' });
+    throw error;
+  }
+  if (!updatedAccount) {
+    if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage).catch(() => undefined);
+    return res.status(409).json({ message: 'Account changed before this update. Refresh and retry.' });
+  }
+  try {
+    if (credentialsChanged) await AdminSession.deleteMany({ userId: updatedAccount.id });
+    if (firebaseRecord && Object.keys(firebaseChanges).length) {
+      await updateFirebaseUser(firebaseRecord.uid, firebaseChanges);
+    }
+  } catch (error) {
+    // Restore only this request's fields when its write is still current. Another
+    // edit must keep both its account data and its newer revocation version.
+    const restore = { updatedAt: nextAccountTimestamp(updatedAccount.updatedAt) };
+    const unset = {};
+    for (const key of Object.keys(set)) {
+      if (key === 'updatedAt') continue;
+      if (oldAccount[key] === undefined) unset[key] = 1;
+      else restore[key] = oldAccount[key];
+    }
+    const rolledBack = await User.findOneAndUpdate({ id, updatedAt: updatedAccount.updatedAt,
+      tokenVersion: Number(updatedAccount.tokenVersion ?? 0) }, {
+      $set: restore,
+      ...(Object.keys(unset).length ? { $unset: unset } : {}),
+      ...(credentialsChanged ? { $inc: { tokenVersion: 1 } } : {}),
+    }, { new: true, runValidators: true });
+    if (!rolledBack) return res.status(409).json({ message: 'Account changed during identity update. Refresh and retry.' });
+    if (storedProfileImage !== oldProfileImage) await deleteMedia(storedProfileImage).catch(() => undefined);
+    fastCache.invalidate('workers:');
+    if (error?.code === 'auth/email-already-exists') return res.status(409).json({ message: 'Email already exists in Firebase.' });
     throw error;
   }
   if (oldProfileImage && oldProfileImage !== storedProfileImage) {
     await deleteMedia(oldProfileImage);
   }
-  if (previousRole === 'admin' && existing.role !== 'admin') {
-    await AdminSession.deleteMany({ userId: existing.id });
-  }
+  fastCache.invalidate('workers:');
 
   await createAdminActivity({
     adminUser: req.user,
     sessionLabel: req.sessionLabel,
     action: 'Account Updated',
-    targetType: existing.role,
-    targetId: existing.id,
-    summary: `Updated ${existing.firstName} ${existing.lastName} account. Role ${previousRole} to ${existing.role}.`,
+    targetType: updatedAccount.role,
+    targetId: updatedAccount.id,
+    summary: `Updated ${updatedAccount.firstName} ${updatedAccount.lastName} account. Role ${previousRole} to ${updatedAccount.role}.`,
+    details: accountActivitySnapshot(updatedAccount),
   });
 
-  res.json(sanitizeUser(existing));
+  res.json(sanitizeUser(updatedAccount));
 });
 
 app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, res) => {
@@ -2459,6 +2705,7 @@ app.delete('/api/users/:id', authMiddleware, requireRoles('admin'), async (req, 
     targetType: user.role,
     targetId: user.id,
     summary: `Deleted ${user.role} account for ${user.firstName} ${user.lastName}.`,
+    details: accountActivitySnapshot(user),
   });
 
   await User.deleteOne({ id, disabled: true });
@@ -2936,6 +3183,12 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     userId: req.user.id,
   });
 
+  await createAccountActivity({
+    actor: req.user, action: 'Ticket Created', targetType: 'ticket', targetId: ticket.id,
+    summary: `Created ${ticket.ticketCode} for ${ticket.wasteType} collection.`,
+    details: await ticketActivityDetails(ticket),
+  });
+
   const [record] = await buildTicketRecords([ticket], req.user);
   res.status(201).json(record);
 });
@@ -3003,6 +3256,7 @@ app.put(
         targetType: 'ticket',
         targetId: updatedTicket.id,
         summary: `Assigned ${updatedTicket.ticketCode} to Worker #${workerId}.`,
+        details: await ticketActivityDetails(updatedTicket),
       }),
     ]);
 
@@ -3111,6 +3365,13 @@ app.put(
       if (completionMediaUrl) await deleteMedia(completionMediaUrl).catch(() => undefined);
       return res.status(409).json({ message: 'Ticket changed before this update. Refresh and retry.' });
     }
+    await createAccountActivity({
+      actor: req.user,
+      action: status === 'accepted' ? 'Ticket Accepted' : status === 'in_progress' ? 'Ticket Started' : 'Ticket Completed',
+      targetType: 'ticket', targetId: updatedTicket.id,
+      summary: `${updatedTicket.ticketCode} ${status === 'in_progress' ? 'started' : status}.`,
+      details: await ticketActivityDetails(updatedTicket),
+    });
     fastCache.invalidate('workers:');
     if (userNotification) await createNotification(userNotification);
     if (status === 'completed') await autoAssignUnassignedTickets(25);
@@ -3136,12 +3397,19 @@ app.put('/api/tickets/:id/cancel', authMiddleware, async (req, res) => {
   }
 
   const previousWorkerId = ticket.workerId;
-  ticket.workerId = null;
-  ticket.cancelledAt = new Date();
-  ticket.completionCode = null;
-  ticket.completionCodeHash = null;
-  appendTicketStatus(ticket, 'cancelled', req.user, String(req.body?.reason ?? 'Ticket cancelled.'));
-  await ticket.save();
+  const now = new Date();
+  const updatedTicket = await Ticket.findOneAndUpdate(
+    { id, status: ticket.status, workerId: ticket.workerId, updatedAt: ticket.updatedAt },
+    {
+      $set: { workerId: null, status: 'cancelled', cancelledAt: now, completionCode: null, completionCodeHash: null, updatedAt: now },
+      $push: { statusHistory: {
+        status: 'cancelled', actorId: req.user.id, actorRole: req.user.role,
+        note: String(req.body?.reason ?? 'Ticket cancelled.').trim().slice(0, 500), createdAt: now,
+      } },
+    },
+    { new: true },
+  );
+  if (!updatedTicket) return res.status(409).json({ message: 'Ticket changed before cancellation. Refresh and retry.' });
   fastCache.invalidate('workers:');
   if (previousWorkerId) {
     await createNotification({
@@ -3158,9 +3426,15 @@ app.put('/api/tickets/:id/cancel', authMiddleware, async (req, res) => {
       targetType: 'ticket',
       targetId: ticket.id,
       summary: `Cancelled ticket ${ticket.ticketCode}.`,
+      details: await ticketActivityDetails(updatedTicket),
+    });
+  } else {
+    await createAccountActivity({
+      actor: req.user, action: 'Ticket Cancelled', targetType: 'ticket', targetId: id,
+      summary: `Cancelled ${ticket.ticketCode}.`, details: await ticketActivityDetails(updatedTicket),
     });
   }
-  const [record] = await buildTicketRecords([ticket], req.user);
+  const [record] = await buildTicketRecords([updatedTicket], req.user);
   return res.json(record);
 });
 
@@ -3280,6 +3554,7 @@ app.delete('/api/tickets/:id', authMiddleware, async (req, res) => {
       targetType: 'ticket',
       targetId: ticket.id,
       summary: `Deleted ticket ${ticket.ticketCode} with status ${ticket.status}.`,
+      details: await ticketActivityDetails(ticket),
     });
   }
 

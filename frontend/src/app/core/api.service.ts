@@ -100,6 +100,32 @@ export class ApiService {
     this.setStoredRole(null);
   }
 
+  async requestBlob(endpoint: string): Promise<Blob> {
+    const headers: Record<string, string> = { Accept: 'application/pdf' };
+    const token = this.getToken();
+    const csrf = this.getCsrf();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (csrf) headers['X-Admin-CSRF'] = csrf;
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiBase}${path}`, { headers, credentials: 'include', cache: 'no-store' });
+    } catch (error) {
+      if (!this.apiBase || !(error instanceof TypeError)) throw error;
+      response = await fetch(path, { headers, credentials: 'include', cache: 'no-store' });
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const error = new Error(body?.message || `Report download failed (${response.status}).`);
+      Object.assign(error, { status: response.status });
+      throw error;
+    }
+    if (!response.headers.get('content-type')?.includes('application/pdf')) {
+      throw new Error('The report service returned an unexpected response. Please try again.');
+    }
+    return response.blob();
+  }
+
   async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = this.getToken();
     const csrf = this.getCsrf();
