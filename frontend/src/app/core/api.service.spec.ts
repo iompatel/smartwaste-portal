@@ -66,4 +66,88 @@ describe('authenticated PDF downloads', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>App</html>', { headers: { 'Content-Type': 'text/html' } })));
     await expect(new ApiService().requestBlob('/api/admin/reports/users')).rejects.toThrow('unexpected response');
   });
+
+  it('wakes a sleeping admin backend and retries a PDF download once', async () => {
+    const service = new ApiService();
+    (service as any).apiWakeUrl = 'https://admin-backend.example.test/api/ready';
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('Too Many Requests', {
+        status: 429,
+        headers: { 'X-Render-Routing': 'hibernate-rate-limited' },
+      }))
+      .mockResolvedValueOnce(new Response('{"status":"ready"}', {
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response('%PDF-1.7', {
+        headers: { 'Content-Type': 'application/pdf' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const blob = await service.requestBlob('/api/admin/reports/users');
+
+    expect(await blob.text()).toBe('%PDF-1.7');
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://admin-backend.example.test/api/ready', expect.objectContaining({
+      credentials: 'omit', cache: 'no-store', signal: expect.any(AbortSignal),
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('admin backend cold starts', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('wakes Render and retries the original JSON request once', async () => {
+    const service = new ApiService();
+    (service as any).apiWakeUrl = 'https://admin-backend.example.test/api/ready';
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('Too Many Requests', {
+        status: 429,
+        headers: { 'X-Render-Routing': 'hibernate-rate-limited' },
+      }))
+      .mockResolvedValueOnce(new Response('{"status":"ready"}', {
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response('{"totalUsers":3}', {
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(service.request<{ totalUsers: number }>('/api/dashboard/summary')).resolves.toEqual({ totalUsers: 3 });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://admin-backend.example.test/api/ready', expect.objectContaining({
+      method: 'GET', credentials: 'omit', cache: 'no-store', signal: expect.any(AbortSignal),
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not wake the backend for application rate limits', async () => {
+    const service = new ApiService();
+    (service as any).apiWakeUrl = 'https://admin-backend.example.test/api/ready';
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"message":"Please wait."}', {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(service.request('/api/auth/admin-login')).rejects.toThrow('Please wait.');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports that the backend is still waking if the retry is also hibernating', async () => {
+    const service = new ApiService();
+    (service as any).apiWakeUrl = 'https://admin-backend.example.test/api/ready';
+    const sleepingResponse = () => new Response('Too Many Requests', {
+      status: 429,
+      headers: { 'X-Render-Routing': 'hibernate-rate-limited' },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(sleepingResponse())
+      .mockResolvedValueOnce(new Response('{"status":"ready"}', {
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(sleepingResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(service.request('/api/dashboard/summary')).rejects.toThrow('still waking up');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });

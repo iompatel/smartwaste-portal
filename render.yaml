@@ -180,7 +180,7 @@ services:
         value: noindex, nofollow, noarchive
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' 'unsafe-eval' blob: https://static.cloudflareinsights.com https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleapis.com https://*.google.com https://maps.gstatic.com https://*.googleusercontent.com https://firebasestorage.googleapis.com; connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; worker-src blob:; frame-src https://www.openstreetmap.org https://www.google.com https://maps.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        value: "default-src 'self'; script-src 'self' 'unsafe-eval' blob: https://static.cloudflareinsights.com https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleapis.com https://*.google.com https://maps.gstatic.com https://*.googleusercontent.com https://firebasestorage.googleapis.com; connect-src 'self' https://smartwaste-admin-backend.onrender.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; worker-src blob:; frame-src https://www.openstreetmap.org https://www.google.com https://maps.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
@@ -206,6 +206,8 @@ services:
     envVars:
       - key: API_BASE_URL
         value: https://admin.smartwaste.dpdns.org/api
+      - key: API_WAKE_URL
+        value: https://smartwaste-admin-backend.onrender.com/api/ready
       - key: GOOGLE_MAPS_API_KEY
         # Optional browser key restricted to the admin hostname and Maps JavaScript API.
         sync: false

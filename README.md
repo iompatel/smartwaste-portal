@@ -267,6 +267,11 @@ hostname. `render.yaml` provides the variable and required map CSP sources. With
 uses a Google Maps preview for the selected worker. Local builds can set the variable before
 running `npm run build:admin`; no key is stored in source control.
 
+The admin static deployment also sets `API_WAKE_URL` to the admin backend's direct `/api/ready`
+endpoint. If Render's free tier is asleep and the edge proxy receives a
+`hibernate-rate-limited` response, the browser wakes the backend directly and retries the original
+request once. Keep that hostname in the admin Content Security Policy's `connect-src` list.
+
 Passwords created through signup or admin account management require at least 8 characters, one
 uppercase letter, and one special character.
 

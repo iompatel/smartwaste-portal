@@ -13,6 +13,7 @@ const consoles = ['citizen', 'worker', 'admin'];
 
 const payload = {
   API_BASE_URL: apiBaseUrl,
+  ...(process.env.API_WAKE_URL ? { API_WAKE_URL: process.env.API_WAKE_URL } : {}),
   DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
   ...(process.env.GOOGLE_MAPS_API_KEY ? { GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY } : {}),
   ...(consoles.includes(consoleMode) ? { CONSOLE_MODE: consoleMode } : {}),

@@ -14,12 +14,16 @@ const TOKEN_KEY = 'swms_auth_token';
 const CSRF_KEY = 'swms_csrf_token';
 const USER_KEY = 'swms_user';
 const ROLE_KEY = 'swms_active_role';
+const BACKEND_WAKE_TIMEOUT_MS = 60_000;
+const BACKEND_WAKING_MESSAGE = 'The admin service is still waking up. Please wait a few seconds and try again.';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ApiService {
   private apiBase = '';
+  private apiWakeUrl = '';
+  private wakePromise: Promise<void> | null = null;
 
   constructor() {
     // If runtime config was injected (e.g. on Render), use it
@@ -39,7 +43,48 @@ export class ApiService {
           this.apiBase = 'https://smartwaste-backend-5zei.onrender.com';
         }
       }
+      this.apiWakeUrl = String(runtimeConfig?.API_WAKE_URL || '').trim();
     }
+  }
+
+  private isSleepingBackend(response: Response): boolean {
+    return response.status === 429 && response.headers.get('x-render-routing') === 'hibernate-rate-limited';
+  }
+
+  private async wakeBackend(): Promise<void> {
+    if (!this.apiWakeUrl) return;
+    if (this.wakePromise) return this.wakePromise;
+
+    this.wakePromise = (async () => {
+      const controller = new AbortController();
+      const timeoutId = globalThis.setTimeout(() => controller.abort(), BACKEND_WAKE_TIMEOUT_MS);
+      try {
+        await fetch(this.apiWakeUrl, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          credentials: 'omit',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+      } catch {
+        // The wake request can lose its response while Render starts. The
+        // original request below still gets one retry through the gateway.
+      } finally {
+        globalThis.clearTimeout(timeoutId);
+        this.wakePromise = null;
+      }
+    })();
+
+    return this.wakePromise;
+  }
+
+  private async fetchWithWake(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    let response = await fetch(input, init);
+    if (this.isSleepingBackend(response) && this.apiWakeUrl) {
+      await this.wakeBackend();
+      response = await fetch(input, init);
+    }
+    return response;
   }
 
   getToken(): string | null {
@@ -109,14 +154,17 @@ export class ApiService {
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     let response: Response;
     try {
-      response = await fetch(`${this.apiBase}${path}`, { headers, credentials: 'include', cache: 'no-store' });
+      response = await this.fetchWithWake(`${this.apiBase}${path}`, { headers, credentials: 'include', cache: 'no-store' });
     } catch (error) {
       if (!this.apiBase || !(error instanceof TypeError)) throw error;
-      response = await fetch(path, { headers, credentials: 'include', cache: 'no-store' });
+      response = await this.fetchWithWake(path, { headers, credentials: 'include', cache: 'no-store' });
     }
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      const error = new Error(body?.message || `Report download failed (${response.status}).`);
+      const message = this.isSleepingBackend(response)
+        ? BACKEND_WAKING_MESSAGE
+        : body?.message || `Report download failed (${response.status}).`;
+      const error = new Error(message);
       Object.assign(error, { status: response.status });
       throw error;
     }
@@ -170,7 +218,7 @@ export class ApiService {
     };
 
     const buildError = (res: Response, body: any, _rawText: string): Error => {
-      let msg = body?.message;
+      let msg = this.isSleepingBackend(res) ? BACKEND_WAKING_MESSAGE : body?.message;
       if (!msg) {
         if (res.status === 429) {
           msg = 'Too many login attempts. Please wait a moment and try again.';
@@ -191,7 +239,7 @@ export class ApiService {
     };
 
     try {
-      const response = await fetch(url, {
+      const response = await this.fetchWithWake(url, {
         ...options,
         headers,
         credentials: 'include',
@@ -217,7 +265,7 @@ export class ApiService {
       // If fetching from this.apiBase failed with network error, try fallback relative path if url was absolute
       if (this.apiBase && (err.name === 'TypeError' || err.message?.toLowerCase().includes('fetch'))) {
         try {
-          const fallbackRes = await fetch(path, {
+          const fallbackRes = await this.fetchWithWake(path, {
             ...options,
             headers,
             credentials: 'include',
