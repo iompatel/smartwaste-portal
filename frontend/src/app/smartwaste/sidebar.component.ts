@@ -53,17 +53,6 @@ import { cn } from '../shared/utils';
         </button>
       </div>
 
-      <div class="mt-8 flex items-center gap-2 rounded-[14px] border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5 text-left">
-        <span class="flex size-7 items-center justify-center rounded-[9px] bg-sidebar-accent text-muted-foreground">
-          <app-icon name="map-pin" class="size-3.5"></app-icon>
-        </span>
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-xs font-medium">San Francisco</span>
-          <span class="block text-[10px] text-muted-foreground">District 04 · California</span>
-        </span>
-        <app-icon name="chevron-down" class="size-3.5 text-muted-foreground"></app-icon>
-      </div>
-
       <nav aria-label="Main navigation" class="mt-8 flex flex-1 flex-col gap-1">
         <p class="mb-2 px-3 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Workspace</p>
         @for (item of currentNav(); track item.id) {

@@ -46,7 +46,7 @@ import { Ticket, View, isClosedStatus } from '../smartwaste/data';
               Your route is ready<span class="text-brand">.</span>
             </h1>
             <p class="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-              {{ assignedCount() }} open stops across District 04. You are making the city a little better, one collection at a time.
+              {{ assignedCount() }} open stops across your assigned zone. You are making the city a little better, one collection at a time.
             </p>
           </div>
           <div class="flex shrink-0 items-center gap-3 rounded-[18px] border border-border/60 bg-card/70 p-4">
