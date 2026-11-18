@@ -7,11 +7,12 @@ import { WorkerLiveLocation } from '../core/api.types';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
 import { SectionHeaderComponent, SurfaceComponent, inputClassName } from '../shared/ui-components';
+import { LiveMapComponent } from '../shared/live-map.component';
 
 @Component({
   selector: 'app-admin-live-map',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, ButtonDirective, SectionHeaderComponent, SurfaceComponent],
+  imports: [CommonModule, FormsModule, IconComponent, ButtonDirective, SectionHeaderComponent, SurfaceComponent, LiveMapComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex flex-col gap-5">
@@ -42,11 +43,19 @@ import { SectionHeaderComponent, SurfaceComponent, inputClassName } from '../sha
         </app-surface>
         <app-surface class="min-w-0 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-border p-4">
-            <span class="flex items-center gap-2 text-sm font-medium"><app-icon name="map-pin" class="size-4 text-brand"></app-icon>Google Maps</span>
+            <span class="flex items-center gap-2 text-sm font-medium"><app-icon name="map-pin" class="size-4 text-brand"></app-icon>Live Operative Map</span>
           </div>
           <div class="relative h-[430px] sm:h-[520px]">
-            @if (mapPreview(); as preview) {
-              <iframe title="Selected worker's current location on Google Maps" [src]="preview" class="size-full border-0" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
+            @if (selectedWorker()?.location; as loc) {
+              <app-live-map
+                [workerLat]="loc.latitude"
+                [workerLng]="loc.longitude"
+                [workerHeading]="loc.heading"
+                [workerName]="selectedWorker()!.firstName + ' ' + selectedWorker()!.lastName"
+                [destLat]="selectedWorker()?.activeTickets?.[0]?.locationLatitude"
+                [destLng]="selectedWorker()?.activeTickets?.[0]?.locationLongitude"
+                [destAddress]="selectedWorker()?.activeTickets?.[0]?.locationAddress || 'Active Route Stop'"
+              ></app-live-map>
             } @else {
               <div class="flex size-full flex-col items-center justify-center gap-3 bg-muted/40 px-6 text-center">
                 <app-icon name="map-pin" class="size-8 text-muted-foreground"></app-icon>

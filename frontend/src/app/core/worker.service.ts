@@ -25,10 +25,19 @@ export class WorkerService {
     longitude: number,
     accuracy: number = 10,
     sampledAt?: number,
+    heading?: number | null,
+    speed?: number | null,
   ): Promise<any> {
     return this.api.request('/api/workers/me/location', {
       method: 'PUT',
-      body: JSON.stringify({ latitude, longitude, accuracy, ...(sampledAt ? { sampledAt: new Date(sampledAt).toISOString() } : {}) }),
+      body: JSON.stringify({
+        latitude,
+        longitude,
+        accuracy,
+        ...(sampledAt ? { sampledAt: new Date(sampledAt).toISOString() } : {}),
+        ...(heading !== undefined && heading !== null ? { heading } : {}),
+        ...(speed !== undefined && speed !== null ? { speed } : {}),
+      }),
     });
   }
 }

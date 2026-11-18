@@ -116,14 +116,21 @@ app.get('/api/admin/worker-locations', authMiddleware, requireRoles('admin'), as
     }).sort({ firstName: 1, id: 1 }).lean(),
     WorkerLocation.find({ expiresAt: { $gt: now } }).lean(),
     Ticket.find({ workerId: { $ne: null }, status: { $in: ['assigned', 'accepted', 'in_progress'] } }, {
-      id: 1, ticketCode: 1, workerId: 1, status: 1, locationAddress: 1,
+      id: 1, ticketCode: 1, workerId: 1, status: 1, locationAddress: 1, locationLatitude: 1, locationLongitude: 1,
     }).lean(),
   ]);
   const locationMap = new Map(locations.map((location) => [Number(location.workerId), location]));
   const ticketsByWorker = new Map();
   for (const ticket of tickets) {
     const workerTickets = ticketsByWorker.get(ticket.workerId) ?? [];
-    workerTickets.push({ id: ticket.id, ticketCode: ticket.ticketCode, status: ticket.status, locationAddress: ticket.locationAddress });
+    workerTickets.push({
+      id: ticket.id,
+      ticketCode: ticket.ticketCode,
+      status: ticket.status,
+      locationAddress: ticket.locationAddress,
+      locationLatitude: ticket.locationLatitude ?? null,
+      locationLongitude: ticket.locationLongitude ?? null,
+    });
     ticketsByWorker.set(ticket.workerId, workerTickets);
   }
   return res.json({
@@ -135,7 +142,8 @@ app.get('/api/admin/worker-locations', authMiddleware, requireRoles('admin'), as
         workerId: worker.id, firstName: worker.firstName, lastName: worker.lastName, email: worker.email,
         workerOnline, lastSeenAt: worker.workerLastSeenAt ?? null,
         location: freshLocation ? {
-          latitude: location.latitude, longitude: location.longitude, accuracy: location.accuracy, updatedAt: location.updatedAt,
+          latitude: location.latitude, longitude: location.longitude, accuracy: location.accuracy,
+          heading: location.heading ?? null, speed: location.speed ?? null, updatedAt: location.updatedAt,
         } : null,
         activeTickets: ticketsByWorker.get(worker.id) ?? [],
       };

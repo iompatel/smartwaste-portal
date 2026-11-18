@@ -10,6 +10,7 @@ export function registerAccountRoutes(app, ctx) {
     authMiddleware,
     autoAssignUnassignedTickets,
     buildTicketRecords,
+    calculateBearing,
     canAccessTicket,
     cleanBoundedText,
     cleanRecord,
@@ -205,9 +206,77 @@ app.put('/api/workers/me/location', authMiddleware, requireRoles('worker'), asyn
     latitude: record.latitude,
     longitude: record.longitude,
     accuracy: record.accuracy,
+    heading: record.heading ?? null,
+    speed: record.speed ?? null,
     updatedAt: record.updatedAt,
   });
 });
+
+async function getRouteDetails(origin, destination, ticketId) {
+  const cacheKey = `route:${ticketId}`;
+  const cached = fastCache.get(cacheKey);
+  if (cached) return cached;
+
+  const straightDistance = distanceMeters(origin, destination);
+  if (straightDistance === null) return null;
+
+  try {
+    const url = new URL(
+      `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}`
+    );
+    url.searchParams.set('overview', 'full');
+    url.searchParams.set('geometries', 'geojson');
+
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'SmartWastePortal/1.0 (https://smartwasteportal.onrender.com)',
+      },
+      signal: AbortSignal.timeout(3500),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data?.routes) && data.routes.length > 0) {
+        const primary = data.routes[0];
+        const coordinates = primary.geometry?.coordinates ?? [];
+        // Convert GeoJSON [lng, lat] to Leaflet [lat, lng]
+        const polyline = coordinates.map(([lng, lat]) => [Number(lat), Number(lng)]);
+        const roadDistance = Math.round(Number(primary.distance));
+        const durationSeconds = Math.round(Number(primary.duration));
+        const etaMinutes = Math.max(1, Math.round(durationSeconds / 60));
+
+        const result = {
+          distanceMeters: roadDistance,
+          durationSeconds,
+          etaMinutes,
+          polyline,
+          source: 'osrm',
+        };
+        fastCache.set(cacheKey, result, 30_000);
+        return result;
+      }
+    }
+  } catch {
+    // Fall back smoothly to geodesic interpolation
+  }
+
+  // Fallback: estimate urban collection speed at 20 km/h (5.55 m/s)
+  const durationSeconds = Math.round(straightDistance / 5.55);
+  const etaMinutes = Math.max(1, Math.round(durationSeconds / 60));
+  const fallback = {
+    distanceMeters: straightDistance,
+    durationSeconds,
+    etaMinutes,
+    polyline: [
+      [origin.latitude, origin.longitude],
+      [destination.latitude, destination.longitude],
+    ],
+    source: 'fallback',
+  };
+  fastCache.set(cacheKey, fallback, 15_000);
+  return fallback;
+}
 
 app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => {
   const id = parseNumericId(req.params.id);
@@ -218,7 +287,16 @@ app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => 
     return res.status(403).json({ message: 'No permission to view worker location.' });
   }
   const [ticketRecord] = await buildTicketRecords([ticket], req.user);
-  const unavailable = { available: false, distanceMeters: null, nearby: false, ticket: ticketRecord };
+  const unavailable = {
+    available: false,
+    distanceMeters: null,
+    etaMinutes: null,
+    durationSeconds: null,
+    heading: null,
+    nearby: false,
+    ticket: ticketRecord,
+    polyline: [],
+  };
   if (!ticket.workerId || !['accepted', 'in_progress'].includes(ticket.status)) {
     return res.json(unavailable);
   }
@@ -230,16 +308,32 @@ app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => 
     latitude: ticket.locationLatitude,
     longitude: ticket.locationLongitude,
   });
-  const distance = destination ? distanceMeters(location, destination) : null;
+
+  const route = destination ? await getRouteDetails(location, destination, ticket.id) : null;
+  const distance = route?.distanceMeters ?? (destination ? distanceMeters(location, destination) : null);
+  const etaMinutes = route?.etaMinutes ?? (distance ? Math.max(1, Math.round(distance / (20 * 1000 / 60))) : null);
+  const durationSeconds = route?.durationSeconds ?? (etaMinutes ? etaMinutes * 60 : null);
+  const polyline = route?.polyline ?? (destination ? [
+    [location.latitude, location.longitude],
+    [destination.latitude, destination.longitude],
+  ] : []);
+  const bearing = destination ? calculateBearing(location, destination) : 0;
+  const heading = location.heading ?? bearing;
+
   return res.json({
     available: true,
     latitude: location.latitude,
     longitude: location.longitude,
     accuracy: location.accuracy,
+    heading,
+    speed: location.speed ?? null,
     updatedAt: location.updatedAt,
     distanceMeters: distance,
+    etaMinutes,
+    durationSeconds,
     nearby: distance !== null && distance <= WORKER_NEARBY_DISTANCE_METERS,
     ticket: ticketRecord,
+    polyline,
   });
 });
 

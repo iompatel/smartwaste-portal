@@ -73,10 +73,15 @@ export interface TicketTrackingSnapshot {
   latitude?: number;
   longitude?: number;
   accuracy?: number;
+  heading?: number | null;
+  speed?: number | null;
   updatedAt?: string;
   distanceMeters: number | null;
+  etaMinutes?: number | null;
+  durationSeconds?: number | null;
   nearby: boolean;
   ticket: BackendTicket;
+  polyline?: [number, number][];
 }
 
 export interface BackendHireRequest {
@@ -192,6 +197,8 @@ export interface WorkerLiveLocation {
     latitude: number;
     longitude: number;
     accuracy: number;
+    heading?: number | null;
+    speed?: number | null;
     updatedAt: string;
   } | null;
   activeTickets: Array<{
@@ -199,6 +206,8 @@ export interface WorkerLiveLocation {
     ticketCode: string;
     status: string;
     locationAddress: string;
+    locationLatitude?: number | null;
+    locationLongitude?: number | null;
   }>;
 }
 

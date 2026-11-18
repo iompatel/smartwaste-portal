@@ -16,7 +16,7 @@ export function normalizeCoordinates({ latitude, longitude }) {
   return { latitude: lat, longitude: lng };
 }
 
-export function normalizeWorkerLocation({ latitude, longitude, accuracy }) {
+export function normalizeWorkerLocation({ latitude, longitude, accuracy, heading, speed }) {
   const lat = Number(latitude);
   const lng = Number(longitude);
   const acc = Number(accuracy);
@@ -33,12 +33,38 @@ export function normalizeWorkerLocation({ latitude, longitude, accuracy }) {
   ) {
     return null;
   }
-  return { latitude: lat, longitude: lng, accuracy: acc };
+  const result = { latitude: lat, longitude: lng, accuracy: acc };
+  if (heading !== undefined && heading !== null && Number.isFinite(Number(heading)) && Number(heading) >= 0 && Number(heading) <= 360) {
+    result.heading = Math.round(Number(heading));
+  }
+  if (speed !== undefined && speed !== null && Number.isFinite(Number(speed)) && Number(speed) >= 0 && Number(speed) <= 150) {
+    result.speed = Number(Number(speed).toFixed(1));
+  }
+  return result;
 }
 
 export function isFreshWorkerLocation(updatedAt, now = Date.now()) {
   const timestamp = new Date(updatedAt ?? 0).getTime();
   return Number.isFinite(timestamp) && now - timestamp <= WORKER_LOCATION_TTL_MS;
+}
+
+export function calculateBearing(from, to) {
+  const start = normalizeCoordinates(from ?? {});
+  const end = normalizeCoordinates(to ?? {});
+  if (!start || !end) return 0;
+
+  const radians = (degrees) => (degrees * Math.PI) / 180;
+  const degrees = (rad) => (rad * 180) / Math.PI;
+
+  const lat1 = radians(start.latitude);
+  const lat2 = radians(end.latitude);
+  const dLng = radians(end.longitude - start.longitude);
+
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+  const bearing = degrees(Math.atan2(y, x));
+  return Math.round((bearing + 360) % 360);
 }
 
 export function distanceMeters(from, to) {

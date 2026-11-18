@@ -465,7 +465,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   toast = signal<string>('');
   onDuty = signal<boolean>(false);
   availabilityPending = signal(false);
-  workerLocation = signal<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  workerLocation = signal<{ latitude: number; longitude: number; accuracy: number; heading?: number | null; speed?: number | null } | null>(null);
   private dutyTimer?: number;
   private locationTimer?: number;
   private locationWatch?: number;
@@ -766,6 +766,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy ?? 10,
+          heading: typeof position.coords.heading === 'number' && Number.isFinite(position.coords.heading) ? position.coords.heading : null,
+          speed: typeof position.coords.speed === 'number' && Number.isFinite(position.coords.speed) ? position.coords.speed : null,
         });
         if (firstFix) this.uploadWorkerLocation();
       },
@@ -783,7 +785,14 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (this.destroyed || !this.isLoggedIn() || this.currentUser()?.role !== 'worker' || !this.onDuty() || this.locationUploadPending || !location || !this.lastLocationFixAt) return;
     if (Date.now() - this.lastLocationFixAt > 120000) { this.workerLocation.set(null); return; }
     this.locationUploadPending = true;
-    void this.workerService.updateLocation(location.latitude, location.longitude, location.accuracy, this.lastLocationFixAt)
+    void this.workerService.updateLocation(
+      location.latitude,
+      location.longitude,
+      location.accuracy,
+      this.lastLocationFixAt,
+      location.heading,
+      location.speed,
+    )
       .catch(() => undefined).finally(() => { this.locationUploadPending = false; });
   }
 

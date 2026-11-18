@@ -11,6 +11,7 @@ import {
   ToggleComponent,
 } from '../shared/ui-components';
 import { Ticket, View, isClosedStatus } from '../smartwaste/data';
+import { LiveMapComponent } from '../shared/live-map.component';
 
 @Component({
   selector: 'app-worker-dashboard',
@@ -25,6 +26,7 @@ import { Ticket, View, isClosedStatus } from '../smartwaste/data';
     StatusBadgeComponent,
     SurfaceComponent,
     ToggleComponent,
+    LiveMapComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -195,6 +197,44 @@ import { Ticket, View, isClosedStatus } from '../smartwaste/data';
         </app-surface>
       </div>
 
+      <!-- In-App Interactive Route Map for Worker -->
+      @if (onDuty() && nextStop(); as stop) {
+        <app-surface class="overflow-hidden p-0 border border-border/80">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-3.5 bg-muted/30">
+            <div class="flex items-center gap-2.5">
+              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand">
+                <app-icon name="navigation" class="size-3.5"></app-icon>
+              </span>
+              <div>
+                <p class="text-xs font-semibold text-foreground">Active Route · Next Stop</p>
+                <p class="text-[11px] text-muted-foreground">{{ stop.address }}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              appButton
+              variant="brand"
+              size="sm"
+              class="rounded-full text-xs h-8 px-4"
+              (click)="stop.status === 'In progress' ? openHandover.emit(stop) : startRoute.emit(stop)"
+            >
+              {{ stop.status === 'In progress' ? 'Verify Handover' : 'Start Stop' }}
+            </button>
+          </div>
+          <div class="h-60 w-full sm:h-72 relative bg-slate-950">
+            <app-live-map
+              [workerLat]="location()?.latitude"
+              [workerLng]="location()?.longitude"
+              [workerHeading]="location()?.heading"
+              workerName="You (Field Operative)"
+              [destLat]="stop.raw?.locationLatitude"
+              [destLng]="stop.raw?.locationLongitude"
+              [destAddress]="stop.address"
+            ></app-live-map>
+          </div>
+        </app-surface>
+      }
+
       <!-- Turn by Turn Surface -->
       <app-surface class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div class="flex items-center gap-3">
@@ -225,7 +265,7 @@ export class WorkerDashboardComponent {
   tickets = input.required<Ticket[]>();
   onDuty = input.required<boolean>();
   availabilityPending = input(false);
-  location = input<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  location = input<{ latitude: number; longitude: number; accuracy: number; heading?: number | null; speed?: number | null } | null>(null);
   dutyChange = output<boolean>();
   openHandover = output<Ticket>();
   startRoute = output<Ticket>();
@@ -251,6 +291,7 @@ export class WorkerDashboardComponent {
   routeTickets = computed(() => {
     return this.tickets().filter((t) => !isClosedStatus(t.status)).slice(0, 3);
   });
+  nextStop = computed(() => this.routeTickets()[0] ?? null);
 
   openDirections() {
     const next = this.routeTickets()[0];

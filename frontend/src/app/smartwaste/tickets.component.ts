@@ -18,6 +18,7 @@ import { Priority, Ticket, isClosedStatus } from './data';
 import { TicketService } from '../core/ticket.service';
 import { AddressSuggestion, BackendTicket, TicketTrackingSnapshot } from '../core/api.types';
 import { prepareImageFile } from '../core/media';
+import { LiveMapComponent } from '../shared/live-map.component';
 
 export interface TicketDraft {
   title: string;
@@ -548,6 +549,7 @@ export class ReportModalComponent implements OnDestroy {
     AvatarComponent,
     StatusBadgeComponent,
     PriorityBadgeComponent,
+    LiveMapComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -598,28 +600,39 @@ export class ReportModalComponent implements OnDestroy {
       </div>
 
       @if (assignedWorker()) {
-        <div class="mt-4 overflow-hidden rounded-[18px] border border-border/60 bg-muted/30">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-            <div>
-              <p class="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                <app-icon name="navigation" class="size-4 text-primary"></app-icon>
-                Live route tracking
-              </p>
-              <p class="mt-1 text-[10px] text-muted-foreground" aria-live="polite">{{ trackingSummary() }}</p>
+        <div class="mt-4 overflow-hidden rounded-[20px] border border-border/80 bg-card/60 shadow-sm backdrop-blur-md">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3 bg-muted/40">
+            <div class="flex items-center gap-2">
+              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand">
+                <app-icon name="navigation" class="size-3.5"></app-icon>
+              </span>
+              <div>
+                <p class="text-xs font-semibold text-foreground">
+                  Live Collection Route
+                </p>
+                <p class="text-[10px] text-muted-foreground" aria-live="polite">{{ trackingSummary() }}</p>
+              </div>
             </div>
             @if (directionsUrl()) {
-              <a [href]="directionsUrl()" target="_blank" rel="noopener noreferrer" appButton variant="outline" size="sm" class="rounded-full">Open map</a>
+              <a [href]="directionsUrl()" target="_blank" rel="noopener noreferrer" appButton variant="outline" size="sm" class="rounded-full text-[11px] h-7 px-3">Open external map</a>
             }
           </div>
-          @if (mapPreview(); as preview) {
-            <iframe title="Assigned worker's live route to the collection address" [src]="preview" class="h-64 w-full border-0 sm:h-72" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-          } @else {
-            <div class="flex min-h-44 flex-col items-center justify-center gap-2 px-5 text-center">
-              <app-icon name="map-pin" class="size-6 text-muted-foreground"></app-icon>
-              <p class="text-xs font-medium text-foreground">Waiting for live GPS</p>
-              <p class="max-w-sm text-[11px] leading-5 text-muted-foreground">Tracking starts when the worker begins this route and shares a fresh location.</p>
-            </div>
-          }
+
+          <!-- Interactive Zomato-Style Vector Map -->
+          <div class="h-64 w-full sm:h-76 relative bg-slate-950">
+            <app-live-map
+              [workerLat]="tracking()?.latitude"
+              [workerLng]="tracking()?.longitude"
+              [workerHeading]="tracking()?.heading"
+              [workerName]="(assignedWorker()?.firstName || 'Assigned') + ' ' + (assignedWorker()?.lastName || 'Operative')"
+              [destLat]="ticket().raw?.locationLatitude"
+              [destLng]="ticket().raw?.locationLongitude"
+              [destAddress]="ticket().address"
+              [polyline]="tracking()?.polyline || []"
+              [etaMinutes]="tracking()?.etaMinutes"
+              [distanceMeters]="tracking()?.distanceMeters"
+            ></app-live-map>
+          </div>
         </div>
       }
 
@@ -826,13 +839,13 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
     if (this.currentStatus() === 'Completed') return 'Completed with OTP verification and an after-photo.';
     if (this.trackingError()) return this.trackingError();
     if (!snapshot?.available) return 'Waiting for the worker to start sharing a fresh GPS location.';
+    const eta = snapshot.etaMinutes;
     const distance = snapshot.distanceMeters;
-    const distanceText = distance === null
-      ? 'Live GPS active'
-      : distance < 1000
-        ? `${distance} m from the destination`
-        : `${(distance / 1000).toFixed(1)} km from the destination`;
-    return `${distanceText} · Updated every 3 seconds`;
+    const distText = distance !== null
+      ? distance < 1000 ? `${distance} m away` : `${(distance / 1000).toFixed(1)} km away`
+      : 'Active GPS';
+    const etaText = eta ? `Arriving in ~${eta} min` : (snapshot.nearby ? 'Arriving shortly' : 'Operative en route');
+    return `${etaText} · ${distText} · Refreshed live`;
   });
 
   workerInitials = computed(() => {
