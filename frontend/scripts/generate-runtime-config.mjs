@@ -15,10 +15,6 @@ const payload = {
   API_BASE_URL: apiBaseUrl,
   ...(process.env.API_WAKE_URL ? { API_WAKE_URL: process.env.API_WAKE_URL } : {}),
   DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
-  // Only the admin console loads Maps, so never ship the browser key elsewhere.
-  ...(consoleMode === 'admin' && process.env.GOOGLE_MAPS_API_KEY
-    ? { GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY }
-    : {}),
   ...(consoles.includes(consoleMode) ? { CONSOLE_MODE: consoleMode } : {}),
   // Optional: run the client against the local Firebase Auth emulator for e2e tests.
   ...(process.env.FIREBASE_AUTH_EMULATOR ? { FIREBASE_AUTH_EMULATOR: process.env.FIREBASE_AUTH_EMULATOR } : {}),

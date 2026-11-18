@@ -261,14 +261,11 @@ issuer, page numbers, contact details, and completed/open ticket totals. Optiona
 account registration dates; ticket totals cover the selected accounts' complete history.
 
 **Live worker map** refreshes every three seconds and hides offline or expired GPS fixes.
-Set `GOOGLE_MAPS_API_KEY` on the admin frontend build to enable interactive fleet markers and
-following a selected worker. Enable Maps JavaScript API and restrict the browser key to the admin
-hostname. `render.yaml` provides the variable and required map CSP sources. With no key, the page
-uses a Google Maps preview for the selected worker. Local builds can set the variable before
-running `npm run build:admin`; no key is stored in source control.
+The map uses the keyless Google Maps embed for the selected worker, so it needs no Maps JavaScript
+API key, `unsafe-eval`, or blob scripts. The worker list shows every worker's online and
+location-sharing state; selecting one moves the map pin.
 
-The admin static deployment also sets `API_WAKE_URL` to the admin backend's direct `/api/ready`
-endpoint. If Render's free tier is asleep and the edge proxy receives a
+Each static deployment sets `API_WAKE_URL` to its backend's direct `/api/ready` endpoint. If Render's free tier is asleep and the edge proxy receives a
 `hibernate-rate-limited` response, the browser wakes the backend directly and retries the original
 request once. Keep that hostname in the admin Content Security Policy's `connect-src` list.
 

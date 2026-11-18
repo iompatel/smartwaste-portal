@@ -11,6 +11,7 @@
     "build:admin": "node scripts/generate-runtime-config.mjs admin && ng build frontend --output-path dist/admin",
     "build:worker": "node scripts/generate-runtime-config.mjs worker && ng build frontend --output-path dist/worker",
     "test": "vitest run",
+    "audit": "node scripts/audit.mjs",
     "watch": "ng build --watch --configuration development",
     "dev": "node scripts/generate-runtime-config.mjs citizen && ng serve frontend --proxy-config proxy.conf.json"
   },

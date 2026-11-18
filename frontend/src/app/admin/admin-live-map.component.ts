@@ -1,9 +1,8 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, ViewChild, computed, effect, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../core/admin.service';
-import { GoogleMapsService } from '../core/google-maps.service';
 import { WorkerLiveLocation } from '../core/api.types';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
@@ -44,20 +43,16 @@ import { SectionHeaderComponent, SurfaceComponent, inputClassName } from '../sha
         <app-surface class="min-w-0 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-border p-4">
             <span class="flex items-center gap-2 text-sm font-medium"><app-icon name="map-pin" class="size-4 text-brand"></app-icon>Google Maps</span>
-            @if (interactive()) { <label class="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" [(ngModel)]="followWorker" />Follow selected worker</label> }
           </div>
           <div class="relative h-[430px] sm:h-[520px]">
-            <div #mapCanvas class="size-full" [class.hidden]="!interactive()"></div>
-            @if (!interactive()) {
-              @if (mapPreview(); as preview) {
-                <iframe title="Selected worker's current location on Google Maps" [src]="preview" class="size-full border-0" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
-              } @else {
-                <div class="flex size-full flex-col items-center justify-center gap-3 bg-muted/40 px-6 text-center">
-                  <app-icon name="map-pin" class="size-8 text-muted-foreground"></app-icon>
-                  <p class="text-sm font-medium">Waiting for a shared location</p>
-                  <p class="max-w-sm text-xs leading-5 text-muted-foreground">Select an online worker who has allowed location sharing. Offline and expired locations are hidden.</p>
-                </div>
-              }
+            @if (mapPreview(); as preview) {
+              <iframe title="Selected worker's current location on Google Maps" [src]="preview" class="size-full border-0" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
+            } @else {
+              <div class="flex size-full flex-col items-center justify-center gap-3 bg-muted/40 px-6 text-center">
+                <app-icon name="map-pin" class="size-8 text-muted-foreground"></app-icon>
+                <p class="text-sm font-medium">Waiting for a shared location</p>
+                <p class="max-w-sm text-xs leading-5 text-muted-foreground">Select an online worker who has allowed location sharing. Offline and expired locations are hidden.</p>
+              </div>
             }
           </div>
           @if (selectedWorker(); as worker) {
@@ -80,59 +75,32 @@ import { SectionHeaderComponent, SurfaceComponent, inputClassName } from '../sha
     </div>
   `,
 })
-export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('mapCanvas') canvas!: ElementRef<HTMLDivElement>;
+export class AdminLiveMapComponent implements OnInit, OnDestroy {
   readonly inputCls = inputClassName;
   workers = signal<WorkerLiveLocation[]>([]);
   selectedId = signal<number | null>(null);
   updatedAt = signal<string>('');
   loading = signal(false);
   error = signal('');
-  interactive = signal(false);
   mapPreview = signal<SafeResourceUrl | null>(null);
   search = '';
-  followWorker = true;
   onlineCount = computed(() => this.workers().filter((worker) => worker.workerOnline).length);
   trackedCount = computed(() => this.workers().filter((worker) => worker.location).length);
   selectedWorker = computed(() => this.workers().find((worker) => worker.workerId === this.selectedId()) ?? null);
   private timer?: number;
   private destroyed = false;
-  private map: any;
-  private maps: any;
-  private markers = new Map<number, any>();
   private previewCoordinates = '';
 
-  constructor(private admin: AdminService, private googleMaps: GoogleMapsService, private sanitizer: DomSanitizer) {
-    effect(() => {
-      if (this.googleMaps.authFailed() && !this.destroyed) { this.interactive.set(false); this.updateMap(); }
-    });
-  }
+  constructor(private admin: AdminService, private sanitizer: DomSanitizer) {}
 
   filteredWorkers(): WorkerLiveLocation[] {
     const query = this.search.trim().toLowerCase();
     return this.workers().filter((worker) => `${worker.firstName} ${worker.lastName} ${worker.workerId}`.toLowerCase().includes(query));
   }
 
-  async ngAfterViewInit() {
-    if (this.googleMaps.configured) void this.initializeMap();
+  async ngOnInit() {
     await this.refresh();
     if (!this.destroyed) this.timer = window.setInterval(() => { if (!document.hidden) void this.refresh(); }, 3000);
-  }
-
-  private async initializeMap() {
-    try {
-      this.maps = await this.googleMaps.load();
-      if (this.destroyed) return;
-      this.interactive.set(true);
-      this.map = new this.maps.Map(this.canvas.nativeElement, { center: { lat: 22.3, lng: 72.6 }, zoom: 12, renderingType: this.maps.RenderingType.RASTER, mapTypeControl: false, streetViewControl: false });
-      requestAnimationFrame(() => {
-        if (!this.destroyed) { this.maps.event.trigger(this.map, 'resize'); this.updateMap(); }
-      });
-    } catch {
-      // The keyless Google Maps preview remains available if the SDK cannot load.
-      this.interactive.set(false);
-      this.updateMap();
-    }
   }
 
   async refresh() {
@@ -147,12 +115,12 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
       if (!snapshot.workers.some((worker) => worker.workerId === this.selectedId())) {
         this.selectedId.set(snapshot.workers.find((worker) => worker.location)?.workerId ?? snapshot.workers[0]?.workerId ?? null);
       }
-      this.updateMap();
+      this.updatePreview();
     } catch (error: any) {
       if (!this.destroyed) {
         this.error.set(error?.message || 'Could not refresh worker locations.');
         this.workers.update((workers) => workers.map((worker) => ({ ...worker, location: null })));
-        this.updateMap();
+        this.updatePreview();
       }
     } finally { this.loading.set(false); }
   }
@@ -160,7 +128,7 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
   selectWorker(id: number) {
     this.selectedId.set(id);
     this.previewCoordinates = '';
-    this.updateMap();
+    this.updatePreview();
   }
 
   private hasValidLocation(location?: { latitude?: number; longitude?: number } | null): boolean {
@@ -168,28 +136,8 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
       && typeof location?.longitude === 'number' && Number.isFinite(location.longitude);
   }
 
-  private updateMap() {
+  private updatePreview() {
     const worker = this.selectedWorker();
-    if (this.map && this.maps) {
-      const visible = new Set<number>();
-      for (const item of this.workers()) {
-        if (!item.location || !this.hasValidLocation(item.location)) continue;
-        visible.add(item.workerId);
-        const position = { lat: item.location.latitude, lng: item.location.longitude };
-        let marker = this.markers.get(item.workerId);
-        if (!marker) {
-          marker = new this.maps.Marker({ map: this.map, position, title: `${item.firstName} ${item.lastName} (#${item.workerId})`, label: { text: String(item.workerId), color: '#ffffff', fontSize: '11px' }, icon: { path: this.maps.SymbolPath.CIRCLE, scale: 15, fillColor: '#16856d', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 } });
-          marker.addListener('click', () => this.selectWorker(item.workerId));
-          this.markers.set(item.workerId, marker);
-        } else marker.setPosition(position);
-      }
-      for (const [id, marker] of this.markers) {
-        if (!visible.has(id)) { marker.setMap(null); this.markers.delete(id); }
-      }
-      if (this.followWorker && worker?.location && this.hasValidLocation(worker.location)) {
-        this.map.panTo({ lat: worker.location.latitude, lng: worker.location.longitude });
-      }
-    }
     if (!worker?.location || !this.hasValidLocation(worker.location)) {
       this.previewCoordinates = '';
       this.mapPreview.set(null);
@@ -211,8 +159,5 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.destroyed = true;
     if (this.timer) clearInterval(this.timer);
-    for (const marker of this.markers.values()) { this.maps?.event.clearInstanceListeners(marker); marker.setMap(null); }
-    this.markers.clear();
-    if (this.map) this.maps?.event.clearInstanceListeners(this.map);
   }
 }
