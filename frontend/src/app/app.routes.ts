@@ -10,6 +10,8 @@ export const routes: Routes = [
   { path: 'hire', component: SmartWastePortalComponent },
   { path: 'profile', component: SmartWastePortalComponent },
   { path: 'settings', component: SmartWastePortalComponent },
+  { path: 'faq', component: SmartWastePortalComponent },
+  { path: 'terms', component: SmartWastePortalComponent },
   { path: 'accounts', component: SmartWastePortalComponent },
   { path: 'users', component: SmartWastePortalComponent },
   { path: 'workers', component: SmartWastePortalComponent },

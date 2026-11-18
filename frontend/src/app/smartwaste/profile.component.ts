@@ -268,6 +268,7 @@ export class ProfileViewComponent implements OnInit {
   imports: [
     CommonModule,
     IconComponent,
+    ButtonDirective,
     SectionHeaderComponent,
     SurfaceComponent,
   ],
@@ -306,6 +307,25 @@ export class ProfileViewComponent implements OnInit {
         </div>
       </app-surface>
 
+      @if (role() === 'citizen') {
+        <app-surface class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div class="flex items-start gap-3">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-[13px] bg-primary/10 text-primary">
+              <app-icon name="lock" class="size-4"></app-icon>
+            </span>
+            <div>
+              <p class="text-sm font-medium text-foreground">Change password</p>
+              <p class="mt-1 text-xs leading-5 text-muted-foreground">Firebase will email a secure password-change link to {{ accountEmail() }}.</p>
+              @if (passwordNote()) { <p class="mt-2 text-xs text-brand" aria-live="polite">{{ passwordNote() }}</p> }
+            </div>
+          </div>
+          <button type="button" appButton variant="outline" class="min-h-11 rounded-full" [disabled]="passwordSending()" (click)="sendPasswordLink()">
+            <app-icon name="mail" class="size-4"></app-icon>
+            {{ passwordSending() ? 'Sending...' : 'Send change link' }}
+          </button>
+        </app-surface>
+      }
+
       <app-surface class="flex items-center gap-3 p-5 text-xs text-muted-foreground sm:p-6">
         <app-icon name="shield-check" class="size-5 shrink-0 text-brand"></app-icon>
         <p>Your appearance preference is saved on this device.</p>
@@ -315,11 +335,32 @@ export class ProfileViewComponent implements OnInit {
 })
 export class SettingsViewComponent {
   theme = input.required<'system' | 'light' | 'dark'>();
+  role = input.required<Role>();
   themeChange = output<'system' | 'light' | 'dark'>();
+  passwordSending = signal(false);
+  passwordNote = signal('');
+  accountEmail = computed(() => this.auth.currentUser()?.email ?? 'your account email');
 
   appearanceOptions = [
     { id: 'light' as const, label: 'Light', icon: 'sun' },
     { id: 'dark' as const, label: 'Dark', icon: 'moon' },
     { id: 'system' as const, label: 'System', icon: 'globe-2' },
   ];
+
+  constructor(private auth: AuthService) {}
+
+  async sendPasswordLink() {
+    const email = this.auth.currentUser()?.email;
+    if (!email || this.passwordSending()) return;
+    this.passwordSending.set(true);
+    this.passwordNote.set('');
+    try {
+      await this.auth.sendPasswordReset(email);
+      this.passwordNote.set('Reset link sent. Check your inbox and spam folder.');
+    } catch (err: any) {
+      this.passwordNote.set(err?.message || 'Could not send the password link.');
+    } finally {
+      this.passwordSending.set(false);
+    }
+  }
 }

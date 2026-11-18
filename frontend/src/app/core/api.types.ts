@@ -23,6 +23,7 @@ export interface BackendPublicWorker {
   firstName: string;
   lastName: string;
   role: 'worker';
+  mobile?: string;
   ratingAverage?: number;
   ratingCount?: number;
 }
@@ -36,10 +37,15 @@ export interface BackendTicket {
   description: string;
   mediaData?: string | null;
   locationAddress: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   status: 'pending' | 'assigned' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'critical';
   completionCode?: string | null;
   completionMediaData?: string | null;
+  acceptedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
   statusHistory?: Array<{
     status: string;
     actorId?: number | null;
@@ -54,6 +60,23 @@ export interface BackendTicket {
   requester?: BackendUser | null;
   assignedWorker?: BackendUser | BackendPublicWorker | null;
   review?: { rating: number; comment?: string } | null;
+}
+
+export interface AddressSuggestion {
+  label: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface TicketTrackingSnapshot {
+  available: boolean;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  updatedAt?: string;
+  distanceMeters: number | null;
+  nearby: boolean;
+  ticket: BackendTicket;
 }
 
 export interface BackendHireRequest {

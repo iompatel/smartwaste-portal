@@ -254,6 +254,7 @@ test('account reports refuse registers above the 500-account PDF limit', async (
 test('GPS expiry follows the captured fix rather than the upload time', async (t) => {
   t.mock.method(models.User, 'findOne', () => ({ lean: async () => ({ id: worker.id }) }));
   t.mock.method(models.User, 'updateOne', async () => ({ matchedCount: 1 }));
+  t.mock.method(models.Ticket, 'find', () => ({ lean: async () => [] }));
   let stored;
   t.mock.method(models.WorkerLocation, 'findOneAndUpdate', async (_filter, update) => {
     stored = update.$set; return stored;
@@ -268,6 +269,55 @@ test('GPS expiry follows the captured fix rather than the upload time', async (t
     const result = await call('put', '/api/workers/me/location', { user: worker, body: { ...body, sampledAt: timestamp } });
     assert.equal(result.statusCode, 400);
   }
+});
+
+test('worker GPS creates one nearby notification for a geocoded active ticket', async (t) => {
+  const notifications = [];
+  t.mock.method(models.User, 'findOne', () => ({ lean: async () => ({ id: worker.id }) }));
+  t.mock.method(models.User, 'updateOne', async () => ({ matchedCount: 1 }));
+  t.mock.method(models.WorkerLocation, 'findOneAndUpdate', async (_filter, update) => update.$set);
+  t.mock.method(models.Ticket, 'find', () => ({ lean: async () => [{
+    id: 20,
+    ticketCode: 'SWM-000020',
+    userId: 9,
+    locationLatitude: 23.0225,
+    locationLongitude: 72.5714,
+  }] }));
+  t.mock.method(models.Ticket, 'updateOne', async () => ({ modifiedCount: 1 }));
+  t.mock.method(models.Counter, 'findOneAndUpdate', async () => ({ value: 1 }));
+  t.mock.method(models.Notification, 'create', async (notification) => { notifications.push(notification); return notification; });
+
+  const response = await call('put', '/api/workers/me/location', {
+    user: { ...worker, firstName: 'Field', lastName: 'Worker' },
+    body: { latitude: 23.0226, longitude: 72.5714, accuracy: 5, sampledAt: new Date().toISOString() },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].userId, 9);
+  assert.match(notifications[0].title, /Nearby/);
+});
+
+test('ticket tracking exposes worker contact only to the authorized requester', async (t) => {
+  const now = new Date();
+  const citizen = { ...worker, id: 9, role: 'user', firstName: 'Resident', mobile: '8888888888' };
+  const ticket = { id: 20, ticketCode: 'SWM-000020', userId: 9, workerId: 7, status: 'in_progress',
+    wasteType: 'Plastic', description: 'Collect plastic', locationAddress: 'Street', priority: 'medium',
+    locationLatitude: 23.0225, locationLongitude: 72.5714, updatedAt: now, createdAt: now, statusHistory: [] };
+  t.mock.method(models.Ticket, 'findOne', () => ({ lean: async () => ticket }));
+  t.mock.method(models.User, 'find', () => ({ lean: async () => [citizen, worker] }));
+  t.mock.method(models.Review, 'find', () => ({ lean: async () => [] }));
+  t.mock.method(models.WorkerLocation, 'findOne', () => ({ lean: async () => ({
+    workerId: 7, latitude: 23.0226, longitude: 72.5714, accuracy: 5, updatedAt: now,
+  }) }));
+
+  const response = await call('get', '/api/tickets/:id/worker-location', {
+    user: citizen,
+    params: { id: '20' },
+  });
+  assert.equal(response.body.available, true);
+  assert.equal(response.body.ticket.assignedWorker.id, 7);
+  assert.equal(response.body.ticket.assignedWorker.mobile, worker.mobile);
+  assert.ok(response.body.distanceMeters < 500);
 });
 
 test('worker logout logs offline only when the worker was online', async (t) => {

@@ -102,6 +102,16 @@ test('HTTP API Route Integration Suite', async (t) => {
     assert.equal(res.body?.message, 'Email and password are required.');
   });
 
+  await t.test('POST /api/auth/worker-login with missing credentials returns 400', async () => {
+    const res = await makeRequest(app, {
+      method: 'POST',
+      url: '/api/auth/worker-login',
+      body: {},
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.body?.message, 'Email and password are required.');
+  });
+
   await t.test('removed forgot-password endpoint cannot mutate legacy identities', async () => {
     const res = await makeRequest(app, {
       method: 'POST',

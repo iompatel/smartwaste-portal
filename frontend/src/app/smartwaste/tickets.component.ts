@@ -1,5 +1,6 @@
-import { Component, OnInit, computed, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
@@ -15,12 +16,16 @@ import {
 } from '../shared/ui-components';
 import { Priority, Ticket, isClosedStatus } from './data';
 import { TicketService } from '../core/ticket.service';
+import { AddressSuggestion, BackendTicket, TicketTrackingSnapshot } from '../core/api.types';
+import { prepareImageFile } from '../core/media';
 import { cn } from '../shared/utils';
 
 export interface TicketDraft {
   title: string;
   category: string;
   address: string;
+  locationLatitude: number | null;
+  locationLongitude: number | null;
   priority: Priority;
   description: string;
   mediaData: string | null;
@@ -304,12 +309,33 @@ export class TicketsViewComponent {
             <app-icon name="map-pin" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
             <input
               id="report-address"
-              [(ngModel)]="address"
+              [ngModel]="address"
+              (ngModelChange)="onAddressChange($event)"
               name="address"
               [class]="inputCls + ' pl-10'"
               placeholder="Street address or landmark"
+              autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="report-address-suggestions"
+              [attr.aria-expanded]="addressSuggestions().length > 0"
             />
+            @if (addressSearching()) {
+              <app-icon name="refresh-cw" class="pointer-events-none absolute inset-y-0 right-3.5 my-auto size-4 animate-spin text-muted-foreground"></app-icon>
+            }
+            @if (addressSuggestions().length > 0) {
+              <div id="report-address-suggestions" role="listbox" class="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-[14px] border border-border bg-popover p-1.5 shadow-xl">
+                @for (suggestion of addressSuggestions(); track suggestion.label) {
+                  <button type="button" role="option" (click)="selectAddress(suggestion)" class="flex min-h-11 w-full items-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-xs text-popover-foreground hover:bg-muted">
+                    <app-icon name="map-pin" class="mt-0.5 size-3.5 shrink-0 text-primary"></app-icon>
+                    <span class="leading-5">{{ suggestion.label }}</span>
+                  </button>
+                }
+                <p class="px-3 py-1 text-[10px] text-muted-foreground">Addresses © OpenStreetMap contributors</p>
+              </div>
+            }
           </div>
+          <p class="mt-2 text-[11px] text-muted-foreground">Select a suggestion to enable worker arrival distance and nearby alerts.</p>
         </div>
 
         <div>
@@ -331,15 +357,15 @@ export class TicketsViewComponent {
             class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-input bg-muted/40 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/5"
           >
             <span class="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <app-icon [name]="fileName() ? 'file-image' : 'upload'" class="size-4"></app-icon>
+              <app-icon [name]="photoProcessing() ? 'refresh-cw' : fileName() ? 'file-image' : 'upload'" [class]="'size-4 ' + (photoProcessing() ? 'animate-spin' : '')"></app-icon>
             </span>
-            <span class="text-xs font-medium text-foreground">{{ fileName() || 'Drop a photo here, or browse' }}</span>
-            <span class="text-[10px] text-muted-foreground">PNG or JPG · Max 1.5 MB</span>
+            <span class="text-xs font-medium text-foreground">{{ photoProcessing() ? 'Preparing photo...' : fileName() || 'Drop a photo here, or browse' }}</span>
+            <span class="text-[10px] text-muted-foreground">JPG, PNG, or WebP · Large camera photos are resized safely</span>
           </label>
           <input
             id="report-photo"
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,image/webp"
             (change)="onFileSelected($event)"
             class="sr-only"
           />
@@ -359,6 +385,11 @@ export class TicketsViewComponent {
             (change)="onFileSelected($event)"
             class="sr-only"
           />
+          @if (mediaData(); as preview) {
+            <div class="mt-3 overflow-hidden rounded-[14px] border border-border bg-muted/30">
+              <img [src]="preview" alt="Selected waste report photo preview" class="max-h-56 w-full object-contain" />
+            </div>
+          }
         </div>
 
         @if (error()) {
@@ -380,6 +411,7 @@ export class TicketsViewComponent {
             appButton
             variant="brand"
             class="rounded-full"
+            [disabled]="photoProcessing()"
           >
             <app-icon name="send" class="size-4"></app-icon>
             Submit report
@@ -389,7 +421,7 @@ export class TicketsViewComponent {
     </app-modal>
   `
 })
-export class ReportModalComponent {
+export class ReportModalComponent implements OnDestroy {
   close = output<void>();
   create = output<TicketDraft>();
 
@@ -401,10 +433,19 @@ export class ReportModalComponent {
   priority = signal<Priority>('Medium');
   title = '';
   address = '';
+  locationLatitude = signal<number | null>(null);
+  locationLongitude = signal<number | null>(null);
+  addressSuggestions = signal<AddressSuggestion[]>([]);
+  addressSearching = signal(false);
   description = '';
   fileName = signal<string>('');
   mediaData = signal<string | null>(null);
+  photoProcessing = signal(false);
   error = signal<string>('');
+  private addressTimer?: number;
+  private addressRequest = 0;
+
+  constructor(private ticketService: TicketService) {}
 
   getPriorityClass(isSelected: boolean, item: string): string {
     if (!isSelected) return 'border-border text-muted-foreground hover:text-foreground';
@@ -413,21 +454,58 @@ export class ReportModalComponent {
     return 'border-brand/40 bg-brand/10 text-brand';
   }
 
-  onFileSelected(event: Event) {
+  onAddressChange(value: string) {
+    this.address = value;
+    this.locationLatitude.set(null);
+    this.locationLongitude.set(null);
+    this.addressSuggestions.set([]);
+    if (this.addressTimer) clearTimeout(this.addressTimer);
+    const query = value.trim();
+    if (query.length < 3) {
+      this.addressSearching.set(false);
+      return;
+    }
+    const request = ++this.addressRequest;
+    this.addressTimer = window.setTimeout(async () => {
+      this.addressSearching.set(true);
+      try {
+        const suggestions = await this.ticketService.searchAddresses(query);
+        if (request === this.addressRequest) this.addressSuggestions.set(suggestions);
+      } catch {
+        if (request === this.addressRequest) this.addressSuggestions.set([]);
+      } finally {
+        if (request === this.addressRequest) this.addressSearching.set(false);
+      }
+    }, 600);
+  }
+
+  selectAddress(suggestion: AddressSuggestion) {
+    this.address = suggestion.label;
+    this.locationLatitude.set(suggestion.latitude);
+    this.locationLongitude.set(suggestion.longitude);
+    this.addressSuggestions.set([]);
+    this.addressRequest += 1;
+    if (this.addressTimer) clearTimeout(this.addressTimer);
+  }
+
+  async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (file.size > 1.5 * 1024 * 1024) {
-      this.error.set('Please choose an image smaller than 1.5 MB.');
-      return;
-    }
+    this.photoProcessing.set(true);
     this.error.set('');
-    this.fileName.set(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.mediaData.set(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageData = await prepareImageFile(file);
+      this.fileName.set(file.name || 'Camera photo.jpg');
+      this.mediaData.set(imageData);
+    } catch (err: any) {
+      this.fileName.set('');
+      this.mediaData.set(null);
+      this.error.set(err?.message || 'Could not prepare that photo.');
+    } finally {
+      this.photoProcessing.set(false);
+      input.value = '';
+    }
   }
 
   submit() {
@@ -442,6 +520,8 @@ export class ReportModalComponent {
       title,
       category: this.category(),
       address: this.address.trim(),
+      locationLatitude: this.locationLatitude(),
+      locationLongitude: this.locationLongitude(),
       priority: this.priority(),
       // The API stores one description field, so keep the citizen's title in it.
       description: note ? `${title} — ${note}` : title,
@@ -449,6 +529,11 @@ export class ReportModalComponent {
     };
 
     this.create.emit(newTicket);
+  }
+
+  ngOnDestroy() {
+    if (this.addressTimer) clearTimeout(this.addressTimer);
+    this.addressRequest += 1;
   }
 }
 

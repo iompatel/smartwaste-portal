@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   WORKER_LOCATION_TTL_MS,
+  distanceMeters,
   isFreshWorkerLocation,
+  normalizeCoordinates,
   normalizeWorkerLocation,
 } from '../src/location-policy.js';
 
@@ -21,4 +23,20 @@ test('worker locations expire after two minutes', () => {
   const now = Date.now();
   assert.equal(isFreshWorkerLocation(new Date(now - WORKER_LOCATION_TTL_MS + 1), now), true);
   assert.equal(isFreshWorkerLocation(new Date(now - WORKER_LOCATION_TTL_MS - 1), now), false);
+});
+
+test('destination coordinates and proximity distances are validated', () => {
+  assert.deepEqual(normalizeCoordinates({ latitude: '23.0225', longitude: '72.5714' }), {
+    latitude: 23.0225,
+    longitude: 72.5714,
+  });
+  assert.equal(normalizeCoordinates({ latitude: Infinity, longitude: 0 }), null);
+  assert.equal(distanceMeters(
+    { latitude: 23.0225, longitude: 72.5714 },
+    { latitude: 23.0225, longitude: 72.5714 },
+  ), 0);
+  assert.ok(distanceMeters(
+    { latitude: 23.0225, longitude: 72.5714 },
+    { latitude: 23.027, longitude: 72.5714 },
+  ) > 490);
 });

@@ -41,19 +41,19 @@ import { Role } from '../smartwaste/data';
           <form (submit)="onSubmit($event)" class="flex flex-col gap-4">
             <div>
               <label for="worker-email" class="block text-xs font-medium text-foreground mb-1.5">
-                Operative email
+                Operative ID or email
               </label>
               <div class="relative">
                 <app-icon name="mail" class="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-4 text-muted-foreground"></app-icon>
                 <input
                   id="worker-email"
-                  type="email"
+                  type="text"
                   required
                   [(ngModel)]="email"
                   name="email"
-                  autocomplete="email"
+                  autocomplete="username"
                   [class]="inputCls + ' pl-10'"
-                  placeholder="name@example.com"
+                  placeholder="Operative ID (e.g. 101) or email"
                 />
               </div>
             </div>
@@ -143,7 +143,7 @@ export class WorkerLoginComponent implements OnInit {
   async onSubmit(event: Event) {
     event.preventDefault();
     if (!this.email || !this.password) {
-      this.errorMessage.set('Please provide both worker email and password.');
+      this.errorMessage.set('Please provide both operative ID or email and password.');
       return;
     }
     this.executeLogin();

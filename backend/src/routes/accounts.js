@@ -2,22 +2,29 @@ export function registerAccountRoutes(app, ctx) {
   const {
     Ticket,
     User,
+    WORKER_NEARBY_DISTANCE_METERS,
     WORKER_LOCATION_TTL_MS,
     WorkerLocation,
     accountActivitySnapshot,
+    addressSearchLimiter,
     authMiddleware,
     autoAssignUnassignedTickets,
+    buildTicketRecords,
     canAccessTicket,
     cleanBoundedText,
     cleanRecord,
     createAccountActivity,
     createAdminActivity,
+    createNotification,
     deleteMedia,
+    distanceMeters,
     fastCache,
     isFreshWorkerLocation,
     isValidProfileImage,
+    normalizeCoordinates,
     normalizeWorkerLocation,
     parseNumericId,
+    photonSuggestions,
     requireRoles,
     sanitizeUser,
     uploadMedia,
@@ -163,6 +170,36 @@ app.put('/api/workers/me/location', authMiddleware, requireRoles('worker'), asyn
     { id: req.user.id, role: 'worker', workerOnline: true },
     { $set: { workerLastSeenAt: now } },
   );
+
+  const activeTickets = await Ticket.find(
+    {
+      workerId: req.user.id,
+      status: 'in_progress',
+      arrivalNotifiedAt: null,
+      locationLatitude: { $ne: null },
+      locationLongitude: { $ne: null },
+    },
+    { id: 1, ticketCode: 1, userId: 1, locationLatitude: 1, locationLongitude: 1 },
+  ).lean();
+  for (const ticket of activeTickets) {
+    const distance = distanceMeters(location, {
+      latitude: ticket.locationLatitude,
+      longitude: ticket.locationLongitude,
+    });
+    if (distance === null || distance > WORKER_NEARBY_DISTANCE_METERS) continue;
+    const marked = await Ticket.updateOne(
+      { id: ticket.id, status: 'in_progress', arrivalNotifiedAt: null },
+      { $set: { arrivalNotifiedAt: now } },
+    );
+    if (marked.modifiedCount === 1) {
+      await createNotification({
+        userId: ticket.userId,
+        title: 'Worker Is Nearby',
+        message: `${ticket.ticketCode}: ${req.user.firstName} ${req.user.lastName} is about ${Math.max(0, distance)} metres from the collection point.`,
+      });
+    }
+  }
+
   return res.json({
     available: true,
     latitude: record.latitude,
@@ -180,20 +217,63 @@ app.get('/api/tickets/:id/worker-location', authMiddleware, async (req, res) => 
   if (!canAccessTicket(req.user, ticket)) {
     return res.status(403).json({ message: 'No permission to view worker location.' });
   }
+  const [ticketRecord] = await buildTicketRecords([ticket], req.user);
+  const unavailable = { available: false, distanceMeters: null, nearby: false, ticket: ticketRecord };
   if (!ticket.workerId || !['accepted', 'in_progress'].includes(ticket.status)) {
-    return res.json({ available: false });
+    return res.json(unavailable);
   }
   const location = await WorkerLocation.findOne({ workerId: ticket.workerId }).lean();
   if (!location || !isFreshWorkerLocation(location.updatedAt)) {
-    return res.json({ available: false });
+    return res.json(unavailable);
   }
+  const destination = normalizeCoordinates({
+    latitude: ticket.locationLatitude,
+    longitude: ticket.locationLongitude,
+  });
+  const distance = destination ? distanceMeters(location, destination) : null;
   return res.json({
     available: true,
     latitude: location.latitude,
     longitude: location.longitude,
     accuracy: location.accuracy,
     updatedAt: location.updatedAt,
+    distanceMeters: distance,
+    nearby: distance !== null && distance <= WORKER_NEARBY_DISTANCE_METERS,
+    ticket: ticketRecord,
   });
+});
+
+app.get('/api/locations/search', authMiddleware, addressSearchLimiter, async (req, res) => {
+  const query = cleanBoundedText(req.query?.q, 120);
+  if (!query || query.length < 3) {
+    return res.status(400).json({ message: 'Enter at least 3 characters to search for an address.' });
+  }
+
+  const cacheKey = `addresses:${query.toLowerCase()}`;
+  const cached = fastCache.get(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const url = new URL('https://photon.komoot.io/api/');
+    url.searchParams.set('q', query);
+    url.searchParams.set('limit', '5');
+    url.searchParams.set('lang', 'en');
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'SmartWastePortal/1.0 (https://smartwasteportal.onrender.com)' },
+      signal: AbortSignal.timeout(7_000),
+    });
+    if (!response.ok) throw new Error(`Photon returned ${response.status}`);
+    const text = await response.text();
+    if (text.length > 1_000_000) throw new Error('Photon response too large');
+    const payload = {
+      suggestions: photonSuggestions(JSON.parse(text)),
+      attribution: '© OpenStreetMap contributors',
+    };
+    fastCache.set(cacheKey, payload, 5 * 60 * 1000);
+    return res.json(payload);
+  } catch {
+    return res.status(503).json({ message: 'Address suggestions are temporarily unavailable. You can still enter the address manually.' });
+  }
 });
 
 }

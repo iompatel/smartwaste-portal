@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
-import { BackendTicket, TicketMessage } from './api.types';
+import { AddressSuggestion, BackendTicket, TicketMessage, TicketTrackingSnapshot } from './api.types';
 
 @Injectable({
   providedIn: 'root',
@@ -16,6 +16,8 @@ export class TicketService {
     wasteType: string;
     description: string;
     locationAddress: string;
+    locationLatitude?: number | null;
+    locationLongitude?: number | null;
     priority?: 'low' | 'medium' | 'high' | 'critical';
     mediaData?: string | null;
   }): Promise<BackendTicket> {
@@ -52,6 +54,17 @@ export class TicketService {
 
   async getMessages(ticketId: number): Promise<TicketMessage[]> {
     return this.api.request<TicketMessage[]>(`/api/tickets/${ticketId}/messages`);
+  }
+
+  async getTracking(ticketId: number): Promise<TicketTrackingSnapshot> {
+    return this.api.request<TicketTrackingSnapshot>(`/api/tickets/${ticketId}/worker-location`);
+  }
+
+  async searchAddresses(query: string): Promise<AddressSuggestion[]> {
+    const response = await this.api.request<{ suggestions: AddressSuggestion[] }>(
+      `/api/locations/search?q=${encodeURIComponent(query)}`,
+    );
+    return response.suggestions ?? [];
   }
 
   async sendMessage(ticketId: number, message: string): Promise<TicketMessage> {

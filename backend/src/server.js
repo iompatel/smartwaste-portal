@@ -42,10 +42,14 @@ import {
   ticketSlaHours,
 } from './ticket-policy.js';
 import {
+  WORKER_NEARBY_DISTANCE_METERS,
   WORKER_LOCATION_TTL_MS,
+  distanceMeters,
   isFreshWorkerLocation,
+  normalizeCoordinates,
   normalizeWorkerLocation,
 } from './location-policy.js';
+import { photonSuggestions } from './geocoding.js';
 import { fastCache } from './cache.js';
 import { deleteMedia, uploadMedia } from './storage.js';
 import {
@@ -279,6 +283,9 @@ const ticketSchema = new mongoose.Schema(
     description: { type: String, required: true, trim: true },
     mediaData: { type: String, default: null },
     locationAddress: { type: String, required: true, trim: true },
+    locationLatitude: { type: Number, default: null, min: -90, max: 90 },
+    locationLongitude: { type: Number, default: null, min: -180, max: 180 },
+    arrivalNotifiedAt: { type: Date, default: null },
     status: { type: String, required: true, enum: TICKET_STATUSES, default: 'pending' },
     priority: { type: String, required: true, enum: TICKET_PRIORITIES, default: 'medium' },
     statusHistory: { type: [ticketStatusEventSchema], default: [] },
@@ -792,15 +799,17 @@ async function buildTicketRecords(rows, viewer = null) {
     );
     const requester = userMap.get(Number(record.userId)) ?? null;
     const worker = userMap.get(Number(record.workerId)) ?? null;
+    const workerProfile = viewer?.role === 'admin' || viewer?.id === worker?.id
+      ? sanitizeUser(worker)
+      : viewer?.role === 'user' && viewer.id === record.userId && worker
+        ? { ...publicWorkerProfile(worker), mobile: String(worker.mobile ?? '') }
+        : publicWorkerProfile(worker);
     return {
       ...record,
       slaDueAt,
       slaOverdue: !isClosedTicket(record.status) && slaDueAt.getTime() < Date.now(),
       requester: requester ? sanitizeUser(requester) : null,
-      assignedWorker:
-        viewer?.role === 'admin' || viewer?.id === worker?.id
-          ? sanitizeUser(worker)
-          : publicWorkerProfile(worker),
+      assignedWorker: workerProfile,
       review: reviewMap.get(Number(record.id)) ?? null,
     };
   });
@@ -877,7 +886,7 @@ async function pickFreeWorkerIdForTicket(wasteType = '') {
         workerOnline: true,
         workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
       },
-      { id: 1, workerSkills: 1 },
+      { id: 1, firstName: 1, lastName: 1, mobile: 1, workerSkills: 1 },
     ).lean();
     fastCache.set('workers:online', workers, 5000);
   }
@@ -948,13 +957,16 @@ async function autoAssignUnassignedTickets(limit = 25) {
         workerOnline: true,
         workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
       },
-      { id: 1, workerSkills: 1 },
+      { id: 1, firstName: 1, lastName: 1, mobile: 1, workerSkills: 1 },
     ).lean();
     fastCache.set('workers:online', workers, 5000);
   }
   const freeWorkers = workers
     .map((w) => ({
       id: Number(w.id),
+      firstName: String(w.firstName ?? ''),
+      lastName: String(w.lastName ?? ''),
+      mobile: String(w.mobile ?? ''),
       skills: Array.isArray(w.workerSkills)
         ? w.workerSkills.map((s) => String(s).toLowerCase().trim())
         : [],
@@ -1047,11 +1059,20 @@ async function autoAssignUnassignedTickets(limit = 25) {
       assigned += 1;
       workloadMap.set(selectedWorkerId, minLoad + 1);
       const requester = requesterMap.get(Number(updated.userId));
-      await createNotification({
-        userId: selectedWorkerId,
-        title: 'New Ticket Assigned',
-        message: buildTicketDetailsMessage(updated, requester),
-      });
+      const selectedWorker = freeWorkers.find((worker) => worker.id === selectedWorkerId);
+      const workerName = `${selectedWorker?.firstName ?? ''} ${selectedWorker?.lastName ?? ''}`.trim() || `Worker #${selectedWorkerId}`;
+      await Promise.all([
+        createNotification({
+          userId: selectedWorkerId,
+          title: 'New Ticket Assigned',
+          message: buildTicketDetailsMessage(updated, requester),
+        }),
+        createNotification({
+          userId: updated.userId,
+          title: 'Worker Assigned',
+          message: `${updated.ticketCode} was assigned to ${workerName} (ID ${selectedWorkerId}${selectedWorker?.mobile ? `, ${selectedWorker.mobile}` : ''}).`,
+        }),
+      ]);
     }
   }
 
@@ -1331,6 +1352,16 @@ const ticketMessageLimiter = rateLimit({
   message: { message: 'Too many messages sent. Please slow down.' },
 });
 
+const addressSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => `address:${req.user?.id ?? authClientIp(req)}`,
+  validate: { ip: false, keyGeneratorIpFallback: false },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many address searches. Please pause and try again.' },
+});
+
 app.use(express.json({ limit: '3mb' }));
 app.use('/api/auth', (req, res, next) => {
   if (!ADMIN_AUTH_ENABLED && req.path === '/admin-login') {
@@ -1467,16 +1498,24 @@ async function sendLoginResponse(user, res) {
 
   clearAdminCookie(res);
   const token = generateToken(user);
-  return res.json({ token, user: sanitizeUser(user) });
+  const sanitized = sanitizeUser(user);
+  return res.json({
+    token,
+    user: sanitized,
+    ...(user.role === 'worker' ? { worker: sanitized } : {}),
+  });
 }
 
 async function handlePasswordLogin(req, res, portal) {
-  const { email, password } = req.body ?? {};
-  const normalizedEmail = normalizeEmail(email);
+  const { email, password, id, identifier: rawId } = req.body ?? {};
+  const identifier = String(email ?? id ?? rawId ?? '').trim();
 
-  if (!normalizedEmail || !password) {
+  if (!identifier || !password) {
     return res.status(400).json({ message: 'Email and password are required.' });
   }
+
+  const numericId = parseNumericId(identifier);
+  const normalizedEmail = normalizeEmail(identifier);
 
   if (portal === 'public' && isFirebaseEnabled()) {
     try {
@@ -1488,9 +1527,13 @@ async function handlePasswordLogin(req, res, portal) {
     }
   }
 
-  const user = await User.findOne({ email: normalizedEmail });
+  const query = numericId
+    ? { $or: [{ id: numericId }, { email: normalizedEmail }] }
+    : { email: normalizedEmail };
+
+  const user = await User.findOne(query);
   if (!user || user.disabled || !(await comparePassword(String(password), user.passwordHash))) {
-    return res.status(401).json({ message: 'Invalid email or password.' });
+    return res.status(401).json({ message: 'Invalid email, ID, or password.' });
   }
 
   if (!canUseLoginPortal(user.role, portal)) {
@@ -1621,9 +1664,11 @@ const routeContext = {
   USER_ROLES,
   User,
   WORKER_LOCATION_TTL_MS,
+  WORKER_NEARBY_DISTANCE_METERS,
   WorkerLocation,
   accountActivitySnapshot,
   accountWriteGuard,
+  addressSearchLimiter,
   activityDateRange,
   activityQuery,
   appendTicketStatus,
@@ -1664,9 +1709,11 @@ const routeContext = {
   nextAccountTimestamp,
   nextId,
   normalizeAccountProfile,
+  normalizeCoordinates,
   normalizeEmail,
   normalizeWorkerLocation,
   parseNumericId,
+  photonSuggestions,
   pickFreeWorkerIdForTicket,
   publicWorkerProfile,
   requireRoles,
@@ -1678,6 +1725,7 @@ const routeContext = {
   truncateText,
   updateFirebaseUser,
   uploadMedia,
+  distanceMeters,
   usesFirebasePasswordProvider,
   verifyFirebaseIdToken,
 };

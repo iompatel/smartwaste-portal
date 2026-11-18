@@ -118,6 +118,22 @@ import { Role } from '../smartwaste/data';
               </div>
             }
 
+            @if (showPasswordReset()) {
+              <div class="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs leading-5">
+                <p class="font-medium text-foreground">Forgot your password?</p>
+                <p class="mt-1 text-muted-foreground">We can email a secure Firebase link to choose a new password.</p>
+                <button
+                  type="button"
+                  (click)="sendResetLink()"
+                  [disabled]="resetSending() || resetLinkSent()"
+                  class="mt-2 min-h-11 font-semibold text-primary underline underline-offset-2 disabled:opacity-60"
+                >
+                  {{ resetLinkSent() ? 'Reset link sent' : resetSending() ? 'Sending...' : 'Email password reset link' }}
+                </button>
+                @if (resetNote()) { <p class="mt-1 text-muted-foreground" aria-live="polite">{{ resetNote() }}</p> }
+              </div>
+            }
+
             @if (needsVerification()) {
               <div class="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning font-medium leading-5">
                 Your email is not verified yet. Click the verification link in your inbox.
@@ -182,6 +198,12 @@ export class LoginComponent implements OnInit {
   showPassword = signal<boolean>(false);
   needsVerification = signal<boolean>(false);
   resendNote = signal<string>('');
+  failedAttempts = signal<number>(0);
+  resetSending = signal<boolean>(false);
+  resetLinkSent = signal<boolean>(false);
+  resetNote = signal<string>('');
+  showPasswordReset = signal<boolean>(false);
+  private attemptedEmail = '';
 
   inputCls = inputClassName;
 
@@ -215,15 +237,32 @@ export class LoginComponent implements OnInit {
   }
 
   private async executeLogin() {
+    const normalizedEmail = this.email.trim().toLowerCase();
+    if (normalizedEmail !== this.attemptedEmail) {
+      this.attemptedEmail = normalizedEmail;
+      this.failedAttempts.set(0);
+      this.showPasswordReset.set(false);
+      this.resetLinkSent.set(false);
+      this.resetNote.set('');
+    }
     this.submitting.set(true);
     this.errorMessage.set('');
     this.needsVerification.set(false);
     this.resendNote.set('');
     try {
       await this.auth.login('citizen', this.email, this.password);
+      this.failedAttempts.set(0);
       this.success.emit('citizen');
     } catch (err: any) {
       this.needsVerification.set(err?.code === 'EMAIL_NOT_VERIFIED');
+      const credentialFailure = err?.status === 401
+        || err?.status === 429
+        || ['auth/invalid-credential', 'auth/wrong-password', 'auth/too-many-requests'].includes(err?.code);
+      if (credentialFailure) {
+        const attempts = this.failedAttempts() + 1;
+        this.failedAttempts.set(attempts);
+        this.showPasswordReset.set(attempts >= 3 || err?.status === 429 || err?.code === 'auth/too-many-requests');
+      }
       this.errorMessage.set(err.message || 'Invalid email or password.');
     } finally {
       this.submitting.set(false);
@@ -236,6 +275,20 @@ export class LoginComponent implements OnInit {
       this.resendNote.set('Verification link sent. Check your inbox and spam folder.');
     } catch (err: any) {
       this.resendNote.set(err?.message || 'Could not resend right now. Please try again.');
+    }
+  }
+
+  async sendResetLink() {
+    this.resetSending.set(true);
+    this.resetNote.set('');
+    try {
+      await this.auth.sendPasswordReset(this.email);
+      this.resetLinkSent.set(true);
+      this.resetNote.set('If this email has a password account, Firebase has sent the reset link. Check inbox and spam.');
+    } catch (err: any) {
+      this.resetNote.set(err?.message || 'Could not send the reset link.');
+    } finally {
+      this.resetSending.set(false);
     }
   }
 }

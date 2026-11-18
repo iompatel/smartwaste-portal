@@ -32,6 +32,7 @@ import {
   ProfileViewComponent,
   SettingsViewComponent,
 } from './profile.component';
+import { FaqViewComponent, TermsViewComponent } from './help.component';
 import {
   NotificationStackComponent,
   StackNotificationItem,
@@ -87,6 +88,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     HireViewComponent,
     ProfileViewComponent,
     SettingsViewComponent,
+    FaqViewComponent,
+    TermsViewComponent,
     AdminDashboardComponent,
     AdminAccountsComponent,
     AdminBroadcastComponent,
@@ -337,8 +340,17 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
             @if (view() === 'settings') {
               <app-settings-view
                 [theme]="theme()"
+                [role]="role()"
                 (themeChange)="setTheme($event)"
               ></app-settings-view>
+            }
+
+            @if (role() === 'citizen' && view() === 'faq') {
+              <app-faq-view></app-faq-view>
+            }
+
+            @if (role() === 'citizen' && view() === 'terms') {
+              <app-terms-view></app-terms-view>
             }
           </main>
         </div>
@@ -537,6 +549,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (v === 'live-map') return 'Live worker map';
     if (v === 'broadcast') return 'Broadcast';
     if (v === 'activity') return 'Account activity';
+    if (v === 'faq') return 'Frequently asked questions';
+    if (v === 'terms') return 'Terms and conditions';
     return 'Settings';
   });
 
@@ -712,6 +726,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (raw === 'hire') return 'hire';
     if (raw === 'profile') return 'profile';
     if (raw === 'settings') return 'settings';
+    if (raw === 'faq') return 'faq';
+    if (raw === 'terms') return 'terms';
     return 'overview';
   }
 

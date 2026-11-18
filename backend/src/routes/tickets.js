@@ -28,6 +28,7 @@ export function registerTicketRoutes(app, ctx) {
     matchesAdminSecret,
     nextId,
     normalizeEmail,
+    normalizeCoordinates,
     parseNumericId,
     pickFreeWorkerIdForTicket,
     publicWorkerProfile,
@@ -423,6 +424,8 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     wasteType,
     description,
     locationAddress,
+    locationLatitude = null,
+    locationLongitude = null,
     priority = 'medium',
     mediaData = null,
   } = req.body ?? {};
@@ -432,6 +435,13 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
   const cleanLocation = cleanBoundedText(locationAddress, 500);
   if (!cleanWasteType || !cleanDescription || !cleanLocation) {
     return res.status(400).json({ message: 'Missing ticket fields.' });
+  }
+  const hasDestinationCoordinates = locationLatitude !== null || locationLongitude !== null;
+  const destination = hasDestinationCoordinates
+    ? normalizeCoordinates({ latitude: locationLatitude, longitude: locationLongitude })
+    : null;
+  if (hasDestinationCoordinates && !destination) {
+    return res.status(400).json({ message: 'Report location coordinates are invalid.' });
   }
   if (!isValidImageData(mediaData)) {
     return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
@@ -451,6 +461,8 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
       description: cleanDescription,
       mediaData: storedMedia,
       locationAddress: cleanLocation,
+      locationLatitude: destination?.latitude ?? null,
+      locationLongitude: destination?.longitude ?? null,
       status: 'pending',
       priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
       statusHistory: [
@@ -474,7 +486,12 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
 
   const ticketDetailsMessage = buildTicketDetailsMessage(ticket, req.user);
   const assignedWorkerId = await pickFreeWorkerIdForTicket(cleanWasteType);
+  let assignedWorker = null;
   if (assignedWorkerId) {
+    assignedWorker = await User.findOne(
+      { id: assignedWorkerId, role: 'worker' },
+      { id: 1, firstName: 1, lastName: 1, mobile: 1 },
+    ).lean();
     ticket.workerId = assignedWorkerId;
     appendTicketStatus(
       ticket,
@@ -505,7 +522,7 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
   await createNotification({
     title: 'New Ticket Created',
     message: assignedWorkerId
-      ? `${ticket.ticketCode} created. Assigned to Worker #${assignedWorkerId}.`
+      ? `${ticket.ticketCode} created. Assigned to ${assignedWorker?.firstName ?? 'Worker'} ${assignedWorker?.lastName ?? `#${assignedWorkerId}`} (ID ${assignedWorkerId}${assignedWorker?.mobile ? `, ${assignedWorker.mobile}` : ''}).`
       : `${ticket.ticketCode} created. Waiting for worker assignment.`,
     userId: req.user.id,
   });
@@ -574,7 +591,7 @@ app.put(
       createNotification({
         userId: updatedTicket.userId,
         title: 'Worker Assigned',
-        message: `${ticket.ticketCode} was assigned to ${worker.firstName} ${worker.lastName}.`,
+        message: `${ticket.ticketCode} was assigned to ${worker.firstName} ${worker.lastName} (ID ${worker.id}, ${worker.mobile}).`,
       }),
       createAdminActivity({
         adminUser: req.user,
@@ -663,7 +680,7 @@ app.put(
       userNotification = {
         userId: ticket.userId,
         title: 'Ticket Completed',
-        message: `${ticket.ticketCode} was completed. Please rate the worker.`,
+        message: `${ticket.ticketCode} was completed with OTP verification. The completion photo is ready to review.`,
       };
     }
 
@@ -807,9 +824,19 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
   const nextWasteType = cleanBoundedText(req.body?.wasteType ?? ticket.wasteType, 100);
   const nextDescription = cleanBoundedText(req.body?.description ?? ticket.description);
   const nextLocation = cleanBoundedText(req.body?.locationAddress ?? ticket.locationAddress, 500);
+  const coordinateInputChanged = req.body?.locationLatitude !== undefined || req.body?.locationLongitude !== undefined;
+  const nextDestination = coordinateInputChanged
+    ? normalizeCoordinates({
+        latitude: req.body?.locationLatitude,
+        longitude: req.body?.locationLongitude,
+      })
+    : normalizeCoordinates({ latitude: ticket.locationLatitude, longitude: ticket.locationLongitude });
   const nextMediaData = req.body?.mediaData ?? ticket.mediaData ?? null;
   if (!nextWasteType || !nextDescription || !nextLocation) {
     return res.status(400).json({ message: 'Ticket fields are invalid or too long.' });
+  }
+  if (coordinateInputChanged && !nextDestination) {
+    return res.status(400).json({ message: 'Report location coordinates are invalid.' });
   }
   if (!isValidImageData(nextMediaData)) {
     return res.status(400).json({ message: 'Ticket image must be a JPEG, PNG, or WebP under 2 MB.' });
@@ -821,6 +848,9 @@ app.put('/api/tickets/:id', authMiddleware, async (req, res) => {
   ticket.description = nextDescription;
   ticket.mediaData = storedMediaData;
   ticket.locationAddress = nextLocation;
+  ticket.locationLatitude = nextDestination?.latitude ?? null;
+  ticket.locationLongitude = nextDestination?.longitude ?? null;
+  if (coordinateInputChanged) ticket.arrivalNotifiedAt = null;
   ticket.priority = TICKET_PRIORITIES.includes(req.body?.priority)
     ? req.body.priority
     : ticket.priority;

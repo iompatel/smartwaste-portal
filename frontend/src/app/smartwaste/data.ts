@@ -5,6 +5,8 @@ export type View =
   | 'hire'
   | 'profile'
   | 'settings'
+  | 'faq'
+  | 'terms'
   | 'accounts'
   | 'users'
   | 'workers'
@@ -30,6 +32,8 @@ export interface Ticket {
   eta?: string;
   description?: string;
   mediaData?: string | null;
+  workerId?: number;
+  workerMobile?: string;
   raw?: any;
 }
 
@@ -68,6 +72,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { id: 'tickets', label: 'My reports', icon: 'clipboard-check' },
     { id: 'hire', label: 'Hire a worker', icon: 'briefcase-business' },
     { id: 'profile', label: 'Profile & settings', icon: 'user-round' },
+    { id: 'faq', label: 'FAQ', icon: 'info' },
+    { id: 'terms', label: 'Terms & conditions', icon: 'file-text' },
   ],
   worker: [
     { id: 'overview', label: 'Field cockpit', icon: 'layout-grid' },
