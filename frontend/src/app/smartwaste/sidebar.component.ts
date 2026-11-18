@@ -4,8 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { ButtonDirective } from '../shared/button.component';
 import { BrandMarkComponent } from '../shared/ui-components';
-import { ProfileDropdownComponent, AccountStatus, AccountTheme } from '../shared/profile-dropdown.component';
-import { BackendUser } from '../core/api.types';
 import {
   navByRole,
   roleMeta,
@@ -24,7 +22,6 @@ import { cn } from '../shared/utils';
     IconComponent,
     ButtonDirective,
     BrandMarkComponent,
-    ProfileDropdownComponent,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -95,7 +92,7 @@ import { cn } from '../shared/utils';
         <button
           type="button"
           (click)="themeToggle.emit()"
-          class="flex h-11 items-center gap-3 rounded-[12px] px-3 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground"
+          class="flex h-11 items-center gap-3 rounded-[12px] px-3 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground cursor-pointer"
         >
           @if (theme() === 'dark') {
             <app-icon name="sun" class="size-[17px]"></app-icon>
@@ -106,27 +103,10 @@ import { cn } from '../shared/utils';
           }
         </button>
       </nav>
-
-      <!-- Bottom Profile -->
-      <div class="border-t border-sidebar-border px-0.5 pt-3">
-        <app-profile-dropdown
-          variant="full"
-          placement="top-start"
-          [user]="user()"
-          [role]="role()"
-          [currentStatus]="userOnline() ? 'online' : 'away'"
-          [currentTheme]="theme() === 'dark' ? 'dark' : 'light'"
-          (statusChange)="statusChange.emit($event)"
-          (themeChange)="themeChange.emit($event)"
-          (navigate)="navigate.emit($event)"
-          (signOut)="signOut.emit()"
-        ></app-profile-dropdown>
-      </div>
     </aside>
   `
 })
 export class SidebarComponent {
-  user = input<BackendUser | null>(null);
   role = input.required<Role>();
   view = input.required<View>();
   open = input<boolean>(false);
@@ -134,25 +114,15 @@ export class SidebarComponent {
   ticketCount = input<number>(0);
   routeCount = input<number>(0);
   bookingCount = input<number>(0);
-  userName = input<string>();
-  userSubtitle = input<string>();
-  userInitials = input<string>();
-  userOnline = input<boolean>(false);
 
   close = output<void>();
   navigate = output<View>();
   roleChange = output<Role>();
   themeToggle = output<void>();
-  themeChange = output<AccountTheme>();
-  statusChange = output<AccountStatus>();
-  signOut = output<void>();
 
   secondaryNavItems = secondaryNav;
 
   meta = computed(() => roleMeta[this.role()]);
-  displayName = computed(() => this.userName() || this.meta().name);
-  displaySubtitle = computed(() => this.userSubtitle() || this.meta().subtitle);
-  displayInitials = computed(() => this.userInitials() || this.meta().initials);
   currentNav = computed(() => navByRole[this.role()]);
 
   asideClasses = computed(() => {

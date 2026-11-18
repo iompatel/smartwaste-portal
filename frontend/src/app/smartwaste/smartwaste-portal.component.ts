@@ -128,7 +128,6 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
       <div class="min-h-screen bg-background text-foreground">
         <!-- Sidebar -->
         <app-sidebar
-          [user]="currentUser()"
           [role]="role()"
           [view]="view()"
           [open]="mobileNavOpen()"
@@ -136,16 +135,9 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
           [ticketCount]="tickets().length"
           [routeCount]="activeRouteCount()"
           [bookingCount]="bookings().length"
-          [userName]="currentUser() ? currentUser()!.firstName + ' ' + currentUser()!.lastName : undefined"
-          [userSubtitle]="currentUser() ? currentUser()!.email : undefined"
-          [userInitials]="displayInitials()"
-          [userOnline]="role() === 'worker' && onDuty()"
           (close)="mobileNavOpen.set(false)"
           (navigate)="onNavigate($event)"
-          (statusChange)="onProfileStatusChange($event)"
-          (themeChange)="onProfileThemeChange($event)"
           (themeToggle)="toggleTheme()"
-          (signOut)="onSignOut()"
         ></app-sidebar>
 
         <div class="min-h-screen lg:pl-[248px]">
