@@ -52,7 +52,7 @@ import { HireService } from '../core/hire.service';
 import { WorkerService } from '../core/worker.service';
 import { AdminService } from '../core/admin.service';
 import { ApiService } from '../core/api.service';
-import { BackendNotification } from '../core/api.types';
+import { BackendNotification, BackendTicket } from '../core/api.types';
 import {
   Booking,
   Role,
@@ -398,6 +398,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
           <app-ticket-detail-modal
             [ticket]="ticket"
             (close)="modal.set(null)"
+            (trackingChanged)="onTicketTrackingChanged($event)"
+            (workerNearby)="onWorkerNearby($event)"
           ></app-ticket-detail-modal>
         }
 
@@ -866,6 +868,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         wasteType: ticket.category,
         description: ticket.description || ticket.title,
         locationAddress: ticket.address,
+        locationLatitude: ticket.locationLatitude,
+        locationLongitude: ticket.locationLongitude,
         priority: (ticket.priority.toLowerCase() as any) || 'medium',
         mediaData: ticket.mediaData || null,
       });
@@ -900,6 +904,21 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
       }
     } catch (err: any) {
       this.toast.set(err?.message || 'Could not create booking.');
+    }
+  }
+
+  onTicketTrackingChanged(updated: BackendTicket) {
+    const mapped = this.apiService.mapTicketToUi(updated);
+    this.tickets.update((tickets) => tickets.map((ticket) => ticket.numericId === mapped.numericId ? mapped : ticket));
+    this.selectedTicket.set(mapped);
+    void this.loadData();
+  }
+
+  onWorkerNearby(ticket: Ticket) {
+    const message = `${ticket.worker || 'Your worker'} is near the collection point for ${ticket.id}.`;
+    this.toast.set(message);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('SmartWaste worker nearby', { body: message, icon: '/icon.svg' });
     }
   }
 

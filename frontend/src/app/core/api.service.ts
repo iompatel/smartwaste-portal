@@ -356,6 +356,8 @@ export class ApiService {
       time: this.formatTimeAgo(t.createdAt),
       code: t.completionCode || undefined,
       worker: workerName,
+      workerId: t.assignedWorker?.id ?? t.workerId ?? undefined,
+      workerMobile: t.assignedWorker?.mobile,
       eta:
         t.status === 'in_progress'
           ? 'Collection in progress'

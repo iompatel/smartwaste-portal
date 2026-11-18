@@ -578,22 +578,51 @@ export class ReportModalComponent implements OnDestroy {
 
         <div class="rounded-[16px] bg-muted/60 p-4">
           <p class="text-[10px] font-medium tracking-[0.1em] text-muted-foreground uppercase">Assigned operative</p>
-          <div class="mt-3 flex items-center gap-2.5">
-            <app-avatar [initials]="workerInitials()" class="size-9"></app-avatar>
-            <div>
-              <p class="text-xs font-medium text-foreground">{{ ticket().worker || 'Dispatch pending' }}</p>
-              @if (ticket().worker) {
-                <p class="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <app-icon name="shield-check" class="size-3 text-brand"></app-icon>
-                  Verified operative
-                </p>
-              } @else {
-                <p class="mt-1 text-[11px] text-muted-foreground">Awaiting assignment</p>
-              }
+          @if (assignedWorker(); as worker) {
+            <div class="mt-3 flex items-start gap-2.5">
+              <app-avatar [initials]="workerInitials()" class="size-9"></app-avatar>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-medium text-foreground">{{ worker.firstName }} {{ worker.lastName }}</p>
+                <p class="mt-1 text-[11px] text-muted-foreground">Worker ID #{{ worker.id }} · Verified operative</p>
+                @if (worker.mobile) {
+                  <a [href]="'tel:' + worker.mobile" class="mt-2 inline-flex min-h-11 items-center gap-1.5 font-medium text-primary underline underline-offset-2">
+                    <app-icon name="phone" class="size-3.5"></app-icon>
+                    Call {{ worker.mobile }}
+                  </a>
+                }
+              </div>
             </div>
-          </div>
+          } @else {
+            <p class="mt-3 text-xs text-muted-foreground">Awaiting assignment</p>
+          }
         </div>
       </div>
+
+      @if (assignedWorker()) {
+        <div class="mt-4 overflow-hidden rounded-[18px] border border-border/60 bg-muted/30">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+            <div>
+              <p class="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <app-icon name="navigation" class="size-4 text-primary"></app-icon>
+                Live route tracking
+              </p>
+              <p class="mt-1 text-[10px] text-muted-foreground" aria-live="polite">{{ trackingSummary() }}</p>
+            </div>
+            @if (directionsUrl()) {
+              <a [href]="directionsUrl()" target="_blank" rel="noopener noreferrer" appButton variant="outline" size="sm" class="rounded-full">Open map</a>
+            }
+          </div>
+          @if (mapPreview(); as preview) {
+            <iframe title="Assigned worker's live route to the collection address" [src]="preview" class="h-64 w-full border-0 sm:h-72" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          } @else {
+            <div class="flex min-h-44 flex-col items-center justify-center gap-2 px-5 text-center">
+              <app-icon name="map-pin" class="size-6 text-muted-foreground"></app-icon>
+              <p class="text-xs font-medium text-foreground">Waiting for live GPS</p>
+              <p class="max-w-sm text-[11px] leading-5 text-muted-foreground">Tracking starts when the worker begins this route and shares a fresh location.</p>
+            </div>
+          }
+        </div>
+      }
 
       @if (ticket().code && !isClosedStatus(ticket().status)) {
         <div class="mt-4 flex items-center justify-between gap-4 rounded-[18px] border border-brand/20 bg-brand/10 p-5">
@@ -657,6 +686,31 @@ export class ReportModalComponent implements OnDestroy {
         </div>
       </div>
 
+      @if (completionPhoto(); as photo) {
+        <div class="mt-5 rounded-[18px] border border-brand/25 bg-brand/5 p-4">
+          <p class="flex items-center gap-2 text-xs font-medium text-brand">
+            <app-icon name="check-circle-2" class="size-4"></app-icon>
+            OTP verified · Work completed
+          </p>
+          <img [src]="photo" alt="Worker's photo of the completed collection" class="mt-3 max-h-80 w-full rounded-[14px] bg-muted object-contain" />
+          <p class="mt-2 text-[11px] text-muted-foreground">Completion photo uploaded by the assigned worker.</p>
+        </div>
+      }
+
+      @if (statusHistory().length > 0) {
+        <div class="mt-5 rounded-[18px] border border-border/60 p-4">
+          <p class="text-xs font-medium text-foreground">Latest updates</p>
+          <ol class="mt-3 space-y-3">
+            @for (event of statusHistory(); track $index) {
+              <li class="flex gap-2.5 text-[11px] leading-5">
+                <span class="mt-1.5 size-2 shrink-0 rounded-full bg-brand"></span>
+                <span><strong class="font-medium text-foreground">{{ statusLabel(event.status) }}</strong><span class="block text-muted-foreground">{{ event.note || 'Status updated' }} · {{ event.createdAt | date:'medium' }}</span></span>
+              </li>
+            }
+          </ol>
+        </div>
+      }
+
       <!-- Chat thread -->
       <div class="mt-6 rounded-[18px] border border-border/60">
         <div class="flex items-center gap-2 border-b border-border/60 px-4 py-3">
@@ -712,48 +766,84 @@ export class ReportModalComponent implements OnDestroy {
     </app-modal>
   `
 })
-export class TicketDetailModalComponent implements OnInit {
+export class TicketDetailModalComponent implements OnInit, OnDestroy {
   readonly isClosedStatus = isClosedStatus;
   ticket = input.required<Ticket>();
   close = output<void>();
+  trackingChanged = output<BackendTicket>();
+  workerNearby = output<Ticket>();
 
   copied = signal<boolean>(false);
   messageError = signal<string>('');
   messageText = '';
   messages = signal<{ text: string; from: 'worker' | 'citizen' }[]>([]);
+  tracking = signal<TicketTrackingSnapshot | null>(null);
+  trackingError = signal('');
+  mapPreview = signal<SafeResourceUrl | null>(null);
+  directionsUrl = signal('');
+  private trackingTimer?: number;
+  private nearbyAnnounced = false;
+  private destroyed = false;
 
-  constructor(private ticketService: TicketService) {}
+  constructor(private ticketService: TicketService, private sanitizer: DomSanitizer) {}
 
   async ngOnInit() {
     const numId = this.ticket().numericId;
     if (numId) {
-      try {
-        const history = await this.ticketService.getMessages(numId);
-        if (history && history.length > 0) {
-          this.messages.set(
-            history.map((m) => ({
-              text: m.message,
-              from: m.senderRole === 'user' ? 'citizen' : 'worker',
-            }))
-          );
-        }
-      } catch {}
+      const [messages] = await Promise.allSettled([
+        this.ticketService.getMessages(numId),
+        this.refreshTracking(),
+      ]);
+      if (messages.status === 'fulfilled' && messages.value.length > 0) {
+        this.messages.set(messages.value.map((message) => ({
+          text: message.message,
+          from: message.senderRole === 'user' ? 'citizen' : 'worker',
+        })));
+      }
+      if (!this.destroyed && !isClosedStatus(this.currentStatus())) {
+        this.trackingTimer = window.setInterval(() => void this.refreshTracking(), 3000);
+      }
     }
   }
 
+  assignedWorker = computed(() => this.tracking()?.ticket?.assignedWorker ?? this.ticket().raw?.assignedWorker ?? null);
+  completionPhoto = computed(() => this.tracking()?.ticket?.completionMediaData ?? this.ticket().raw?.completionMediaData ?? null);
+  statusHistory = computed(() => {
+    const history = this.tracking()?.ticket?.statusHistory ?? this.ticket().raw?.statusHistory ?? [];
+    return [...history].slice(-5).reverse();
+  });
+
+  currentStatus = computed<Ticket['status']>(() => {
+    const rawStatus = this.tracking()?.ticket?.status ?? this.ticket().raw?.status;
+    if (rawStatus === 'assigned' || rawStatus === 'accepted') return 'Scheduled';
+    if (rawStatus === 'in_progress') return 'In progress';
+    if (rawStatus === 'completed') return 'Completed';
+    if (rawStatus === 'cancelled') return 'Cancelled';
+    return this.ticket().status;
+  });
+
+  trackingSummary = computed(() => {
+    const snapshot = this.tracking();
+    if (this.currentStatus() === 'Completed') return 'Completed with OTP verification and an after-photo.';
+    if (this.trackingError()) return this.trackingError();
+    if (!snapshot?.available) return 'Waiting for the worker to start sharing a fresh GPS location.';
+    const distance = snapshot.distanceMeters;
+    const distanceText = distance === null
+      ? 'Live GPS active'
+      : distance < 1000
+        ? `${distance} m from the destination`
+        : `${(distance / 1000).toFixed(1)} km from the destination`;
+    return `${distanceText} · Updated every 3 seconds`;
+  });
+
   workerInitials = computed(() => {
-    const w = this.ticket().worker;
-    if (!w) return 'OP';
-    return w
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
+    const worker = this.assignedWorker();
+    if (!worker) return 'OP';
+    return `${worker.firstName?.[0] ?? ''}${worker.lastName?.[0] ?? ''}`.toUpperCase() || 'OP';
   });
 
   isStepActive(index: number): boolean {
-    const status = this.ticket().status;
+    const status = this.currentStatus();
     return (
       index === 0 ||
       status === 'Completed' ||
@@ -762,7 +852,7 @@ export class TicketDetailModalComponent implements OnInit {
   }
 
   isLineActive(index: number): boolean {
-    const status = this.ticket().status;
+    const status = this.currentStatus();
     return (index === 0 && status !== 'Pending') || status === 'Completed';
   }
 
@@ -799,6 +889,59 @@ export class TicketDetailModalComponent implements OnInit {
     } catch (err: any) {
       this.messageError.set(err?.message || 'Could not send message.');
     }
+  }
+
+  statusLabel(status: string): string {
+    return ({ pending: 'Report submitted', assigned: 'Worker assigned', accepted: 'Worker accepted', in_progress: 'Collection started', completed: 'Collection completed', cancelled: 'Report cancelled' } as Record<string, string>)[status] ?? status.replace(/_/g, ' ');
+  }
+
+  private async refreshTracking() {
+    const ticketId = this.ticket().numericId;
+    if (!ticketId || this.destroyed) return;
+    const previousStatus = this.tracking()?.ticket?.status ?? this.ticket().raw?.status;
+    try {
+      const snapshot = await this.ticketService.getTracking(ticketId);
+      if (this.destroyed) return;
+      this.tracking.set(snapshot);
+      this.trackingError.set('');
+      this.updateMap(snapshot);
+      if (snapshot.nearby && !this.nearbyAnnounced) {
+        this.nearbyAnnounced = true;
+        this.workerNearby.emit(this.ticket());
+      }
+      if (snapshot.ticket.status !== previousStatus) this.trackingChanged.emit(snapshot.ticket);
+      if (['completed', 'cancelled'].includes(snapshot.ticket.status) && this.trackingTimer) {
+        clearInterval(this.trackingTimer);
+        this.trackingTimer = undefined;
+      }
+    } catch (err: any) {
+      if (!this.destroyed) this.trackingError.set(err?.message || 'Live tracking is temporarily unavailable.');
+    }
+  }
+
+  private updateMap(snapshot: TicketTrackingSnapshot) {
+    if (!snapshot.available || !Number.isFinite(snapshot.latitude) || !Number.isFinite(snapshot.longitude)) {
+      this.mapPreview.set(null);
+      this.directionsUrl.set('');
+      return;
+    }
+    const origin = `${snapshot.latitude},${snapshot.longitude}`;
+    const raw = snapshot.ticket;
+    const destination = Number.isFinite(raw.locationLatitude) && Number.isFinite(raw.locationLongitude)
+      ? `${raw.locationLatitude},${raw.locationLongitude}`
+      : raw.locationAddress;
+    const embedded = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}?output=embed`;
+    const directions = new URL('https://www.google.com/maps/dir/');
+    directions.searchParams.set('api', '1');
+    directions.searchParams.set('origin', origin);
+    directions.searchParams.set('destination', destination);
+    this.mapPreview.set(this.sanitizer.bypassSecurityTrustResourceUrl(embedded));
+    this.directionsUrl.set(directions.toString());
+  }
+
+  ngOnDestroy() {
+    this.destroyed = true;
+    if (this.trackingTimer) clearInterval(this.trackingTimer);
   }
 }
 
@@ -972,11 +1115,11 @@ export class WorkerRoutesViewComponent {
             class="flex cursor-pointer items-center gap-3 rounded-[14px] border border-dashed border-input bg-muted/40 p-4 transition-colors hover:border-primary/50"
           >
             <span class="flex size-9 items-center justify-center rounded-[11px] bg-primary/10 text-primary">
-              <app-icon [name]="photoName() ? 'check-circle-2' : 'camera'" class="size-4"></app-icon>
+              <app-icon [name]="photoProcessing() ? 'refresh-cw' : photoName() ? 'check-circle-2' : 'camera'" [class]="'size-4 ' + (photoProcessing() ? 'animate-spin' : '')"></app-icon>
             </span>
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-xs font-medium text-foreground">{{ photoName() || 'Take or upload a photo' }}</span>
-              <span class="mt-1 block text-[10px] text-muted-foreground">Required · JPG or PNG up to 1.5 MB</span>
+              <span class="block truncate text-xs font-medium text-foreground">{{ photoProcessing() ? 'Preparing photo...' : photoName() || 'Take or upload a photo' }}</span>
+              <span class="mt-1 block text-[10px] text-muted-foreground">Required · Large camera photos are resized safely</span>
             </span>
             <app-icon name="upload" class="size-4 text-muted-foreground"></app-icon>
           </label>
@@ -988,6 +1131,9 @@ export class WorkerRoutesViewComponent {
             (change)="onPhotoSelected($event)"
             class="sr-only"
           />
+          @if (photoData(); as preview) {
+            <img [src]="preview" alt="After-collection photo preview" class="mt-3 max-h-52 w-full rounded-[14px] bg-muted object-contain" />
+          }
         </div>
 
         @if (error()) {
@@ -999,6 +1145,7 @@ export class WorkerRoutesViewComponent {
           appButton
           variant="brand"
           class="h-11 w-full rounded-full"
+          [disabled]="photoProcessing()"
         >
           <app-icon name="check-circle-2" class="size-4"></app-icon>
           Complete verified handover
@@ -1017,22 +1164,29 @@ export class HandoverModalComponent {
   otp = signal<string>('');
   photoName = signal<string>('');
   photoData = signal<string>('');
+  photoProcessing = signal(false);
   error = signal<string>('');
 
   onOtpChange(val: string) {
     this.otp.set(val.replace(/\D/g, '').slice(0, 6));
   }
 
-  onPhotoSelected(event: Event) {
+  async onPhotoSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (file) {
-      this.photoName.set(file.name);
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.photoData.set(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    this.photoProcessing.set(true);
+    this.error.set('');
+    try {
+      this.photoData.set(await prepareImageFile(file));
+      this.photoName.set(file.name || 'Completion photo.jpg');
+    } catch (err: any) {
+      this.photoName.set('');
+      this.photoData.set('');
+      this.error.set(err?.message || 'Could not prepare that photo.');
+    } finally {
+      this.photoProcessing.set(false);
+      input.value = '';
     }
   }
 
@@ -1049,9 +1203,6 @@ export class HandoverModalComponent {
       this.error.set('Add an after-collection photo to verify this handover.');
       return;
     }
-    const photoPayload =
-      this.photoData() ||
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    this.complete.emit({ ticket: this.ticket(), otp: this.otp(), photoData: photoPayload });
+    this.complete.emit({ ticket: this.ticket(), otp: this.otp(), photoData: this.photoData() });
   }
 }
