@@ -1233,8 +1233,20 @@ if (IS_PRODUCTION && ADMIN_AUTH_ENABLED && REQUIRE_CF_ACCESS) {
   });
 }
 
+const KNOWN_PROJECT_ORIGINS = [
+  'https://smartwasteportal.onrender.com',
+  'https://smartwasteworker.onrender.com',
+  'https://smartwaste-worker.onrender.com',
+  'https://smartwasteadmin.onrender.com',
+  'https://smartwaste-admin.onrender.com',
+  'https://worker.smartwaste.dpdns.org',
+  'https://admin.smartwaste.dpdns.org',
+  'https://smartwaste.dpdns.org',
+];
+
 const allowedOrigins = new Set(
   [
+    ...KNOWN_PROJECT_ORIGINS,
     PUBLIC_AUTH_ENABLED ? process.env.PUBLIC_FRONTEND_URL : null,
     PUBLIC_AUTH_ENABLED ? process.env.WORKER_FRONTEND_URL : null,
     ADMIN_AUTH_ENABLED ? process.env.ADMIN_FRONTEND_URL : null,

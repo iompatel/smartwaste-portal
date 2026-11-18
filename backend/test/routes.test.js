@@ -143,6 +143,8 @@ test('HTTP API Route Integration Suite', async (t) => {
 
 test('production-facing policies reject broad origins and malformed account profiles', () => {
   assert.equal(isAllowedOrigin('https://smartwaste-attacker.onrender.com'), false);
+  assert.equal(isAllowedOrigin('https://smartwaste-worker.onrender.com'), true);
+  assert.equal(isAllowedOrigin('https://worker.smartwaste.dpdns.org'), true);
   assert.equal(isAllowedOrigin('http://localhost:4200'), true);
   assert.equal(
     normalizeAccountProfile({
