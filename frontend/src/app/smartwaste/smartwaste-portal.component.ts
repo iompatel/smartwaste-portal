@@ -151,7 +151,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
         <div class="min-h-screen lg:pl-[248px]">
           <!-- Sticky Header -->
           <header class="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur-2xl">
-            <div class="mx-auto flex h-[72px] max-w-[1500px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <div class="mx-auto flex h-[72px] max-w-[1500px] items-center gap-2.5 sm:gap-3 px-3.5 sm:px-6 lg:px-8">
               <button
                 type="button"
                 appButton
@@ -164,15 +164,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                 <app-icon name="menu" class="size-4"></app-icon>
               </button>
 
-              <!-- Breadcrumbs -->
-              <div class="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground sm:flex">
-                <span class="font-medium text-foreground">{{ currentRoleMeta().label }}</span>
-                <app-icon name="chevron-right" class="size-3.5"></app-icon>
-                <span class="truncate">{{ currentViewLabel() }}</span>
-              </div>
-
-              <!-- Mobile Center Brand with App Name -->
-              <div class="flex flex-1 items-center justify-center min-w-0 sm:hidden">
+              <!-- Mobile Brand with App Name (placed in the blank space next to menu) -->
+              <div class="flex items-center min-w-0 sm:hidden">
                 <button
                   type="button"
                   (click)="onNavigate('overview')"
@@ -181,6 +174,13 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                 >
                   <app-brand-mark [size]="'responsive'"></app-brand-mark>
                 </button>
+              </div>
+
+              <!-- Breadcrumbs -->
+              <div class="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground sm:flex">
+                <span class="font-medium text-foreground">{{ currentRoleMeta().label }}</span>
+                <app-icon name="chevron-right" class="size-3.5"></app-icon>
+                <span class="truncate">{{ currentViewLabel() }}</span>
               </div>
 
               <!-- Search Bar -->
@@ -196,7 +196,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
               </div>
 
               <!-- Right Header Actions -->
-              <div class="flex items-center gap-1.5">
+              <div class="ml-auto flex items-center gap-1.5 md:ml-0">
                 <button
                   type="button"
                   appButton
