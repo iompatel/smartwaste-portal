@@ -619,9 +619,22 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
       await this.auth.initialized;
       const user = this.auth.currentUser();
       if (user) {
-        if (user.role === 'admin' && this.consoleMode() === 'admin') this.role.set('admin');
-        else if (user.role === 'worker' && this.consoleMode() === 'worker') this.role.set('worker');
-        else if (user.role === 'user' && this.consoleMode() === 'citizen') this.role.set('citizen');
+        if (user.role === 'admin') {
+          if (configuredConsole !== 'worker' && configuredConsole !== 'citizen') {
+            this.consoleMode.set('admin');
+            this.role.set('admin');
+          }
+        } else if (user.role === 'worker') {
+          if (configuredConsole !== 'admin' && configuredConsole !== 'citizen') {
+            this.consoleMode.set('worker');
+            this.role.set('worker');
+          }
+        } else if (user.role === 'user') {
+          if (configuredConsole !== 'admin' && configuredConsole !== 'worker') {
+            this.consoleMode.set('citizen');
+            this.role.set('citizen');
+          }
+        }
       }
 
       this.themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
@@ -769,6 +782,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
   async onAuthSuccess(newRole: Role) {
     this.authView.set('login');
     this.role.set(newRole);
+    this.consoleMode.set(newRole);
     this.view.set('overview');
     const name = this.currentUser()?.firstName || 'User';
     this.toast.set(`Welcome, ${name}! Signed in successfully.`);

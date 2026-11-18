@@ -239,7 +239,7 @@ export class ProfileViewComponent implements OnInit {
   async submit() {
     this.errorMessage.set('');
     try {
-      const user = await this.api.request<BackendUser>('/api/me', {
+      const res = await this.api.request<any>('/api/me', {
         method: 'PUT',
         body: JSON.stringify({
           firstName: this.firstName.trim(),
@@ -249,8 +249,11 @@ export class ProfileViewComponent implements OnInit {
         }),
       });
 
-      this.auth.currentUser.set(user);
-      this.api.setStoredUser(user);
+      const user = res?.user || res?.worker || res?.admin || (res?.id ? res : null);
+      if (user) {
+        this.auth.currentUser.set(user);
+        this.api.setStoredUser(user);
+      }
       this.saved.set(true);
       setTimeout(() => this.saved.set(false), 2500);
     } catch (err: any) {

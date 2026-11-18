@@ -3,6 +3,28 @@ import { ApiService } from './api.service';
 import { BackendUser } from './api.types';
 import { Role } from '../smartwaste/data';
 
+function extractUser(payload: any): BackendUser | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const candidate =
+    payload.user ||
+    payload.worker ||
+    payload.admin ||
+    payload.profile ||
+    payload.account ||
+    payload.data?.user ||
+    payload.data?.worker ||
+    payload.data?.profile ||
+    payload.data;
+
+  if (candidate && typeof candidate === 'object' && candidate.id && (candidate.email || candidate.role)) {
+    return candidate as BackendUser;
+  }
+  if (payload.id && (payload.email || payload.role)) {
+    return payload as BackendUser;
+  }
+  return null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -29,11 +51,14 @@ export class AuthService {
       this.currentRole.set(storedRole);
     }
 
-    if (storedUser && (token || csrf)) {
-      this.currentUser.set(storedUser);
-      // Validate session in background with /api/me
+    if (token || csrf) {
+      if (storedUser) {
+        this.currentUser.set(storedUser);
+      }
+      // Validate or restore session with /api/me
       try {
-        const user = await this.api.request<BackendUser>('/api/me');
+        const rawMe = await this.api.request<any>('/api/me');
+        const user = extractUser(rawMe);
         if (user) {
           this.currentUser.set(user);
           this.api.setStoredUser(user);
@@ -82,34 +107,50 @@ export class AuthService {
     password: string,
     role: Role,
   ): Promise<BackendUser> {
-    const res = await this.api.request<{
-      token?: string;
-      csrfToken?: string;
-      user?: BackendUser;
-      admin?: BackendUser;
-    }>(endpoint, {
+    const res = await this.api.request<any>(endpoint, {
       method: 'POST',
       body: JSON.stringify({ email: email.trim(), password }),
     });
 
-    const user = res.user || res.admin;
-    if (!user) {
-      throw new Error('Authentication succeeded but user profile was missing.');
-    }
-
-    if (res.token) {
+    if (res?.token) {
       this.api.setToken(res.token);
       this.api.setCsrf(null);
     }
-    if (res.csrfToken) {
+    if (res?.csrfToken) {
       this.api.setCsrf(res.csrfToken);
       this.api.setToken(null);
     }
 
+    let user: BackendUser | null = extractUser(res);
+
+    // If authentication token was returned but the user profile was missing in the login envelope,
+    // fetch the user profile via /api/me before throwing an error.
+    if (!user && (res?.token || res?.csrfToken || this.api.getToken() || this.api.getCsrf())) {
+      try {
+        const rawMe = await this.api.request<any>('/api/me');
+        user = extractUser(rawMe);
+      } catch {
+        // Fall through to validation check below
+      }
+    }
+
+    if (!user) {
+      throw new Error('Authentication succeeded but user profile was missing.');
+    }
+
+    const resolvedRole: Role =
+      user.role === 'admin'
+        ? 'admin'
+        : user.role === 'worker'
+          ? 'worker'
+          : user.role === 'user'
+            ? 'citizen'
+            : role;
+
     this.api.setStoredUser(user);
-    this.api.setStoredRole(role);
+    this.api.setStoredRole(resolvedRole);
     this.currentUser.set(user);
-    this.currentRole.set(role);
+    this.currentRole.set(resolvedRole);
 
     return user;
   }
@@ -128,7 +169,7 @@ export class AuthService {
     }
 
     const idToken = await credential.user.getIdToken();
-    const res = await this.api.request<{ token: string; user: BackendUser }>(
+    const res = await this.api.request<any>(
       '/api/auth/firebase-login',
       {
         method: 'POST',
@@ -136,18 +177,37 @@ export class AuthService {
       },
     );
 
-    if (!res.user || !res.token) {
+    if (res?.token) {
+      this.api.setToken(res.token);
+      this.api.setCsrf(null);
+    }
+
+    let user: BackendUser | null = extractUser(res);
+
+    if (!user && (res?.token || this.api.getToken())) {
+      try {
+        const rawMe = await this.api.request<any>('/api/me');
+        user = extractUser(rawMe);
+      } catch {}
+    }
+
+    if (!user || (!res?.token && !this.api.getToken())) {
       throw new Error('Authentication succeeded but user profile was missing.');
     }
 
-    this.api.setToken(res.token);
-    this.api.setCsrf(null);
-    this.api.setStoredUser(res.user);
-    this.api.setStoredRole('citizen');
-    this.currentUser.set(res.user);
-    this.currentRole.set('citizen');
+    const resolvedRole: Role =
+      user.role === 'admin'
+        ? 'admin'
+        : user.role === 'worker'
+          ? 'worker'
+          : 'citizen';
 
-    return res.user;
+    this.api.setStoredUser(user);
+    this.api.setStoredRole(resolvedRole);
+    this.currentUser.set(user);
+    this.currentRole.set(resolvedRole);
+
+    return user;
   }
 
   // Creates the Firebase identity, sends the verification link, and stores a
@@ -246,7 +306,7 @@ export class AuthService {
 
     await reload(fbUser);
     const idToken = await fbUser.getIdToken(true);
-    const res = await this.api.request<{ token: string; user: BackendUser }>(
+    const res = await this.api.request<any>(
       '/api/auth/complete-signup',
       {
         method: 'POST',
@@ -254,18 +314,30 @@ export class AuthService {
       },
     );
 
-    if (!res.user || !res.token) {
+    if (res?.token) {
+      this.api.setToken(res.token);
+      this.api.setCsrf(null);
+    }
+
+    let user: BackendUser | null = extractUser(res);
+
+    if (!user && (res?.token || this.api.getToken())) {
+      try {
+        const rawMe = await this.api.request<any>('/api/me');
+        user = extractUser(rawMe);
+      } catch {}
+    }
+
+    if (!user || (!res?.token && !this.api.getToken())) {
       throw new Error('Verification succeeded but account creation failed.');
     }
 
-    this.api.setToken(res.token);
-    this.api.setCsrf(null);
-    this.api.setStoredUser(res.user);
+    this.api.setStoredUser(user);
     this.api.setStoredRole('citizen');
-    this.currentUser.set(res.user);
+    this.currentUser.set(user);
     this.currentRole.set('citizen');
 
-    return res.user;
+    return user;
   }
 
   async emailVerified(): Promise<boolean> {
@@ -301,10 +373,7 @@ export class AuthService {
       const firstName = nameParts[0] || 'Resident';
       const lastName = nameParts.slice(1).join(' ') || 'User';
 
-      const res = await this.api.request<{
-        token: string;
-        user: BackendUser;
-      }>('/api/auth/firebase-login', {
+      const res = await this.api.request<any>('/api/auth/firebase-login', {
         method: 'POST',
         body: JSON.stringify({
           idToken,
@@ -315,18 +384,37 @@ export class AuthService {
         }),
       });
 
-      if (!res.user || !res.token) {
+      if (res?.token) {
+        this.api.setToken(res.token);
+        this.api.setCsrf(null);
+      }
+
+      let user: BackendUser | null = extractUser(res);
+
+      if (!user && (res?.token || this.api.getToken())) {
+        try {
+          const rawMe = await this.api.request<any>('/api/me');
+          user = extractUser(rawMe);
+        } catch {}
+      }
+
+      if (!user || (!res?.token && !this.api.getToken())) {
         throw new Error('Google sign-in succeeded but backend did not return user.');
       }
 
-      this.api.setToken(res.token);
-      this.api.setCsrf(null);
-      this.api.setStoredUser(res.user);
-      this.api.setStoredRole('citizen');
-      this.currentUser.set(res.user);
-      this.currentRole.set('citizen');
+      const resolvedRole: Role =
+        user.role === 'admin'
+          ? 'admin'
+          : user.role === 'worker'
+            ? 'worker'
+            : 'citizen';
 
-      return res.user;
+      this.api.setStoredUser(user);
+      this.api.setStoredRole(resolvedRole);
+      this.currentUser.set(user);
+      this.currentRole.set(resolvedRole);
+
+      return user;
     } finally {
       this.isLoading.set(false);
     }
