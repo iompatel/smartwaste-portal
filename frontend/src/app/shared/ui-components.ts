@@ -1,13 +1,8 @@
 import {
   Component,
-  Directive,
-  ElementRef,
-  EventEmitter,
   HostListener,
-  Input,
   OnDestroy,
   OnInit,
-  Output,
   computed,
   input,
   output,

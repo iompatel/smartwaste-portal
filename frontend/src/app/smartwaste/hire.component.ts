@@ -11,7 +11,6 @@ import {
   inputClassName,
 } from '../shared/ui-components';
 import { Booking } from './data';
-import { cn } from '../shared/utils';
 
 export interface ServiceOption {
   title: string;

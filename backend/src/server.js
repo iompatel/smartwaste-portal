@@ -132,7 +132,6 @@ const USER_ROLES = ['admin', 'worker', 'user'];
 const HIRE_REQUEST_STATUSES = ['pending', 'assigned', 'completed', 'cancelled'];
 
 const SALT_ROUNDS = 10;
-const LEGACY_ADMIN_PASSWORDS = [];
 
 async function hashPassword(value) {
   return bcrypt.hash(String(value), SALT_ROUNDS);
@@ -1587,12 +1586,6 @@ async function handleAdminLogin(req, res) {
     : false;
   if (!user || user.disabled || user.role !== 'admin' || !passwordValid) {
     return res.status(401).json({ message: 'Invalid admin credentials.' });
-  }
-
-  if (LEGACY_ADMIN_PASSWORDS.includes(String(password))) {
-    return res.status(403).json({
-      message: 'This legacy password is disabled. Set a unique admin password and restart once.',
-    });
   }
 
   const sessionToken = createAdminSecret();

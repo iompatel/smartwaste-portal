@@ -1,4 +1,4 @@
-import { Component, computed, Directive, input, ChangeDetectionStrategy } from '@angular/core';
+import { computed, Directive, input } from '@angular/core';
 import { cn } from './utils';
 
 export type ButtonVariant = 'default' | 'brand' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
@@ -54,39 +54,6 @@ export class ButtonDirective {
   variant = input<ButtonVariant>('default');
   size = input<ButtonSize>('default');
   class = input<string>('');
-
-  classes = computed(() => {
-    return buttonVariants({
-      variant: this.variant(),
-      size: this.size(),
-      className: this.class()
-    });
-  });
-}
-
-@Component({
-  selector: 'app-button',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.Eager,
-  template: `
-    <button
-      [type]="type()"
-      [disabled]="disabled()"
-      [attr.aria-label]="ariaLabel() || null"
-      [class]="classes()"
-      data-slot="button"
-    >
-      <ng-content></ng-content>
-    </button>
-  `
-})
-export class ButtonComponent {
-  variant = input<ButtonVariant>('default');
-  size = input<ButtonSize>('default');
-  type = input<'button' | 'submit' | 'reset'>('button');
-  disabled = input<boolean>(false);
-  class = input<string>('');
-  ariaLabel = input<string>('');
 
   classes = computed(() => {
     return buttonVariants({

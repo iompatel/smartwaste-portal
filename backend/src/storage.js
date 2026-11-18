@@ -5,13 +5,6 @@ const FIREBASE_STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ?? process.env.STORAGE_BUCKET ?? '';
 
 /**
- * Checks whether any cloud storage provider is configured.
- */
-export function isCloudStorageConfigured() {
-  return Boolean(isFirebaseEnabled() && FIREBASE_STORAGE_BUCKET);
-}
-
-/**
  * Extracts binary buffer, MIME type, and file extension from a Base64 data URI.
  */
 export function extractBase64Buffer(dataUri) {

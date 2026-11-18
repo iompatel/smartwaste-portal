@@ -18,7 +18,6 @@ import { Priority, Ticket, isClosedStatus } from './data';
 import { TicketService } from '../core/ticket.service';
 import { AddressSuggestion, BackendTicket, TicketTrackingSnapshot } from '../core/api.types';
 import { prepareImageFile } from '../core/media';
-import { cn } from '../shared/utils';
 
 export interface TicketDraft {
   title: string;

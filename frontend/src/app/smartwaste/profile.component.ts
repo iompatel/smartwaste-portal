@@ -13,7 +13,6 @@ import {
 import { roleMeta, Role } from './data';
 import { AuthService } from '../core/auth.service';
 import { ApiService } from '../core/api.service';
-import { BackendUser } from '../core/api.types';
 
 @Component({
   selector: 'app-profile-view',

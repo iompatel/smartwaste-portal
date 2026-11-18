@@ -28,17 +28,4 @@ export class HireService {
       method: 'PUT',
     });
   }
-
-  async assignWorker(id: number, workerId: number): Promise<BackendHireRequest> {
-    return this.api.request<BackendHireRequest>(`/api/hire-requests/${id}/assign`, {
-      method: 'PUT',
-      body: JSON.stringify({ workerId }),
-    });
-  }
-
-  async deleteHireRequest(id: number): Promise<void> {
-    await this.api.request(`/api/hire-requests/${id}`, {
-      method: 'DELETE',
-    });
-  }
 }

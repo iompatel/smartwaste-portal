@@ -1,7 +1,6 @@
 export function registerTicketRoutes(app, ctx) {
   const {
     HireRequest,
-    Notification,
     Review,
     TICKET_PRIORITIES,
     Ticket,

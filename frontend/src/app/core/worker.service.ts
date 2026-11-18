@@ -31,8 +31,4 @@ export class WorkerService {
       body: JSON.stringify({ latitude, longitude, accuracy, ...(sampledAt ? { sampledAt: new Date(sampledAt).toISOString() } : {}) }),
     });
   }
-
-  async getWorkerLocation(ticketId: number): Promise<any> {
-    return this.api.request(`/api/tickets/${ticketId}/worker-location`);
-  }
 }

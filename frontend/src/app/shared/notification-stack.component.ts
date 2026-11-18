@@ -109,7 +109,7 @@ interface DragState {
               class="touch-pan-y relative"
               [style.transform]="getCardSwipeTransform(item.id)"
               [style.opacity]="getCardSwipeOpacity(item.id)"
-              (pointerdown)="handlePointerDown($event, depth, item.id)"
+              (pointerdown)="handlePointerDown($event, depth)"
               (pointermove)="handlePointerMove($event, item.id)"
               (pointerup)="handlePointerUp($event, item.id)"
               (pointercancel)="handlePointerCancel(item.id)"
@@ -339,7 +339,7 @@ export class NotificationStackComponent implements OnInit, OnDestroy {
     }, 200);
   }
 
-  handlePointerDown(event: PointerEvent, depth: number, id: string) {
+  handlePointerDown(event: PointerEvent, depth: number) {
     if (this.activeDrag || (!this.expanded() && depth > 0)) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if ((event.target as HTMLElement).closest('button')) return;

@@ -2,7 +2,6 @@ export function registerAuthRoutes(app, ctx) {
   const {
     AdminSession,
     DeletedIdentity,
-    Notification,
     PENDING_REGISTRATION_TTL_MS,
     PendingRegistration,
     User,

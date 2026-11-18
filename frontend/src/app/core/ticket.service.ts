@@ -38,20 +38,6 @@ export class TicketService {
     });
   }
 
-  async assignTicket(ticketId: number, workerId: number): Promise<BackendTicket> {
-    return this.api.request<BackendTicket>(`/api/tickets/${ticketId}/assign`, {
-      method: 'PUT',
-      body: JSON.stringify({ workerId }),
-    });
-  }
-
-  async cancelTicket(ticketId: number, reason?: string): Promise<BackendTicket> {
-    return this.api.request<BackendTicket>(`/api/tickets/${ticketId}/cancel`, {
-      method: 'PUT',
-      body: JSON.stringify({ reason: reason || 'Ticket cancelled by user.' }),
-    });
-  }
-
   async getMessages(ticketId: number): Promise<TicketMessage[]> {
     return this.api.request<TicketMessage[]>(`/api/tickets/${ticketId}/messages`);
   }
@@ -71,13 +57,6 @@ export class TicketService {
     return this.api.request<TicketMessage>(`/api/tickets/${ticketId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ message }),
-    });
-  }
-
-  async submitReview(ticketId: number, rating: number, comment?: string): Promise<any> {
-    return this.api.request(`/api/tickets/${ticketId}/review`, {
-      method: 'POST',
-      body: JSON.stringify({ rating, comment }),
     });
   }
 }

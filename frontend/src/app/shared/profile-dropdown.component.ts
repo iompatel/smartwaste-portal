@@ -271,7 +271,7 @@ export interface AccountOption {
                   (pointerup)="cancelHold()"
                   (pointerleave)="cancelHold()"
                   (pointercancel)="cancelHold()"
-                  (click)="handleQuickClick($event)"
+                  (click)="handleQuickClick()"
                   class="relative flex w-full items-center gap-2.5 overflow-hidden rounded-[10px] px-2.5 py-2 text-left text-xs font-medium text-zinc-700 outline-none transition-colors duration-100 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer select-none touch-none"
                 >
                   <app-icon name="log-out" class="size-4 text-zinc-400 dark:text-zinc-500"></app-icon>
@@ -521,7 +521,7 @@ export class ProfileDropdownComponent {
     this.isHolding.set(false);
   }
 
-  handleQuickClick(event: MouseEvent) {
+  handleQuickClick() {
     const elapsed = Date.now() - this.holdStartTimestamp;
     if (elapsed < this.holdDuration() && !this.isDone()) {
       this.cancelHold();

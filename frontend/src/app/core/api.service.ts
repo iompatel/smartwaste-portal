@@ -1,12 +1,8 @@
 import { Injectable } from '@angular/core';
 import {
-  BackendAdminActivity,
   BackendHireRequest,
-  BackendNotification,
   BackendTicket,
   BackendUser,
-  DashboardSummary,
-  TicketMessage,
 } from './api.types';
 import { Booking, Priority, Ticket, TicketStatus } from '../smartwaste/data';
 
