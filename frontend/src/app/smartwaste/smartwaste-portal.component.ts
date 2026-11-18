@@ -171,9 +171,16 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                 <span class="truncate">{{ currentViewLabel() }}</span>
               </div>
 
-              <!-- Mobile Center Brand -->
-              <div class="flex flex-1 justify-center sm:hidden">
-                <app-brand-mark [compact]="true"></app-brand-mark>
+              <!-- Mobile Center Brand with App Name -->
+              <div class="flex flex-1 items-center justify-center min-w-0 sm:hidden">
+                <button
+                  type="button"
+                  (click)="onNavigate('overview')"
+                  aria-label="SmartWaste home"
+                  class="inline-flex items-center cursor-pointer outline-none transition-transform hover:scale-105 active:scale-95 bg-transparent border-0 p-0"
+                >
+                  <app-brand-mark [size]="'responsive'"></app-brand-mark>
+                </button>
               </div>
 
               <!-- Search Bar -->

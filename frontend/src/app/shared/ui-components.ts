@@ -28,14 +28,14 @@ export const inputClassName =
   imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2 sm:gap-2.5">
       <span
-        class="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-brand text-brand-foreground shadow-[0_8px_20px_color-mix(in_oklab,var(--brand)_22%,transparent)]"
+        [class]="iconClasses()"
       >
-        <app-icon name="recycle" class="size-5" [strokeWidth]="2.2"></app-icon>
+        <app-icon name="recycle" [class]="iconSizeClass()" [strokeWidth]="2.2"></app-icon>
       </span>
       @if (!compact()) {
-        <span class="text-[21px] font-semibold tracking-[-0.055em] text-foreground">
+        <span class="font-semibold tracking-[-0.055em] text-foreground select-none" [class]="textClasses()">
           smartwaste<span class="text-brand">.</span>
         </span>
       }
@@ -44,6 +44,29 @@ export const inputClassName =
 })
 export class BrandMarkComponent {
   compact = input<boolean>(false);
+  size = input<'default' | 'sm' | 'responsive'>('default');
+
+  iconClasses = computed(() => {
+    if (this.size() === 'sm') {
+      return 'flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-brand text-brand-foreground shadow-[0_4px_12px_color-mix(in_oklab,var(--brand)_22%,transparent)]';
+    }
+    if (this.size() === 'responsive') {
+      return 'flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-[11px] sm:rounded-[14px] bg-brand text-brand-foreground shadow-[0_6px_16px_color-mix(in_oklab,var(--brand)_22%,transparent)]';
+    }
+    return 'flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-brand text-brand-foreground shadow-[0_8px_20px_color-mix(in_oklab,var(--brand)_22%,transparent)]';
+  });
+
+  iconSizeClass = computed(() => {
+    if (this.size() === 'sm') return 'size-4';
+    if (this.size() === 'responsive') return 'size-4 sm:size-5';
+    return 'size-5';
+  });
+
+  textClasses = computed(() => {
+    if (this.size() === 'sm') return 'text-[17px]';
+    if (this.size() === 'responsive') return 'text-[17px] sm:text-[21px]';
+    return 'text-[21px]';
+  });
 }
 
 @Component({
