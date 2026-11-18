@@ -31,6 +31,7 @@ test('destination coordinates and proximity distances are validated', () => {
     longitude: 72.5714,
   });
   assert.equal(normalizeCoordinates({ latitude: Infinity, longitude: 0 }), null);
+  assert.equal(normalizeCoordinates({ latitude: null, longitude: 72.5714 }), null);
   assert.equal(distanceMeters(
     { latitude: 23.0225, longitude: 72.5714 },
     { latitude: 23.0225, longitude: 72.5714 },

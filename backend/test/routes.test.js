@@ -83,6 +83,11 @@ test('HTTP API Route Integration Suite', async (t) => {
     assert.equal(res.status, 401);
   });
 
+  await t.test('GET /api/locations/search without authorization returns 401', async () => {
+    const res = await makeRequest(app, { url: '/api/locations/search?q=Main%20Street' });
+    assert.equal(res.status, 401);
+  });
+
   await t.test('POST /api/tickets/1/messages without authorization returns 401', async () => {
     const res = await makeRequest(app, {
       method: 'POST',

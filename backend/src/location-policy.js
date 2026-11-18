@@ -2,6 +2,12 @@ export const WORKER_LOCATION_TTL_MS = 2 * 60 * 1000;
 export const WORKER_NEARBY_DISTANCE_METERS = 500;
 
 export function normalizeCoordinates({ latitude, longitude }) {
+  if (
+    latitude === null || latitude === undefined || latitude === ''
+    || longitude === null || longitude === undefined || longitude === ''
+  ) {
+    return null;
+  }
   const lat = Number(latitude);
   const lng = Number(longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {

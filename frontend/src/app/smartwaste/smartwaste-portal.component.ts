@@ -358,6 +358,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
         <!-- Mobile Floating Bottom Navigation -->
         <nav
           aria-label="Mobile navigation"
+          style="bottom: max(1rem, env(safe-area-inset-bottom, 0px))"
           class="fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-[430px] -translate-x-1/2 items-center justify-between gap-1 rounded-[30px] border border-[#e8eaed] bg-[#fdfdfd]/95 p-1.5 shadow-[0_10px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-[#26282e] dark:bg-[#111215]/95 dark:shadow-[0_12px_36px_rgba(0,0,0,0.55)] lg:hidden"
         >
           @for (item of mobileNavItems(); track item.id) {

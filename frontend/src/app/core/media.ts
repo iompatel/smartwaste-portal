@@ -1,10 +1,11 @@
 export const MAX_UPLOAD_DATA_LENGTH = 1_900_000;
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 const PASSTHROUGH_BYTES = 1_400_000;
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const DIRECT_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_IMAGE_TYPES = new Set([...DIRECT_UPLOAD_TYPES, 'image/heic', 'image/heif']);
 
 export function imageFileError(file: Pick<File, 'size' | 'type'>): string | null {
-  if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) return 'Choose a JPG, PNG, or WebP image.';
+  if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) return 'Choose a JPG, PNG, WebP, or supported phone photo.';
   if (!file.size) return 'The selected image is empty.';
   if (file.size > MAX_SOURCE_BYTES) return 'Choose an image smaller than 15 MB.';
   return null;
@@ -33,7 +34,11 @@ export async function prepareImageFile(file: File): Promise<string> {
   if (validationError) throw new Error(validationError);
 
   const source = await readAsDataUrl(file);
-  if (file.size <= PASSTHROUGH_BYTES && source.length <= MAX_UPLOAD_DATA_LENGTH) return source;
+  if (
+    DIRECT_UPLOAD_TYPES.has(file.type.toLowerCase())
+    && file.size <= PASSTHROUGH_BYTES
+    && source.length <= MAX_UPLOAD_DATA_LENGTH
+  ) return source;
 
   const image = await loadImage(source);
   const longestSide = Math.max(image.naturalWidth, image.naturalHeight);

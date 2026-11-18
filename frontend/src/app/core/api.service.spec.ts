@@ -44,6 +44,29 @@ describe('API-to-UI mappings', () => {
     expect(booking.status).toBe('Cancelled');
     expect(booking).not.toHaveProperty('price');
   });
+
+  it('keeps requester-safe worker contact and report coordinates for live tracking', () => {
+    const ticket = service.mapTicketToUi({
+      id: 2,
+      ticketCode: 'SWM-000002',
+      userId: 9,
+      workerId: 7,
+      wasteType: 'Organic',
+      description: 'Live tracked report',
+      locationAddress: '2 Main Street',
+      locationLatitude: 23.0225,
+      locationLongitude: 72.5714,
+      status: 'in_progress',
+      priority: 'high',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      assignedWorker: { id: 7, firstName: 'Field', lastName: 'Worker', role: 'worker', mobile: '9999999999' },
+    });
+
+    expect(ticket.workerId).toBe(7);
+    expect(ticket.workerMobile).toBe('9999999999');
+    expect(ticket.raw.locationLatitude).toBe(23.0225);
+  });
 });
 
 describe('authenticated PDF downloads', () => {

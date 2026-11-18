@@ -365,14 +365,14 @@ export class TicketsViewComponent {
           <input
             id="report-photo"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/*"
             (change)="onFileSelected($event)"
             class="sr-only"
           />
 
           <label
             for="report-camera"
-            class="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80"
+            class="mt-2 inline-flex min-h-11 cursor-pointer items-center gap-1.5 pr-3 text-xs font-medium text-primary hover:opacity-80"
           >
             <app-icon name="camera" class="size-3.5"></app-icon>
             Use device camera

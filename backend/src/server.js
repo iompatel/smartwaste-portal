@@ -802,7 +802,10 @@ async function buildTicketRecords(rows, viewer = null) {
     const workerProfile = viewer?.role === 'admin' || viewer?.id === worker?.id
       ? sanitizeUser(worker)
       : viewer?.role === 'user' && viewer.id === record.userId && worker
-        ? { ...publicWorkerProfile(worker), mobile: String(worker.mobile ?? '') }
+        ? {
+            ...publicWorkerProfile(worker),
+            mobile: /^\d{10,15}$/.test(String(worker.mobile ?? '')) ? String(worker.mobile) : '',
+          }
         : publicWorkerProfile(worker);
     return {
       ...record,

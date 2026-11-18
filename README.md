@@ -8,6 +8,7 @@ This project is a complete **web portal** implementation with:
 
 - Public user portal, separately deployed Worker Console, and private Admin Console
 - Firebase email-password + Google login bridge for public user accounts
+- Conditional forgot-password recovery and signed-in password-change links through Firebase
 - Role-based dashboards (Admin, Worker, User)
 - Named routes with route guards
 - Admin panel for user, worker, ticket, notification, and hire-request operations
@@ -20,11 +21,12 @@ This project is a complete **web portal** implementation with:
 - Online worker heartbeat, hybrid auto/admin dispatch, and SLA-overdue indicators
 - In-app completion OTP with required after-photo proof
 - Ticket-scoped user/worker/admin chat and in-app notifications
-- Privacy-scoped worker live location with a free OpenStreetMap view during active work
+- Privacy-scoped citizen live route tracking every three seconds, with requester-only worker contact details
+- Address suggestions powered by Photon/OpenStreetMap, plus a one-time nearby-worker alert at 500 metres
 - Post-completion worker ratings, reviews, filters, and repeat requests
 - Profile management
 - Settings page (theme, logout, notifications)
-- Camera / Gallery upload support for tickets
+- Camera / Gallery upload support with automatic resizing for large phone photos
 - Location integration + Google Maps preview / tracking
 - Browser notifications integration
 - Environmental operations design system (forest/teal/lime) across auth, shell, dashboard, admin, and ticket flows
@@ -42,6 +44,8 @@ This project is a complete **web portal** implementation with:
 
 1. Enable **Email/Password**:
    - Firebase Console -> Authentication -> Sign-in method -> Email/Password -> Enable
+   - Add every citizen portal hostname under Authentication -> Settings -> Authorized domains
+   - Configure the Password reset email template and sender shown to citizens
 2. Add Firebase app config in:
    - `frontend/src/environments/environment.ts`
    - `frontend/src/environments/environment.prod.ts`
@@ -242,6 +246,18 @@ to the assigned requester and worker while a ticket is accepted or in progress. 
 view online workers' latest shared location in the fleet map. Each captured GPS fix
 expires automatically after two minutes. Workers must explicitly go online and grant browser
 location permission; no location history is retained.
+
+Citizen report details poll the privacy-scoped tracking endpoint every three seconds while open.
+New reports store destination coordinates only when the citizen selects an address suggestion.
+That enables route distance and one server-side **Worker Is Nearby** notification when the assigned
+worker comes within 500 metres. Photon is a fair-use public OpenStreetMap search service; address
+entry remains usable when suggestions are unavailable. For high-volume production traffic, replace
+the public Photon endpoint with a self-hosted or contracted geocoder.
+
+Assigned requesters can see the worker ID, name, and mobile number and can start a `tel:` call.
+Other users still receive only the existing public worker profile. Completion requires the private
+six-digit OTP and an after-photo; the citizen detail view then shows the proof and live status
+history. Citizen **FAQ** and **Terms & conditions** pages are linked in the portal navigation.
 
 ## Admin accounts, activity, and reports
 
