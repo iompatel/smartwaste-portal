@@ -163,12 +163,17 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
     this.updateMap();
   }
 
+  private hasValidLocation(location?: { latitude?: number; longitude?: number } | null): boolean {
+    return typeof location?.latitude === 'number' && Number.isFinite(location.latitude)
+      && typeof location?.longitude === 'number' && Number.isFinite(location.longitude);
+  }
+
   private updateMap() {
     const worker = this.selectedWorker();
     if (this.map && this.maps) {
       const visible = new Set<number>();
       for (const item of this.workers()) {
-        if (!item.location) continue;
+        if (!item.location || !this.hasValidLocation(item.location)) continue;
         visible.add(item.workerId);
         const position = { lat: item.location.latitude, lng: item.location.longitude };
         let marker = this.markers.get(item.workerId);
@@ -181,9 +186,11 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
       for (const [id, marker] of this.markers) {
         if (!visible.has(id)) { marker.setMap(null); this.markers.delete(id); }
       }
-      if (this.followWorker && worker?.location) this.map.panTo({ lat: worker.location.latitude, lng: worker.location.longitude });
+      if (this.followWorker && worker?.location && this.hasValidLocation(worker.location)) {
+        this.map.panTo({ lat: worker.location.latitude, lng: worker.location.longitude });
+      }
     }
-    if (!worker?.location) {
+    if (!worker?.location || !this.hasValidLocation(worker.location)) {
       this.previewCoordinates = '';
       this.mapPreview.set(null);
       return;
@@ -196,7 +203,9 @@ export class AdminLiveMapComponent implements AfterViewInit, OnDestroy {
   }
 
   directionsUrl(worker: WorkerLiveLocation): string {
-    return worker.location ? `https://www.google.com/maps/search/?api=1&query=${worker.location.latitude},${worker.location.longitude}` : 'https://www.google.com/maps';
+    return worker.location && this.hasValidLocation(worker.location)
+      ? `https://www.google.com/maps/search/?api=1&query=${worker.location.latitude},${worker.location.longitude}`
+      : 'https://www.google.com/maps';
   }
 
   ngOnDestroy() {

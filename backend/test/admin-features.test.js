@@ -240,6 +240,17 @@ test('worker availability logs each transition once and no heartbeat activity', 
   assert.deepEqual(events.map((event) => event.action), ['Worker Online', 'Worker Offline']);
 });
 
+test('account reports refuse registers above the 500-account PDF limit', async (t) => {
+  t.mock.method(models.User, 'find', () => ({
+    sort() { return this; },
+    limit(value) { assert.equal(value, 501); return this; },
+    lean: async () => Array.from({ length: 501 }, (_, index) => ({ ...worker, id: index + 1 })),
+  }));
+  const res = await call('get', '/api/admin/reports/:role', { params: { role: 'workers' }, query: {} });
+  assert.equal(res.statusCode, 413);
+  assert.match(res.body.message, /at most 500 accounts/);
+});
+
 test('GPS expiry follows the captured fix rather than the upload time', async (t) => {
   t.mock.method(models.User, 'findOne', () => ({ lean: async () => ({ id: worker.id }) }));
   t.mock.method(models.User, 'updateOne', async () => ({ matchedCount: 1 }));

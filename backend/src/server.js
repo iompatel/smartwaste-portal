@@ -2285,6 +2285,8 @@ app.get('/api/admin/worker-locations', authMiddleware, requireRoles('admin'), as
   });
 });
 
+const REPORT_ACCOUNT_LIMIT = 500;
+
 app.get('/api/admin/reports/:role', authMiddleware, requireRoles('admin'), async (req, res) => {
   const role = req.params.role === 'users' ? 'user' : req.params.role === 'workers' ? 'worker' : null;
   if (!role) return res.status(400).json({ message: 'Report role must be users or workers.' });
@@ -2298,7 +2300,15 @@ app.get('/api/admin/reports/:role', authMiddleware, requireRoles('admin'), async
   if (period.from || period.to) {
     filter.createdAt = { ...(period.from ? { $gte: period.from } : {}), ...(period.to ? { $lte: period.to } : {}) };
   }
-  const users = await User.find(filter, { passwordHash: 0, profileImage: 0 }).sort({ createdAt: -1 }).lean();
+  const users = await User.find(filter, { passwordHash: 0, profileImage: 0 })
+    .sort({ createdAt: -1 })
+    .limit(REPORT_ACCOUNT_LIMIT + 1)
+    .lean();
+  if (users.length > REPORT_ACCOUNT_LIMIT) {
+    return res.status(413).json({
+      message: `Reports cover at most ${REPORT_ACCOUNT_LIMIT} accounts. Narrow the registration date range and try again.`,
+    });
+  }
   const assignmentField = role === 'worker' ? 'workerId' : 'userId';
   const counts = users.length ? await Ticket.aggregate([
     { $match: { [assignmentField]: { $in: users.map((user) => user.id) } } },

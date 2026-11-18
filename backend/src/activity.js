@@ -19,6 +19,8 @@ const activitySchema = new mongoose.Schema(
 activitySchema.index({ createdAt: -1, id: -1 });
 activitySchema.index({ actorRole: 1, actorId: 1, createdAt: -1 });
 activitySchema.index({ action: 1, createdAt: -1 });
+// Audit details snapshot contact data, so records expire after one year.
+activitySchema.index({ createdAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
 
 export const AccountActivity = mongoose.model('AccountActivity', activitySchema);
 

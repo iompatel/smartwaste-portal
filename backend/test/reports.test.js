@@ -58,6 +58,16 @@ test('pagination retains every account and the end of unusually long unbroken va
   assert.match(result.text, /Account 8 continued/);
 });
 
+test('mixed-script account text renders through the embedded fonts', async () => {
+  const result = await renderedText({
+    role: 'user', generatedBy: 'Report Administrator',
+    accounts: [{ ...account, firstName: 'आरव', lastName: 'पटेल', address: 'અમદાવાદ, ગુજરાત' }],
+  });
+  assert.equal(result.buffer.subarray(0, 5).toString(), '%PDF-');
+  assert.match(result.text, /आरव/);
+  assert.match(result.text, /અમદાવાદ/);
+});
+
 test('report generation rejects unsupported account roles', async () => {
   await assert.rejects(() => buildAccountReport({ role: 'admin', accounts: [] }), /role must be user or worker/);
 });

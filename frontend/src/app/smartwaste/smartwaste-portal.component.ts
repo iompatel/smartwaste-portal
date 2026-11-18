@@ -636,7 +636,7 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     }
     if (!this.destroyed) this.dataRefreshTimer = window.setInterval(() => {
       if (!document.hidden && this.isLoggedIn()) void this.loadData();
-    }, 15000);
+    }, 60_000);
   }
 
   async loadData() {
