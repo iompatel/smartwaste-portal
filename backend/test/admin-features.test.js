@@ -11,7 +11,7 @@ const { app } = await import('../src/server.js');
 const { AccountActivity, activityQuery, ticketActivitySnapshot, accountActivitySnapshot } = await import('../src/activity.js');
 const { hashAdminSecret } = await import('../src/admin-session.js');
 const models = Object.fromEntries(['User', 'Ticket', 'Review', 'Counter', 'Notification', 'AdminActivity',
-  'AdminSession', 'DeletedIdentity', 'HireRequest', 'WorkerLocation'].map((name) => [name, mongoose.model(name)]));
+  'AdminSession', 'DeletedIdentity', 'HireRequest', 'WorkerLocation', 'LeaveApplication'].map((name) => [name, mongoose.model(name)]));
 const admin = { id: 1, role: 'admin', firstName: 'Portal', lastName: 'Admin', email: 'admin@example.test' };
 const worker = { id: 7, role: 'worker', firstName: 'Field', lastName: 'Worker', email: 'worker@example.test',
   gender: 'Other', mobile: '9999999999', address: '1 Main Street', workerOnline: false, tokenVersion: 4 };
@@ -29,6 +29,8 @@ function activityMocks(t) {
   t.mock.method(models.Counter, 'findOneAndUpdate', async () => ({ value: ++counter }));
   t.mock.method(AccountActivity, 'create', async (event) => { events.push(event); return event; });
   t.mock.method(models.AdminActivity, 'create', async (event) => event);
+  t.mock.method(models.LeaveApplication, 'find', () => ({ lean: async () => [] }));
+  t.mock.method(models.LeaveApplication, 'exists', async () => false);
   return events;
 }
 

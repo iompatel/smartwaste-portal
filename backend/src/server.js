@@ -73,6 +73,7 @@ import { registerAccountRoutes } from './routes/accounts.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerTicketRoutes } from './routes/tickets.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
+import { registerLeaveRoutes } from './routes/leaves.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -293,6 +294,10 @@ const ticketSchema = new mongoose.Schema(
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: Number, default: null },
+    cancellationReason: { type: String, default: null, trim: true, maxlength: 500 },
+    scheduledFor: { type: Date, default: null },
+    scheduledSlot: { type: String, default: null, trim: true },
     completionCode: { type: String, default: null },
     completionCodeHash: { type: String, default: null },
     completionMediaData: { type: String, default: null },
@@ -361,6 +366,8 @@ const hireRequestSchema = new mongoose.Schema(
     assignedByAdminId: { type: Number, default: null },
     assignedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    scheduledFor: { type: Date, default: null },
+    scheduledSlot: { type: String, default: null, trim: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -471,6 +478,36 @@ const workerLocationSchema = new mongoose.Schema(
   { versionKey: false, collection: 'worker_locations' },
 );
 
+const leaveApplicationSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true, unique: true },
+    workerId: { type: Number, required: true, index: true },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    reason: { type: String, required: true, maxlength: 500, trim: true },
+    leaveType: {
+      type: String,
+      enum: ['Personal', 'Sick Leave', 'Casual Leave', 'Emergency', 'Annual'],
+      default: 'Personal',
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+      index: true,
+    },
+    rejectionReason: { type: String, default: null, maxlength: 500, trim: true },
+    reviewedBy: { type: Number, default: null },
+    reviewedAt: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now, index: true },
+  },
+  { versionKey: false, collection: 'leave_applications' },
+);
+
+leaveApplicationSchema.index({ status: 1, startDate: 1, endDate: 1 });
+leaveApplicationSchema.index({ workerId: 1, createdAt: -1 });
+
+const LeaveApplication = mongoose.model('LeaveApplication', leaveApplicationSchema);
 const Counter = mongoose.model('Counter', counterSchema);
 const User = mongoose.model('User', userSchema);
 const Ticket = mongoose.model('Ticket', ticketSchema);
@@ -882,13 +919,23 @@ async function getBusyWorkerIds() {
   );
 }
 
-async function pickFreeWorkerIdForTicket(wasteType = '') {
+async function pickFreeWorkerIdForTicket(wasteType = '', destinationCoordinates = null) {
+  const now = new Date();
+  const activeLeaves = await LeaveApplication.find(
+    { status: 'approved', startDate: { $lte: now }, endDate: { $gte: now } },
+    { workerId: 1 },
+  ).lean();
+  const onLeaveWorkerIds = new Set(
+    activeLeaves.map((l) => Number(l.workerId)).filter((v) => Number.isFinite(v) && v > 0),
+  );
+
   let workers = fastCache.get('workers:online');
   if (!workers) {
     workers = await User.find(
       {
         role: 'worker',
         workerOnline: true,
+        disabled: { $ne: true },
         workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
       },
       { id: 1, firstName: 1, lastName: 1, mobile: 1, workerSkills: 1 },
@@ -917,9 +964,34 @@ async function pickFreeWorkerIdForTicket(wasteType = '') {
   }
 
   const busy = await getBusyWorkerIds();
-  const freeIds = workerIds.filter((id) => !busy.has(id));
+  const freeIds = workerIds.filter((id) => !busy.has(id) && !onLeaveWorkerIds.has(id));
   if (!freeIds.length) {
     return null;
+  }
+
+  if (destinationCoordinates?.latitude !== undefined && destinationCoordinates?.latitude !== null &&
+      destinationCoordinates?.longitude !== undefined && destinationCoordinates?.longitude !== null) {
+    const locations = await WorkerLocation.find({
+      workerId: { $in: freeIds },
+      expiresAt: { $gt: now },
+    }).lean();
+
+    if (locations.length > 0) {
+      let nearestWorkerId = null;
+      let minDistance = Infinity;
+
+      for (const loc of locations) {
+        const dist = distanceMeters(loc, destinationCoordinates);
+        if (dist !== null && dist < minDistance) {
+          minDistance = dist;
+          nearestWorkerId = Number(loc.workerId);
+        }
+      }
+
+      if (nearestWorkerId) {
+        return nearestWorkerId;
+      }
+    }
   }
 
   const counts = await Ticket.aggregate([
@@ -953,13 +1025,25 @@ async function pickFreeWorkerIdForTicket(wasteType = '') {
 }
 
 async function autoAssignUnassignedTickets(limit = 25) {
-  const busy = await getBusyWorkerIds();
+  const now = new Date();
+  const [busy, activeLeaves] = await Promise.all([
+    getBusyWorkerIds(),
+    LeaveApplication.find(
+      { status: 'approved', startDate: { $lte: now }, endDate: { $gte: now } },
+      { workerId: 1 },
+    ).lean(),
+  ]);
+  const onLeaveWorkerIds = new Set(
+    activeLeaves.map((l) => Number(l.workerId)).filter((v) => Number.isFinite(v) && v > 0),
+  );
+
   let workers = fastCache.get('workers:online');
   if (!workers) {
     workers = await User.find(
       {
         role: 'worker',
         workerOnline: true,
+        disabled: { $ne: true },
         workerLastSeenAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) },
       },
       { id: 1, firstName: 1, lastName: 1, mobile: 1, workerSkills: 1 },
@@ -976,7 +1060,7 @@ async function autoAssignUnassignedTickets(limit = 25) {
         ? w.workerSkills.map((s) => String(s).toLowerCase().trim())
         : [],
     }))
-    .filter((w) => Number.isFinite(w.id) && w.id > 0 && !busy.has(w.id));
+    .filter((w) => Number.isFinite(w.id) && w.id > 0 && !busy.has(w.id) && !onLeaveWorkerIds.has(w.id));
 
   if (!freeWorkers.length) {
     return 0;
@@ -1664,6 +1748,7 @@ const routeContext = {
   Counter,
   DeletedIdentity,
   HireRequest,
+  LeaveApplication,
   Notification,
   PASSWORD_POLICY_MESSAGE,
   PENDING_REGISTRATION_TTL_MS,
@@ -1747,6 +1832,7 @@ registerAccountRoutes(app, routeContext);
 registerAdminRoutes(app, routeContext);
 registerTicketRoutes(app, routeContext);
 registerNotificationRoutes(app, routeContext);
+registerLeaveRoutes(app, routeContext);
 
 
 app.use((error, _req, res, _next) => {

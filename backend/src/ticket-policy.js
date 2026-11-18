@@ -14,10 +14,10 @@ export const MAX_IMAGE_DATA_LENGTH = 2_000_000;
 export const MAX_TICKET_TEXT_LENGTH = 1_000;
 
 const WORKER_TRANSITIONS = {
-  pending: ['accepted'],
-  assigned: ['accepted'],
-  accepted: ['in_progress'],
-  in_progress: ['completed'],
+  pending: ['accepted', 'cancelled'],
+  assigned: ['accepted', 'cancelled'],
+  accepted: ['in_progress', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
 };
 
 export function canWorkerTransition(from, to) {

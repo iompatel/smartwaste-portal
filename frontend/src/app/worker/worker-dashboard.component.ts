@@ -117,6 +117,24 @@ import { LiveMapComponent } from '../shared/live-map.component';
                       <span>{{ ticket.id }}</span>
                       <app-priority-badge [priority]="ticket.priority"></app-priority-badge>
                     </p>
+                    @if (ticket.raw?.requester; as req) {
+                      <div class="mt-2 flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                        <span class="font-medium text-foreground flex items-center gap-1">
+                          <app-icon name="user" class="size-3"></app-icon>
+                          {{ req.firstName }} {{ req.lastName }}
+                        </span>
+                        @if (req.mobile) {
+                          <a [href]="'tel:' + req.mobile" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                            <app-icon name="phone" class="size-3"></app-icon>
+                            {{ req.mobile }}
+                          </a>
+                        }
+                        <button type="button" (click)="openDirections(ticket)" class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                          <app-icon name="navigation" class="size-3 text-primary"></app-icon>
+                          Directions
+                        </button>
+                      </div>
+                    }
                   </div>
                 </div>
                 <div class="flex items-center gap-2 sm:shrink-0">
@@ -293,11 +311,11 @@ export class WorkerDashboardComponent {
   });
   nextStop = computed(() => this.routeTickets()[0] ?? null);
 
-  openDirections() {
-    const next = this.routeTickets()[0];
-    if (!next) return;
+  openDirections(targetTicket?: Ticket) {
+    const target = targetTicket || this.routeTickets()[0];
+    if (!target || !target.address) return;
     window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.address)}`,
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(target.address)}`,
       '_blank',
       'noopener'
     );

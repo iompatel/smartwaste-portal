@@ -10,16 +10,18 @@ import {
 } from '../shared/ui-components';
 import { SidebarComponent } from './sidebar.component';
 import { CitizenDashboardComponent } from '../user';
-import { WorkerDashboardComponent } from '../worker';
+import { WorkerDashboardComponent, WorkerLeavesComponent } from '../worker';
 import {
   AdminAccountsComponent,
   AdminActivityComponent,
   AdminBroadcastComponent,
   AdminDashboardComponent,
+  AdminLeavesComponent,
   AdminLiveMapComponent,
   AdminReportsComponent,
 } from '../admin';
 import {
+  CancelTicketModalComponent,
   HandoverModalComponent,
   ReportModalComponent,
   TicketDraft,
@@ -64,7 +66,7 @@ import {
 } from './data';
 
 type Theme = 'system' | 'light' | 'dark';
-type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
+type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | 'cancel-ticket' | null;
 
 @Component({
   selector: 'app-smartwaste-portal',
@@ -85,6 +87,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     ReportModalComponent,
     TicketDetailModalComponent,
     HandoverModalComponent,
+    CancelTicketModalComponent,
     HireViewComponent,
     ProfileViewComponent,
     SettingsViewComponent,
@@ -96,6 +99,8 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
     AdminActivityComponent,
     AdminLiveMapComponent,
     AdminReportsComponent,
+    WorkerLeavesComponent,
+    AdminLeavesComponent,
     LoginComponent,
     SignupComponent,
     WorkerLoginComponent,
@@ -291,6 +296,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                 [onDuty]="onDuty()"
                 (openHandover)="openHandover($event)"
                 (startRoute)="startTicket($event)"
+                (cancelTicket)="openCancelModal($event)"
               ></app-worker-routes-view>
             }
 
@@ -301,6 +307,18 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
                 (createBooking)="createBooking($event)"
                 (completeBooking)="completeBooking($event)"
               ></app-hire-view>
+            }
+
+            @if (role() === 'worker' && view() === 'leaves') {
+              <app-worker-leaves></app-worker-leaves>
+            }
+
+            @if (role() === 'admin' && view() === 'leaves') {
+              <app-admin-leaves mode="applications"></app-admin-leaves>
+            }
+
+            @if (role() === 'admin' && view() === 'on-leave') {
+              <app-admin-leaves mode="on-leave"></app-admin-leaves>
             }
 
             @if (role() === 'admin' && view() === 'overview') {
@@ -410,6 +428,14 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | null;
             (close)="modal.set(null)"
             (complete)="completeTicket($event)"
           ></app-handover-modal>
+        }
+
+        @if (modal() === 'cancel-ticket' && selectedTicket(); as ticket) {
+          <app-cancel-ticket-modal
+            [ticket]="ticket"
+            (close)="modal.set(null)"
+            (cancelled)="onWorkerCancelTicket($event)"
+          ></app-cancel-ticket-modal>
         }
 
         @if (modal() === 'notifications') {
@@ -552,6 +578,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     if (v === 'live-map') return 'Live worker map';
     if (v === 'broadcast') return 'Broadcast';
     if (v === 'activity') return 'Account activity';
+    if (v === 'leaves') return r === 'worker' ? 'My leaves' : 'Leave requests';
+    if (v === 'on-leave') return 'Workers on leave';
     if (v === 'faq') return 'Frequently asked questions';
     if (v === 'terms') return 'Terms and conditions';
     return 'Settings';
@@ -837,6 +865,28 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
     this.modal.set('handover');
   }
 
+  openCancelModal(ticket: Ticket) {
+    this.selectedTicket.set(ticket);
+    this.modal.set('cancel-ticket');
+  }
+
+  async onWorkerCancelTicket(event: { ticket: Ticket; reason: string }) {
+    const numId = event.ticket.numericId;
+    if (!numId) return;
+    try {
+      const updated = await this.workerService.cancelTicket(numId, event.reason);
+      const mapped = this.apiService.mapTicketToUi(updated);
+      this.tickets.update((tickets) =>
+        tickets.map((t) => (t.numericId === mapped.numericId ? mapped : t)),
+      );
+      this.modal.set(null);
+      this.toast.set(`${mapped.id} cancelled. Resident and dispatch have been notified.`);
+      await this.loadData();
+    } catch (err: any) {
+      this.toast.set(err?.message || 'Could not cancel ticket.');
+    }
+  }
+
   openNotificationsModal() {
     this.modal.set('notifications');
   }
@@ -882,6 +932,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         locationLongitude: ticket.locationLongitude,
         priority: (ticket.priority.toLowerCase() as any) || 'medium',
         mediaData: ticket.mediaData || null,
+        scheduledFor: ticket.scheduledFor,
+        scheduledSlot: ticket.scheduledSlot,
       });
 
       if (created) {
@@ -904,6 +956,8 @@ export class SmartWastePortalComponent implements OnInit, OnDestroy {
         title: booking.title,
         purpose: booking.purpose || 'Residential maintenance and waste collection',
         workAddress: booking.address || '',
+        scheduledFor: booking.scheduledFor,
+        scheduledSlot: booking.scheduledSlot,
       });
       if (created) {
         const uiHire = this.apiService.mapHireToUi(created);

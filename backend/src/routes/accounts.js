@@ -1,5 +1,6 @@
 export function registerAccountRoutes(app, ctx) {
   const {
+    LeaveApplication,
     Ticket,
     User,
     WORKER_NEARBY_DISTANCE_METERS,
@@ -100,6 +101,18 @@ app.put(
     }
 
     const now = new Date();
+    if (online) {
+      const activeLeave = await LeaveApplication.exists({
+        workerId: req.user.id,
+        status: 'approved',
+        startDate: { $lte: now },
+        endDate: { $gte: now },
+      });
+      if (activeLeave) {
+        return res.status(403).json({ message: 'You cannot go on duty while on approved leave.' });
+      }
+    }
+
     const previous = await User.findOneAndUpdate(
       { id: req.user.id, role: 'worker' },
       {

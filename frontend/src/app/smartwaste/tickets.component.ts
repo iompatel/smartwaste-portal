@@ -29,6 +29,8 @@ export interface TicketDraft {
   priority: Priority;
   description: string;
   mediaData: string | null;
+  scheduledFor?: string | null;
+  scheduledSlot?: string | null;
 }
 
 @Component({
@@ -110,6 +112,12 @@ export interface TicketDraft {
                 <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
                   <span class="rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground">{{ ticket.category }}</span>
                   <app-priority-badge [priority]="ticket.priority"></app-priority-badge>
+                  @if (ticket.scheduledFor || ticket.raw?.scheduledFor) {
+                    <span class="rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary flex items-center gap-1">
+                      <app-icon name="calendar-days" class="size-3"></app-icon>
+                      Scheduled · {{ formatDate(ticket.scheduledFor || ticket.raw?.scheduledFor) }}
+                    </span>
+                  }
                   <span class="ml-auto text-[10px] text-muted-foreground">{{ ticket.time }}</span>
                 </div>
 
@@ -229,6 +237,11 @@ export class TicketsViewComponent {
       return matchesFilter && matchesSearch;
     });
   });
+
+  formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
 
   getFilterCount(f: string): number {
     if (f === 'All') return this.tickets().length;
@@ -350,6 +363,55 @@ export class TicketsViewComponent {
           ></textarea>
         </div>
 
+        <!-- Schedule Pickup Options -->
+        <div class="rounded-[16px] border border-border/80 p-4 bg-muted/20">
+          <div class="flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <app-icon name="calendar-days" class="size-4 text-primary"></app-icon>
+                Schedule collection for later
+              </span>
+              <span class="text-[11px] text-muted-foreground">Pick a preferred collection date & time slot</span>
+            </div>
+            <input
+              id="report-schedule-toggle"
+              type="checkbox"
+              [checked]="isScheduled()"
+              (change)="isScheduled.set(!isScheduled())"
+              class="size-4 rounded accent-primary cursor-pointer"
+            />
+          </div>
+
+          @if (isScheduled()) {
+            <div class="mt-3 grid grid-cols-1 gap-3 pt-3 border-t border-border/50 sm:grid-cols-2">
+              <div>
+                <app-field-label htmlFor="report-sched-date">Collection Date</app-field-label>
+                <input
+                  id="report-sched-date"
+                  type="date"
+                  [(ngModel)]="scheduledDate"
+                  name="scheduledDate"
+                  [min]="todayIso"
+                  [class]="inputCls"
+                />
+              </div>
+              <div>
+                <app-field-label htmlFor="report-sched-slot">Time Slot</app-field-label>
+                <select
+                  id="report-sched-slot"
+                  [(ngModel)]="scheduledSlot"
+                  name="scheduledSlot"
+                  [class]="inputCls"
+                >
+                  @for (slot of slotOptions; track slot) {
+                    <option [value]="slot">{{ slot }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          }
+        </div>
+
         <div>
           <app-field-label htmlFor="report-photo">Photo evidence</app-field-label>
           <label
@@ -442,6 +504,15 @@ export class ReportModalComponent implements OnDestroy {
   mediaData = signal<string | null>(null);
   photoProcessing = signal(false);
   error = signal<string>('');
+  isScheduled = signal(false);
+  todayIso = new Date().toISOString().slice(0, 10);
+  scheduledDate = '';
+  scheduledSlot = 'Morning (8 AM - 12 PM)';
+  slotOptions = [
+    'Morning (8 AM - 12 PM)',
+    'Afternoon (12 PM - 4 PM)',
+    'Evening (4 PM - 8 PM)',
+  ];
   private addressTimer?: number;
   private addressRequest = 0;
 
@@ -526,6 +597,8 @@ export class ReportModalComponent implements OnDestroy {
       // The API stores one description field, so keep the citizen's title in it.
       description: note ? `${title} — ${note}` : title,
       mediaData: this.mediaData(),
+      scheduledFor: this.isScheduled() && this.scheduledDate ? this.scheduledDate : null,
+      scheduledSlot: this.isScheduled() && this.scheduledDate ? this.scheduledSlot : null,
     };
 
     this.create.emit(newTicket);
@@ -562,8 +635,26 @@ export class ReportModalComponent implements OnDestroy {
       <div class="flex flex-wrap items-center gap-2">
         <app-status-badge [status]="ticket().status"></app-status-badge>
         <app-priority-badge [priority]="ticket().priority"></app-priority-badge>
+        @if (ticket().scheduledFor || ticket().raw?.scheduledFor) {
+          <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            <app-icon name="calendar-days" class="size-3.5"></app-icon>
+            Scheduled · {{ formatDate(ticket().scheduledFor || ticket().raw?.scheduledFor) }} ({{ ticket().scheduledSlot || ticket().raw?.scheduledSlot || 'Standard slot' }})
+          </span>
+        }
         <span class="ml-auto text-xs text-muted-foreground">{{ ticket().time }}</span>
       </div>
+
+      @if (currentStatus() === 'Cancelled') {
+        <div class="mt-4 rounded-[16px] bg-danger/10 border border-danger/20 p-4 text-xs text-danger">
+          <div class="flex items-center gap-2 font-semibold text-sm">
+            <app-icon name="alert-triangle" class="size-4 text-danger"></app-icon>
+            Ticket Cancelled by Operative / Dispatch
+          </div>
+          <p class="mt-1 text-danger/90 leading-5">
+            <strong>Reason:</strong> {{ ticket().cancellationReason || ticket().raw?.cancellationReason || 'This collection report was cancelled by operative or dispatch.' }}
+          </p>
+        </div>
+      }
 
       <div class="mt-5 grid gap-4 sm:grid-cols-2">
         <div class="rounded-[16px] bg-muted/60 p-4">
@@ -854,6 +945,11 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
     return `${worker.firstName?.[0] ?? ''}${worker.lastName?.[0] ?? ''}`.toUpperCase() || 'OP';
   });
 
+  formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   isStepActive(index: number): boolean {
     const status = this.currentStatus();
     return (
@@ -1020,8 +1116,42 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
                 <div class="flex flex-wrap items-center gap-2">
                   <h3 class="text-sm font-medium text-foreground">{{ ticket.address }}</h3>
                   <app-priority-badge [priority]="ticket.priority"></app-priority-badge>
+                  @if (ticket.scheduledFor || ticket.raw?.scheduledFor) {
+                    <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      <app-icon name="calendar-days" class="size-3"></app-icon>
+                      Scheduled · {{ formatDate(ticket.scheduledFor || ticket.raw?.scheduledFor) }}
+                    </span>
+                  }
                 </div>
                 <p class="mt-1.5 text-xs text-muted-foreground">{{ ticket.title }} · {{ ticket.category }} · {{ ticket.id }}</p>
+
+                <!-- Customer Details for Operative -->
+                @if (ticket.raw?.requester; as req) {
+                  <div class="mt-2.5 flex flex-wrap items-center gap-3 rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                    <span class="font-medium text-foreground flex items-center gap-1.5">
+                      <app-icon name="user" class="size-3.5 text-muted-foreground"></app-icon>
+                      {{ req.firstName }} {{ req.lastName }}
+                    </span>
+                    @if (req.mobile) {
+                      <a
+                        [href]="'tel:' + req.mobile"
+                        class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                      >
+                        <app-icon name="phone" class="size-3.5"></app-icon>
+                        Call {{ req.mobile }}
+                      </a>
+                    }
+                    <button
+                      type="button"
+                      (click)="openSingleDirections(ticket)"
+                      class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <app-icon name="navigation" class="size-3.5 text-primary"></app-icon>
+                      Directions
+                    </button>
+                  </div>
+                }
+
                 <p class="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <app-icon name="clock-3" class="size-3.5"></app-icon>
                   {{ ticket.eta || 'Ready to start' }}
@@ -1029,6 +1159,17 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
               </div>
               <div class="flex shrink-0 items-center gap-2">
                 <app-status-badge [status]="ticket.status"></app-status-badge>
+                <button
+                  type="button"
+                  appButton
+                  variant="outline"
+                  size="sm"
+                  (click)="cancelTicket.emit(ticket)"
+                  class="rounded-full text-danger border-danger/30 hover:bg-danger/10 cursor-pointer text-xs"
+                >
+                  <app-icon name="alert-triangle" class="size-3.5"></app-icon>
+                  Query / Cancel
+                </button>
                 <button
                   type="button"
                   appButton
@@ -1058,11 +1199,26 @@ export class WorkerRoutesViewComponent {
   onDuty = input<boolean>(false);
   openHandover = output<Ticket>();
   startRoute = output<Ticket>();
+  cancelTicket = output<Ticket>();
 
   activeRouteTickets = computed(() => {
     return this.tickets().filter((t) => !isClosedStatus(t.status));
   });
   completedCount = computed(() => this.tickets().filter((ticket) => ticket.status === 'Completed').length);
+
+  formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  openSingleDirections(ticket: Ticket) {
+    if (!ticket.address) return;
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ticket.address)}`,
+      '_blank',
+      'noopener'
+    );
+  }
 
   openDirections() {
     const next = this.activeRouteTickets()[0];
@@ -1216,5 +1372,119 @@ export class HandoverModalComponent {
       return;
     }
     this.complete.emit({ ticket: this.ticket(), otp: this.otp(), photoData: this.photoData() });
+  }
+}
+
+@Component({
+  selector: 'app-cancel-ticket-modal',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconComponent,
+    ButtonDirective,
+    ModalComponent,
+    FieldLabelComponent,
+  ],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `
+    <app-modal
+      title="Report Query & Cancel Ticket"
+      [description]="ticket().address + ' · ' + ticket().id"
+      (close)="close.emit()"
+    >
+      <form (ngSubmit)="submit()" class="flex flex-col gap-4">
+        <div class="rounded-xl bg-danger/10 border border-danger/20 p-3 text-xs text-danger flex items-start gap-2">
+          <app-icon name="alert-triangle" class="size-4 shrink-0 mt-0.5 text-danger"></app-icon>
+          <p>
+            Reporting a query will cancel your assignment on this ticket and notify the resident. The reason you provide will be logged.
+          </p>
+        </div>
+
+        <div>
+          <app-field-label htmlFor="cancel-category">Issue Category</app-field-label>
+          <select
+            id="cancel-category"
+            [(ngModel)]="selectedCategory"
+            name="category"
+            [class]="inputCls"
+          >
+            @for (cat of queryCategories; track cat) {
+              <option [value]="cat">{{ cat }}</option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <app-field-label htmlFor="cancel-notes">Detailed Explanation</app-field-label>
+          <textarea
+            id="cancel-notes"
+            [(ngModel)]="notes"
+            name="notes"
+            rows="3"
+            maxlength="500"
+            placeholder="Explain why this collection cannot proceed (e.g., road under construction, hazardous materials detected)..."
+            [class]="inputCls + ' min-h-[90px]'"
+            required
+          ></textarea>
+          <p class="mt-1 text-right text-[11px] text-muted-foreground">{{ notes.length }}/500</p>
+        </div>
+
+        @if (error()) {
+          <p role="alert" class="text-xs text-danger">{{ error() }}</p>
+        }
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-border/60">
+          <button
+            type="button"
+            appButton
+            variant="outline"
+            class="rounded-full"
+            (click)="close.emit()"
+          >
+            Back to route
+          </button>
+          <button
+            type="submit"
+            appButton
+            variant="destructive"
+            class="rounded-full"
+            [disabled]="submitting()"
+          >
+            <app-icon name="alert-triangle" class="size-4"></app-icon>
+            Confirm & Cancel Ticket
+          </button>
+        </div>
+      </form>
+    </app-modal>
+  `
+})
+export class CancelTicketModalComponent {
+  ticket = input.required<Ticket>();
+  close = output<void>();
+  cancelled = output<{ ticket: Ticket; reason: string }>();
+
+  inputCls = inputClassName;
+
+  queryCategories = [
+    'Inaccessible Location / Road Blocked',
+    'Safety / Hazardous Material Issue',
+    'Waste Missing / Already Cleared',
+    'Incorrect Address / Resident Unreachable',
+    'Operational Issue / Other Query',
+  ];
+
+  selectedCategory = 'Inaccessible Location / Road Blocked';
+  notes = '';
+  submitting = signal(false);
+  error = signal('');
+
+  submit() {
+    if (!this.notes.trim()) {
+      this.error.set('Please provide details explaining why the ticket cannot be collected.');
+      return;
+    }
+    const fullReason = `${this.selectedCategory}: ${this.notes.trim()}`;
+    this.cancelled.emit({ ticket: this.ticket(), reason: fullReason });
   }
 }

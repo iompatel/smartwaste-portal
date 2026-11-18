@@ -102,6 +102,34 @@ export const services: ServiceOption[] = [
               </div>
             </div>
 
+            <!-- Schedule / Time slot -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <app-field-label htmlFor="hire-date">Preferred date</app-field-label>
+                <input
+                  id="hire-date"
+                  type="date"
+                  [(ngModel)]="scheduledDate"
+                  name="scheduledDate"
+                  [min]="todayIso"
+                  [class]="inputCls"
+                />
+              </div>
+              <div>
+                <app-field-label htmlFor="hire-slot">Time window</app-field-label>
+                <select
+                  id="hire-slot"
+                  [(ngModel)]="scheduledSlot"
+                  name="scheduledSlot"
+                  [class]="inputCls"
+                >
+                  <option value="Morning (8 AM - 12 PM)">Morning (8 AM - 12 PM)</option>
+                  <option value="Afternoon (12 PM - 4 PM)">Afternoon (12 PM - 4 PM)</option>
+                  <option value="Evening (4 PM - 8 PM)">Evening (4 PM - 8 PM)</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <app-field-label htmlFor="hire-note" [optional]="true">Tell your operative a little more</app-field-label>
               <textarea
@@ -178,22 +206,35 @@ export class CitizenHireViewComponent {
   servicesList = services;
 
   selectedService = signal<string>('Home cleaning');
+  todayIso = new Date().toISOString().slice(0, 10);
+  scheduledDate = '';
+  scheduledSlot = 'Morning (8 AM - 12 PM)';
   address = '';
   note = '';
 
   submit() {
+    const formattedDate = this.scheduledDate
+      ? new Date(this.scheduledDate).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })
+      : new Date().toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+
     const newBooking: Booking = {
       id: `BK-${210 + this.bookings().length}`,
       title: this.selectedService(),
       worker: 'Awaiting operative',
-      date: new Date().toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: formattedDate,
       status: 'Pending',
       purpose: this.note.trim() || 'Residential maintenance and waste collection',
       address: this.address.trim(),
+      scheduledFor: this.scheduledDate || null,
+      scheduledSlot: this.scheduledDate ? this.scheduledSlot : null,
     };
 
     this.createBooking.emit(newBooking);
@@ -244,10 +285,30 @@ export class CitizenHireViewComponent {
             </p>
             <p class="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <app-icon name="calendar-days" class="size-3.5"></app-icon>
-              {{ booking.date }}
+              {{ booking.date }} {{ booking.scheduledSlot ? '· ' + booking.scheduledSlot : '' }}
             </p>
             @if (booking.purpose) {
               <p class="mt-2 line-clamp-2 text-xs text-muted-foreground">{{ booking.purpose }}</p>
+            }
+            @if (booking.raw?.requesterName) {
+              <div class="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-2.5 text-xs">
+                <span class="font-medium text-foreground flex items-center gap-1.5">
+                  <app-icon name="user" class="size-3.5 text-muted-foreground"></app-icon>
+                  {{ booking.raw.requesterName }}
+                </span>
+                @if (booking.raw.requesterMobile) {
+                  <a [href]="'tel:' + booking.raw.requesterMobile" class="inline-flex items-center gap-1 text-primary font-semibold hover:underline">
+                    <app-icon name="phone" class="size-3.5"></app-icon>
+                    Call {{ booking.raw.requesterMobile }}
+                  </a>
+                }
+                @if (booking.address) {
+                  <button type="button" (click)="openDirections(booking.address)" class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                    <app-icon name="navigation" class="size-3.5 text-primary"></app-icon>
+                    Directions
+                  </button>
+                }
+              </div>
             }
             <div class="mt-5 flex items-center justify-between border-t border-border/60 pt-4">
               @if (booking.status === 'Confirmed') {
@@ -273,6 +334,15 @@ export class CitizenHireViewComponent {
 export class WorkerHireViewComponent {
   bookings = input.required<Booking[]>();
   completeBooking = output<Booking>();
+
+  openDirections(address: string) {
+    if (!address) return;
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`,
+      '_blank',
+      'noopener'
+    );
+  }
 }
 
 @Component({

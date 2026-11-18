@@ -8,6 +8,7 @@ import {
   AccountPayload,
   ActivityFilters,
   ActivityPage,
+  LeaveApplication,
   WorkerLocationSnapshot,
 } from './api.types';
 
@@ -110,5 +111,25 @@ export class AdminService {
     await this.api.request('/api/notifications/read-all', {
       method: 'PUT',
     });
+  }
+
+  async getLeaves(status?: string): Promise<LeaveApplication[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.api.request<LeaveApplication[]>(`/api/admin/leaves${query}`);
+  }
+
+  async updateLeaveStatus(
+    id: number,
+    status: 'approved' | 'rejected',
+    rejectionReason?: string
+  ): Promise<LeaveApplication> {
+    return this.api.request<LeaveApplication>(`/api/admin/leaves/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, rejectionReason }),
+    });
+  }
+
+  async getWorkersOnLeave(): Promise<LeaveApplication[]> {
+    return this.api.request<LeaveApplication[]>('/api/admin/workers/on-leave');
   }
 }

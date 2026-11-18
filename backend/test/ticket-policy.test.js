@@ -13,8 +13,12 @@ test('worker ticket transitions enforce the tracked lifecycle', () => {
   assert.equal(canWorkerTransition('assigned', 'accepted'), true);
   assert.equal(canWorkerTransition('accepted', 'in_progress'), true);
   assert.equal(canWorkerTransition('in_progress', 'completed'), true);
+  assert.equal(canWorkerTransition('assigned', 'cancelled'), true);
+  assert.equal(canWorkerTransition('accepted', 'cancelled'), true);
+  assert.equal(canWorkerTransition('in_progress', 'cancelled'), true);
   assert.equal(canWorkerTransition('pending', 'completed'), false);
   assert.equal(canWorkerTransition('completed', 'in_progress'), false);
+  assert.equal(canWorkerTransition('completed', 'cancelled'), false);
 });
 
 test('completion codes are always six digits', () => {

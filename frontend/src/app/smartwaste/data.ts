@@ -13,7 +13,9 @@ export type View =
   | 'reports'
   | 'live-map'
   | 'broadcast'
-  | 'activity';
+  | 'activity'
+  | 'leaves'
+  | 'on-leave';
 
 export type TicketStatus = 'In progress' | 'Pending' | 'Completed' | 'Cancelled' | 'Scheduled';
 export type Priority = 'High' | 'Medium' | 'Low';
@@ -34,6 +36,9 @@ export interface Ticket {
   mediaData?: string | null;
   workerId?: number;
   workerMobile?: string;
+  scheduledFor?: string | null;
+  scheduledSlot?: string | null;
+  cancellationReason?: string | null;
   raw?: any;
 }
 
@@ -46,6 +51,8 @@ export interface Booking {
   status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
   purpose?: string;
   address?: string;
+  scheduledFor?: string | null;
+  scheduledSlot?: string | null;
   raw?: any;
 }
 
@@ -79,12 +86,15 @@ export const navByRole: Record<Role, NavItem[]> = {
     { id: 'overview', label: 'Field cockpit', icon: 'layout-grid' },
     { id: 'tickets', label: 'Route queue', icon: 'route' },
     { id: 'hire', label: 'Hired tasks', icon: 'briefcase-business' },
+    { id: 'leaves', label: 'My leaves', icon: 'calendar-check-2' },
     { id: 'profile', label: 'Field credentials', icon: 'shield-check' },
   ],
   admin: [
     { id: 'overview', label: 'Command center', icon: 'bar-chart-3' },
     { id: 'users', label: 'Users', icon: 'user-round' },
     { id: 'workers', label: 'Workers', icon: 'users-round' },
+    { id: 'leaves', label: 'Leave requests', icon: 'calendar-check-2' },
+    { id: 'on-leave', label: 'Workers on leave', icon: 'user-x' },
     { id: 'live-map', label: 'Live worker map', icon: 'map-pin' },
     { id: 'reports', label: 'PDF reports', icon: 'clipboard-check' },
     { id: 'broadcast', label: 'Broadcast', icon: 'bell-ring' },

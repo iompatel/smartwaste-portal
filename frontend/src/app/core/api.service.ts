@@ -372,6 +372,9 @@ export class ApiService {
             : undefined,
       description: t.description,
       mediaData: t.mediaData,
+      scheduledFor: t.scheduledFor,
+      scheduledSlot: t.scheduledSlot,
+      cancellationReason: t.cancellationReason,
       raw: t,
     };
   }
@@ -402,6 +405,8 @@ export class ApiService {
       status: statusMap[h.status] || 'Pending',
       purpose: h.purpose,
       address: h.workAddress,
+      scheduledFor: h.scheduledFor,
+      scheduledSlot: h.scheduledSlot,
       raw: h,
     };
   }

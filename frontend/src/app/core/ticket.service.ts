@@ -20,6 +20,8 @@ export class TicketService {
     locationLongitude?: number | null;
     priority?: 'low' | 'medium' | 'high' | 'critical';
     mediaData?: string | null;
+    scheduledFor?: string | null;
+    scheduledSlot?: string | null;
   }): Promise<BackendTicket> {
     return this.api.request<BackendTicket>('/api/tickets', {
       method: 'POST',
@@ -29,8 +31,8 @@ export class TicketService {
 
   async updateWorkerStatus(
     ticketId: number,
-    status: 'accepted' | 'in_progress' | 'completed',
-    extra: { completionCode?: string; completionMediaData?: string | null } = {}
+    status: 'accepted' | 'in_progress' | 'completed' | 'cancelled',
+    extra: { completionCode?: string; completionMediaData?: string | null; reason?: string } = {}
   ): Promise<BackendTicket> {
     return this.api.request<BackendTicket>(`/api/tickets/${ticketId}/status`, {
       method: 'PUT',

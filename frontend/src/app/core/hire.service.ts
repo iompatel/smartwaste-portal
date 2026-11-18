@@ -16,6 +16,8 @@ export class HireService {
     title: string;
     purpose: string;
     workAddress: string;
+    scheduledFor?: string | null;
+    scheduledSlot?: string | null;
   }): Promise<BackendHireRequest> {
     return this.api.request<BackendHireRequest>('/api/hire-requests', {
       method: 'POST',

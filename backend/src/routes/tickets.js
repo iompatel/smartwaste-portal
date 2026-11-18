@@ -132,13 +132,20 @@ app.get('/api/hire-requests', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req, res) => {
-  const { title, purpose, workAddress } = req.body ?? {};
+  const { title, purpose, workAddress, scheduledFor = null, scheduledSlot = null } = req.body ?? {};
   const cleanTitle = cleanBoundedText(title, 150);
   const cleanPurpose = cleanBoundedText(purpose, 1_000);
   const cleanWorkAddress = cleanBoundedText(workAddress || req.user.address, 500);
   if (!cleanTitle || !cleanPurpose || !cleanWorkAddress) {
     return res.status(400).json({ message: 'Hire request fields are invalid or too long.' });
   }
+
+  let cleanScheduledFor = null;
+  if (scheduledFor) {
+    const parsed = new Date(scheduledFor);
+    if (!Number.isNaN(parsed.getTime())) cleanScheduledFor = parsed;
+  }
+  const cleanScheduledSlot = cleanBoundedText(scheduledSlot, 50);
 
   const now = new Date();
   const id = await nextId('hireRequests');
@@ -162,6 +169,8 @@ app.post('/api/hire-requests', authMiddleware, requireRoles('user'), async (req,
     assignedWorkerId: null,
     assignedByAdminId: null,
     assignedAt: null,
+    scheduledFor: cleanScheduledFor,
+    scheduledSlot: cleanScheduledSlot,
     createdAt: now,
     updatedAt: now,
   });
@@ -427,6 +436,8 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
     locationLongitude = null,
     priority = 'medium',
     mediaData = null,
+    scheduledFor = null,
+    scheduledSlot = null,
   } = req.body ?? {};
 
   const cleanWasteType = cleanBoundedText(wasteType, 100);
@@ -435,6 +446,14 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
   if (!cleanWasteType || !cleanDescription || !cleanLocation) {
     return res.status(400).json({ message: 'Missing ticket fields.' });
   }
+
+  let cleanScheduledFor = null;
+  if (scheduledFor) {
+    const parsed = new Date(scheduledFor);
+    if (!Number.isNaN(parsed.getTime())) cleanScheduledFor = parsed;
+  }
+  const cleanScheduledSlot = cleanBoundedText(scheduledSlot, 50);
+
   const hasDestinationCoordinates = locationLatitude !== null || locationLongitude !== null;
   const destination = hasDestinationCoordinates
     ? normalizeCoordinates({ latitude: locationLatitude, longitude: locationLongitude })
@@ -462,6 +481,8 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
       locationAddress: cleanLocation,
       locationLatitude: destination?.latitude ?? null,
       locationLongitude: destination?.longitude ?? null,
+      scheduledFor: cleanScheduledFor,
+      scheduledSlot: cleanScheduledSlot,
       status: 'pending',
       priority: TICKET_PRIORITIES.includes(priority) ? priority : 'medium',
       statusHistory: [
@@ -484,7 +505,7 @@ app.post('/api/tickets', ticketCreateLimiter, authMiddleware, async (req, res) =
   fastCache.invalidate('workers:');
 
   const ticketDetailsMessage = buildTicketDetailsMessage(ticket, req.user);
-  const assignedWorkerId = await pickFreeWorkerIdForTicket(cleanWasteType);
+  const assignedWorkerId = await pickFreeWorkerIdForTicket(cleanWasteType, destination);
   let assignedWorker = null;
   if (assignedWorkerId) {
     assignedWorker = await User.findOne(
@@ -681,6 +702,20 @@ app.put(
         title: 'Ticket Completed',
         message: `${ticket.ticketCode} was completed with OTP verification. The completion photo is ready to review.`,
       };
+    } else if (status === 'cancelled') {
+      const reason = cleanBoundedText(req.body?.reason ?? req.body?.note, 500);
+      if (!reason) {
+        return res.status(400).json({ message: 'A reason or query note is required to cancel this ticket.' });
+      }
+      set.cancelledAt = now;
+      set.cancelledBy = req.user.id;
+      set.cancellationReason = reason;
+      note = `Cancelled by operative: ${reason}`;
+      userNotification = {
+        userId: ticket.userId,
+        title: 'Ticket Cancelled by Operative',
+        message: `${ticket.ticketCode} was cancelled by operative. Reason: ${reason}`,
+      };
     }
 
     const updatedTicket = await Ticket.findOneAndUpdate(
@@ -710,14 +745,26 @@ app.put(
     }
     await createAccountActivity({
       actor: req.user,
-      action: status === 'accepted' ? 'Ticket Accepted' : status === 'in_progress' ? 'Ticket Started' : 'Ticket Completed',
+      action: status === 'accepted' ? 'Ticket Accepted' : status === 'in_progress' ? 'Ticket Started' : status === 'completed' ? 'Ticket Completed' : 'Ticket Cancelled',
       targetType: 'ticket', targetId: updatedTicket.id,
       summary: `${updatedTicket.ticketCode} ${status === 'in_progress' ? 'started' : status}.`,
       details: await ticketActivityDetails(updatedTicket),
     });
     fastCache.invalidate('workers:');
     if (userNotification) await createNotification(userNotification);
-    if (status === 'completed') await autoAssignUnassignedTickets(25);
+    if (status === 'cancelled') {
+      const admins = await User.find({ role: 'admin' }, { id: 1 }).lean();
+      await Promise.all(
+        admins.map((admin) =>
+          createNotification({
+            userId: admin.id,
+            title: 'Operative Cancelled Ticket',
+            message: `${updatedTicket.ticketCode} cancelled by Operative #${req.user.id}. Reason: ${set.cancellationReason}`,
+          }),
+        ),
+      );
+    }
+    if (status === 'completed' || status === 'cancelled') await autoAssignUnassignedTickets(25);
     const [record] = await buildTicketRecords([updatedTicket], req.user);
     return res.json(record);
   },

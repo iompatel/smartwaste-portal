@@ -46,6 +46,11 @@ export interface BackendTicket {
   acceptedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: number | null;
+  cancellationReason?: string | null;
+  scheduledFor?: string | null;
+  scheduledSlot?: string | null;
   statusHistory?: Array<{
     status: string;
     actorId?: number | null;
@@ -98,8 +103,29 @@ export interface BackendHireRequest {
   status: 'pending' | 'assigned' | 'completed' | 'cancelled';
   assignedWorkerId?: number | null;
   assignedWorker?: BackendUser | BackendPublicWorker | null;
+  scheduledFor?: string | null;
+  scheduledSlot?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type LeaveType = 'Personal' | 'Sick Leave' | 'Casual Leave' | 'Emergency' | 'Annual';
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveApplication {
+  id: number;
+  workerId: number;
+  startDate: string;
+  endDate: string;
+  leaveType: LeaveType;
+  reason: string;
+  status: LeaveStatus;
+  rejectionReason?: string | null;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  worker?: BackendUser | null;
+  daysRemaining?: number;
 }
 
 export interface BackendNotification {
