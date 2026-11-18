@@ -146,10 +146,26 @@ export class AuthService {
     password: string,
     role: Role,
   ): Promise<BackendUser> {
-    const res = await this.api.request<any>(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ email: email.trim(), password }),
-    });
+    let res: any;
+    const submit = () =>
+      this.api.request<any>(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+    try {
+      res = await submit();
+    } catch (err: any) {
+      if (err?.status) throw err;
+      // One retry against the real API origin covers a cold start without ever
+      // replaying the credentials against the static host.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      try {
+        res = await submit();
+      } catch (retryErr: any) {
+        if (retryErr?.status) throw retryErr;
+        throw new Error('Could not reach the sign-in service. Check your connection and try again.');
+      }
+    }
 
     if (res?.token) {
       this.api.setToken(res.token);
@@ -192,7 +208,7 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new Error('Authentication succeeded but user profile was missing.');
+      throw new Error('Sign-in could not be completed. Check your connection and try again.');
     }
 
     const resolvedRole: Role =
@@ -270,7 +286,7 @@ export class AuthService {
     }
 
     if (!user || (!res?.token && !this.api.getToken())) {
-      throw new Error('Authentication succeeded but user profile was missing.');
+      throw new Error('Sign-in could not be completed. Check your connection and try again.');
     }
 
     const resolvedRole: Role =

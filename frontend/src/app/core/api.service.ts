@@ -194,6 +194,10 @@ export class ApiService {
 
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = this.apiBase ? `${this.apiBase}${path}` : path;
+    // Never replay a write against the static origin: hosts answer unknown
+    // POST/PUT paths with an empty 200, which would look like a success.
+    const method = (options.method ?? 'GET').toUpperCase();
+    const canRetryRelative = method === 'GET' || method === 'HEAD';
 
     const parseResponse = async (res: Response): Promise<{ body: any; isJson: boolean; rawText: string }> => {
       let rawText = '';
@@ -260,10 +264,13 @@ export class ApiService {
       if (isJson && body !== null) {
         return body as T;
       }
+      if (path.startsWith('/api/') && !rawText.trim()) {
+        throw new Error('The service returned an empty response. Check your connection and try again.');
+      }
       return (body ?? {}) as T;
     } catch (err: any) {
       // If fetching from this.apiBase failed with network error, try fallback relative path if url was absolute
-      if (this.apiBase && (err.name === 'TypeError' || err.message?.toLowerCase().includes('fetch'))) {
+      if (this.apiBase && canRetryRelative && (err.name === 'TypeError' || err.message?.toLowerCase().includes('fetch'))) {
         try {
           const fallbackRes = await this.fetchWithWake(path, {
             ...options,
@@ -284,6 +291,9 @@ export class ApiService {
 
           if (isJson && body !== null) {
             return body as T;
+          }
+          if (path.startsWith('/api/') && !rawText.trim()) {
+            throw new Error('The service returned an empty response. Check your connection and try again.');
           }
           return (body ?? {}) as T;
         } catch (fallbackErr: any) {

@@ -3,6 +3,63 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiService } from './api.service';
 import { isClosedStatus } from '../smartwaste/data';
 
+describe('API request retry safety', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function installBrowserConfig() {
+    vi.stubGlobal('window', {
+      location: { hostname: 'worker.example.test', port: '' },
+      __SWMS_CONFIG__: { API_BASE_URL: 'https://api.example.test/api' },
+    });
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    });
+  }
+
+  it('does not replay a failed login POST against the static origin', async () => {
+    installBrowserConfig();
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+    const service = new ApiService();
+
+    await expect(
+      service.request('/api/auth/worker-login', { method: 'POST', body: '{}' }),
+    ).rejects.toThrow(/Failed to fetch/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.test/api/auth/worker-login');
+  });
+
+  it('never treats an empty static-host 200 as a successful API call', async () => {
+    installBrowserConfig();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 200 })));
+    const service = new ApiService();
+
+    await expect(service.request('/api/auth/worker-login', { method: 'POST', body: '{}' }))
+      .rejects.toThrow(/empty response/);
+  });
+
+  it('still retries an idempotent GET through the same-origin path', async () => {
+    installBrowserConfig();
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    const service = new ApiService();
+
+    await expect(service.request('/api/ready')).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/ready');
+  });
+});
+
 describe('API-to-UI mappings', () => {
   const service = new ApiService();
 
