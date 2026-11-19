@@ -173,8 +173,15 @@ export class LiveMapComponent implements OnInit, OnChanges, OnDestroy {
         attributionControl: true,
       });
 
-      // CartoDB Voyager raster tiles for clean street and road contrast
-      LInstance.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // CartoDB Voyager raster tiles for clean street and road contrast with CARTO API key
+      const cartoKey =
+        (typeof window !== 'undefined' && (window as any).__SWMS_CONFIG__?.CARTO_KEY) ||
+        'cb1_5cbq_1_5bc9df9be5c6d78bf30d1a09';
+      const tileUrl = cartoKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoKey}`
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+      LInstance.tileLayer(tileUrl, {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19,

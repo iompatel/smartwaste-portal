@@ -13,6 +13,7 @@ const consoles = ['citizen', 'worker', 'admin'];
 
 const payload = {
   API_BASE_URL: apiBaseUrl,
+  CARTO_KEY: process.env.CARTO_KEY || 'cb1_5cbq_1_5bc9df9be5c6d78bf30d1a09',
   ...(process.env.API_WAKE_URL ? { API_WAKE_URL: process.env.API_WAKE_URL } : {}),
   DEPLOY_COMMIT: process.env.RENDER_GIT_COMMIT || 'local',
   ...(consoles.includes(consoleMode) ? { CONSOLE_MODE: consoleMode } : {}),
