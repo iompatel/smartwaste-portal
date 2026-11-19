@@ -41,9 +41,9 @@ type DetailRow = { key: string; label: string; value: string; url: string | null
           </div>
           <div class="flex gap-2"><button type="submit" appButton variant="brand" class="h-11 flex-1 rounded-full">Apply</button><button type="button" appButton variant="outline" class="h-11 rounded-full" (click)="clearFilters()">Clear</button></div>
         </form>
-        @if (filterError()) { <p id="activity-filter-error" role="alert" class="mt-3 text-sm text-danger">{{ filterError() }}</p> }
+        @if (filterError()) { <p id="activity-filter-error" role="alert" class="mt-3 text-sm text-danger-ink">{{ filterError() }}</p> }
       </app-surface>
-      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger">{{ error() }}</p> }
+      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger-ink">{{ error() }}</p> }
       <app-surface class="p-5 sm:p-6">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>{{ total() }} {{ total() === 1 ? 'event' : 'events' }} · Page {{ page() }} of {{ pageCount() }}</span>

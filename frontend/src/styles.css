@@ -40,9 +40,13 @@
   --color-background: var(--background);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ink: var(--brand-ink);
   --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
   --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
   --color-hero: var(--hero);
   --color-admin-hero: var(--admin-hero);
   --color-avatar: var(--avatar);
@@ -77,10 +81,15 @@
   --input: oklch(0.84 0.008 260 / 0.85);
   --ring: oklch(0.55 0.19 255);
   --brand: oklch(0.7 0.18 145);
-  --brand-foreground: oklch(1 0 0);
+  --brand-foreground: oklch(0.16 0.03 145);
+  /* -ink variants are text colors for fills/backgrounds; a 10% tint on a full bg-muted panel drops to ~4.2:1. */
+  --brand-ink: oklch(0.5 0.16 145);
   --success: oklch(0.63 0.17 145);
+  --success-ink: oklch(0.5 0.15 145);
   --warning: oklch(0.72 0.16 70);
+  --warning-ink: oklch(0.5 0.14 70);
   --danger: oklch(0.62 0.21 25);
+  --danger-ink: oklch(0.52 0.19 25);
   --hero: oklch(0.955 0.025 150);
   --admin-hero: oklch(0.955 0.02 255);
   --avatar: oklch(0.9 0.035 255);
@@ -123,9 +132,13 @@
   --ring: oklch(0.65 0.18 255);
   --brand: oklch(0.76 0.18 145);
   --brand-foreground: oklch(0.15 0.02 145);
+  --brand-ink: oklch(0.76 0.18 145);
   --success: oklch(0.76 0.18 145);
+  --success-ink: oklch(0.76 0.18 145);
   --warning: oklch(0.8 0.15 75);
+  --warning-ink: oklch(0.8 0.15 75);
   --danger: oklch(0.7 0.19 25);
+  --danger-ink: oklch(0.7 0.19 25);
   --hero: oklch(0.205 0.025 150 / 0.82);
   --admin-hero: oklch(0.205 0.025 255 / 0.82);
   --avatar: oklch(0.32 0.06 255);
@@ -168,9 +181,13 @@
     --ring: oklch(0.65 0.18 255);
     --brand: oklch(0.76 0.18 145);
     --brand-foreground: oklch(0.15 0.02 145);
+    --brand-ink: oklch(0.76 0.18 145);
     --success: oklch(0.76 0.18 145);
+    --success-ink: oklch(0.76 0.18 145);
     --warning: oklch(0.8 0.15 75);
+    --warning-ink: oklch(0.8 0.15 75);
     --danger: oklch(0.7 0.19 25);
+    --danger-ink: oklch(0.7 0.19 25);
     --hero: oklch(0.205 0.025 150 / 0.82);
     --admin-hero: oklch(0.205 0.025 255 / 0.82);
     --avatar: oklch(0.32 0.06 255);
@@ -220,6 +237,17 @@
   }
   ::selection {
     background: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+}
+
+/* Menu, tab and option controls opt out of the default outline; give them a visible one. */
+@layer utilities {
+  [role='menuitem']:focus-visible,
+  [role='menuitemradio']:focus-visible,
+  [role='option']:focus-visible,
+  [role='tab']:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 

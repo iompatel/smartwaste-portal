@@ -52,7 +52,7 @@ import { Role } from '../smartwaste/data';
               </div>
 
               @if (verifyError()) {
-                <div class="mt-3 w-full rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium leading-5">
+                <div role="alert" class="mt-3 w-full rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger-ink font-medium leading-5">
                   {{ verifyError() }}
                 </div>
               }
@@ -226,7 +226,7 @@ import { Role } from '../smartwaste/data';
             </div>
 
             @if (errorMessage()) {
-              <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium leading-5">
+              <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger-ink font-medium leading-5">
                 {{ errorMessage() }}
               </div>
             }

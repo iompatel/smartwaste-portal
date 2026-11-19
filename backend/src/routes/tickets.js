@@ -1070,7 +1070,12 @@ app.get('/api/workers/:id/reviews', authMiddleware, async (req, res) => {
   const payload = {
     ratingAverage: summary?.ratingAverage ?? 0,
     ratingCount: summary?.ratingCount ?? 0,
-    reviews: reviews.map((review) => cleanRecord(review)),
+    reviews: reviews.map((review) => {
+      const record = cleanRecord(review);
+      delete record.userId;
+      delete record.ticketId;
+      return record;
+    }),
   };
   fastCache.set(cacheKey, payload, 30000);
   return res.json(payload);

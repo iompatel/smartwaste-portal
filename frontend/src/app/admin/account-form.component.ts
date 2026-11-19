@@ -16,7 +16,7 @@ type FieldError = { field: Field; message: string };
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="flex flex-col gap-4">
       @if (errors().length || serverError()) {
-        <div id="account-form-errors" tabindex="-1" role="alert" aria-labelledby="account-error-heading" class="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger outline-none focus:ring-2 focus:ring-danger">
+        <div id="account-form-errors" tabindex="-1" role="alert" aria-labelledby="account-error-heading" class="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger-ink outline-none focus:ring-2 focus:ring-danger">
           <h3 id="account-error-heading" class="font-semibold">Please check the account details</h3>
           @if (serverError()) { <p class="mt-2">{{ serverError() }}</p> }
           @if (errors().length) {
@@ -31,7 +31,7 @@ type FieldError = { field: Field; message: string };
           <label for="account-id" class="mb-1.5 block text-sm font-medium">{{ section() === 'worker' ? 'Worker' : 'User' }} ID {{ account() ? '' : '(optional)' }}</label>
           <input id="account-id" type="text" inputmode="numeric" formControlName="id" [class]="inputCls" [attr.aria-invalid]="!!errorFor('id')" aria-describedby="account-id-hint account-id-error" placeholder="Generated automatically if left blank" />
           <p id="account-id-hint" class="mt-1 text-xs text-muted-foreground">{{ account() ? 'The account ID cannot be changed.' : 'Use a unique positive number, or leave blank for an automatic ID.' }}</p>
-          @if (errorFor('id')) { <p id="account-id-error" class="mt-1 text-xs text-danger">{{ errorFor('id') }}</p> }
+          @if (errorFor('id')) { <p id="account-id-error" class="mt-1 text-xs text-danger-ink">{{ errorFor('id') }}</p> }
         </div>
       }
       <div class="grid gap-4 sm:grid-cols-2">
@@ -39,7 +39,7 @@ type FieldError = { field: Field; message: string };
           <div [class.sm:col-span-2]="field.key === 'name'">
             <label [for]="'account-' + field.key" class="mb-1.5 block text-sm font-medium">{{ field.label }} *</label>
             <input [id]="'account-' + field.key" [type]="field.type" [formControlName]="field.key" [attr.autocomplete]="field.autocomplete" [attr.inputmode]="field.key === 'mobile' ? 'tel' : null" [attr.maxlength]="field.maxLength" [placeholder]="field.placeholder" [class]="inputCls" [attr.aria-invalid]="!!errorFor(field.key)" [attr.aria-describedby]="'account-' + field.key + '-error'" />
-            @if (errorFor(field.key)) { <p [id]="'account-' + field.key + '-error'" class="mt-1 text-xs text-danger">{{ errorFor(field.key) }}</p> }
+            @if (errorFor(field.key)) { <p [id]="'account-' + field.key + '-error'" class="mt-1 text-xs text-danger-ink">{{ errorFor(field.key) }}</p> }
           </div>
         }
         <div>
@@ -50,19 +50,19 @@ type FieldError = { field: Field; message: string };
       <div>
         <label for="account-address" class="mb-1.5 block text-sm font-medium">Address *</label>
         <textarea id="account-address" formControlName="address" rows="3" maxlength="500" [class]="inputCls + ' h-auto py-3'" autocomplete="street-address" [attr.aria-invalid]="!!errorFor('address')" aria-describedby="account-address-error" placeholder="Street, area, city, and postcode"></textarea>
-        @if (errorFor('address')) { <p id="account-address-error" class="mt-1 text-xs text-danger">{{ errorFor('address') }}</p> }
+        @if (errorFor('address')) { <p id="account-address-error" class="mt-1 text-xs text-danger-ink">{{ errorFor('address') }}</p> }
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label for="account-password" class="mb-1.5 block text-sm font-medium">{{ account() ? 'New password (optional)' : 'Password *' }}</label>
           <input id="account-password" type="password" formControlName="password" autocomplete="new-password" [class]="inputCls" [attr.aria-invalid]="!!errorFor('password')" aria-describedby="account-password-hint account-password-error" />
           <p id="account-password-hint" class="mt-1 text-xs text-muted-foreground">At least 8 characters, one uppercase letter, and one special symbol.{{ account() ? ' Leave blank to keep the current password.' : '' }}</p>
-          @if (errorFor('password')) { <p id="account-password-error" class="mt-1 text-xs text-danger">{{ errorFor('password') }}</p> }
+          @if (errorFor('password')) { <p id="account-password-error" class="mt-1 text-xs text-danger-ink">{{ errorFor('password') }}</p> }
         </div>
         <div>
           <label for="account-confirmPassword" class="mb-1.5 block text-sm font-medium">{{ account() ? 'Confirm new password' : 'Confirm password *' }}</label>
           <input id="account-confirmPassword" type="password" formControlName="confirmPassword" autocomplete="new-password" [class]="inputCls" [attr.aria-invalid]="!!errorFor('confirmPassword')" aria-describedby="account-confirmPassword-error" />
-          @if (errorFor('confirmPassword')) { <p id="account-confirmPassword-error" class="mt-1 text-xs text-danger">{{ errorFor('confirmPassword') }}</p> }
+          @if (errorFor('confirmPassword')) { <p id="account-confirmPassword-error" class="mt-1 text-xs text-danger-ink">{{ errorFor('confirmPassword') }}</p> }
         </div>
       </div>
       <div class="mt-2 flex justify-end gap-2 border-t border-border/60 pt-4">

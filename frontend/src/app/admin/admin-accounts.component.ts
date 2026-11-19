@@ -21,8 +21,8 @@ import { AccountFormComponent } from './account-form.component';
           <app-icon name="plus" class="size-4"></app-icon>Create {{ label().toLowerCase() }}
         </button>
       </app-section-header>
-      @if (notice()) { <p role="status" class="rounded-xl bg-brand/10 p-3 text-sm text-brand">{{ notice() }}</p> }
-      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger">{{ error() }}</p> }
+      @if (notice()) { <p role="status" class="rounded-xl bg-brand/10 p-3 text-sm text-brand-ink">{{ notice() }}</p> }
+      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger-ink">{{ error() }}</p> }
       <app-surface class="p-5 sm:p-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="relative w-full sm:max-w-sm">
@@ -103,7 +103,7 @@ import { AccountFormComponent } from './account-form.component';
           }
           They will lose access to the portal. Activity history is retained.
         </div>
-        @if (deleteError()) { <p role="alert" class="mt-4 text-sm text-danger">{{ deleteError() }}</p> }
+        @if (deleteError()) { <p role="alert" class="mt-4 text-sm text-danger-ink">{{ deleteError() }}</p> }
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" appButton variant="outline" class="h-10 rounded-full" [disabled]="saving()" (click)="closeDelete()">Keep account</button>
           <button type="button" appButton variant="destructive" class="h-10 rounded-full" [disabled]="saving()" (click)="deleteAccount()">{{ saving() ? 'Deleting…' : 'Delete permanently' }}</button>

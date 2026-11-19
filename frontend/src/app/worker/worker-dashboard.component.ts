@@ -38,14 +38,14 @@ import { LiveMapComponent } from '../shared/live-map.component';
         <div class="flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand">
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand-ink">
                 <app-icon name="shield-check" class="size-3.5"></app-icon>
                 Field operative · City fleet
               </span>
               <span class="text-[11px] text-muted-foreground">{{ today }}</span>
             </div>
             <h1 class="mt-5 text-[32px] leading-tight font-semibold tracking-[-0.065em] text-foreground sm:text-[40px]">
-              Your route is ready<span class="text-brand">.</span>
+              Your route is ready<span class="text-brand-ink">.</span>
             </h1>
             <p class="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
               {{ assignedCount() }} open stops across your assigned zone. You are making the city a little better, one collection at a time.
@@ -169,7 +169,7 @@ import { LiveMapComponent } from '../shared/live-map.component';
                 {{ onDuty() ? 'Dispatch connected' : 'Dispatch offline' }}
               </h2>
             </div>
-            <span class="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <span class="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
               <app-icon name="radio" class="size-4"></app-icon>
             </span>
           </div>
@@ -179,7 +179,7 @@ import { LiveMapComponent } from '../shared/live-map.component';
             <div class="absolute size-28 rounded-full border border-brand/20"></div>
             <div class="absolute size-16 rounded-full border border-brand/25"></div>
             <div class="absolute top-5 right-8 size-2.5 rounded-full bg-brand shadow-[0_0_0_5px_color-mix(in_oklab,var(--brand)_12%,transparent)]"></div>
-            <div class="flex size-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <div class="flex size-12 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
               <app-icon name="locate-fixed" class="size-5"></app-icon>
             </div>
           </div>
@@ -201,7 +201,7 @@ import { LiveMapComponent } from '../shared/live-map.component';
 
           <div class="mt-4 flex items-center justify-between text-[11px]">
             @if (onDuty()) {
-              <span class="flex items-center gap-1.5 text-brand">
+              <span class="flex items-center gap-1.5 text-brand-ink">
                 <app-live-dot></app-live-dot>
                 Broadcasting every 15s
               </span>
@@ -220,7 +220,7 @@ import { LiveMapComponent } from '../shared/live-map.component';
         <app-surface class="overflow-hidden p-0 border border-border/80">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-3.5 bg-muted/30">
             <div class="flex items-center gap-2.5">
-              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand">
+              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
                 <app-icon name="navigation" class="size-3.5"></app-icon>
               </span>
               <div>

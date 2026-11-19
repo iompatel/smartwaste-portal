@@ -86,7 +86,7 @@ import { Role } from '../smartwaste/data';
             </div>
 
             @if (errorMessage()) {
-              <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium">
+              <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger-ink font-medium">
                 {{ errorMessage() }}
               </div>
             }

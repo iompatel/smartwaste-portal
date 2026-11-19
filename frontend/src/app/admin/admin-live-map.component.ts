@@ -19,10 +19,10 @@ import { LiveMapComponent } from '../shared/live-map.component';
       <app-section-header eyebrow="Field operations" title="Live worker map" description="Latest shared worker locations, refreshed every 3 seconds.">
         <button action type="button" appButton variant="outline" [disabled]="loading()" (click)="refresh()">Refresh</button>
       </app-section-header>
-      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger">{{ error() }}</p> }
+      @if (error()) { <p role="alert" class="rounded-xl bg-danger/10 p-3 text-sm text-danger-ink">{{ error() }}</p> }
       <div class="grid grid-cols-3 gap-3">
         <app-surface class="p-4"><p class="text-xs text-muted-foreground">Workers online</p><strong class="mt-2 block text-2xl">{{ onlineCount() }}</strong></app-surface>
-        <app-surface class="p-4"><p class="text-xs text-muted-foreground">Sharing location</p><strong class="mt-2 block text-2xl text-brand">{{ trackedCount() }}</strong></app-surface>
+        <app-surface class="p-4"><p class="text-xs text-muted-foreground">Sharing location</p><strong class="mt-2 block text-2xl text-brand-ink">{{ trackedCount() }}</strong></app-surface>
         <app-surface class="p-4"><p class="text-xs text-muted-foreground">Last refresh</p><strong class="mt-2 block text-sm tabular-nums">{{ updatedAt() ? (updatedAt() | date:'HH:mm:ss') : 'Waiting' }}</strong></app-surface>
       </div>
       <div class="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -36,14 +36,14 @@ import { LiveMapComponent } from '../shared/live-map.component';
                 [ngClass]="selectedId() === worker.workerId ? 'border-brand bg-brand/10' : 'border-border hover:bg-muted'">
                 <span class="flex items-center justify-between gap-2"><span class="text-sm font-medium">{{ worker.firstName }} {{ worker.lastName }}</span><span class="size-2 rounded-full" [ngClass]="worker.workerOnline ? 'bg-brand' : 'bg-muted-foreground'"></span></span>
                 <span class="mt-1 block text-xs text-muted-foreground">Worker #{{ worker.workerId }} · {{ worker.workerOnline ? 'Online' : 'Offline' }}</span>
-                <span class="mt-2 block text-xs" [class.text-brand]="worker.location">{{ worker.location ? 'Location shared' : 'Location unavailable' }}</span>
+                <span class="mt-2 block text-xs" [class.text-brand-ink]="worker.location">{{ worker.location ? 'Location shared' : 'Location unavailable' }}</span>
               </button>
             } @empty { <p class="py-6 text-center text-xs text-muted-foreground">{{ loading() ? 'Loading workers...' : 'No workers found.' }}</p> }
           </div>
         </app-surface>
         <app-surface class="min-w-0 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-border p-4">
-            <span class="flex items-center gap-2 text-sm font-medium"><app-icon name="map-pin" class="size-4 text-brand"></app-icon>Live Operative Map</span>
+            <span class="flex items-center gap-2 text-sm font-medium"><app-icon name="map-pin" class="size-4 text-brand-ink"></app-icon>Live Operative Map</span>
           </div>
           <div class="relative h-[430px] sm:h-[520px]">
             @if (selectedWorker()?.location; as loc) {

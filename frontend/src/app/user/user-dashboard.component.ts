@@ -42,13 +42,13 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
         <div class="flex items-center justify-between gap-5">
           <div class="max-w-[560px]">
             <div class="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-brand">
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-brand-ink">
                 <app-icon name="check-circle-2" class="size-3.5"></app-icon>Account overview
               </span>
               <span>{{ today }}</span>
             </div>
             <h1 class="mt-5 text-[32px] leading-[1.08] font-semibold tracking-[-0.065em] text-foreground sm:text-[42px]">
-              {{ greeting() }}, {{ userName() }}<span class="text-brand">.</span>
+              {{ greeting() }}, {{ userName() }}<span class="text-brand-ink">.</span>
             </h1>
             <p class="mt-3 max-w-[410px] text-sm leading-6 text-muted-foreground sm:text-[15px]">
               A cleaner neighborhood starts with one small action. Here is what is happening around you today.
@@ -78,7 +78,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
           </div>
           <div class="hidden shrink-0 flex-col items-center gap-3 md:flex">
             <app-score-ring [score]="completionRate()"></app-score-ring>
-            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-brand">
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-brand-ink">
               <app-icon name="check-circle-2" class="size-3.5"></app-icon>
               {{ completionRate() }}% of reports completed
             </span>
@@ -89,7 +89,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
           <app-score-ring [score]="completionRate()"></app-score-ring>
           <div>
             <p class="font-medium text-foreground">Report completion</p>
-            <p class="mt-1 flex items-center gap-1 text-brand">
+            <p class="mt-1 flex items-center gap-1 text-brand-ink">
               <app-icon name="check-circle-2" class="size-3.5"></app-icon>
               {{ completionRate() }}% completed
             </p>
@@ -122,7 +122,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
             (click)="hire.emit()"
             class="group flex min-h-[142px] flex-col items-start rounded-[20px] border border-border/70 bg-card p-4 text-left shadow-[0_8px_30px_color-mix(in_oklab,var(--foreground)_3%,transparent)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_30px_color-mix(in_oklab,var(--foreground)_7%,transparent)] active:scale-[0.98] sm:p-5"
           >
-            <span class="flex size-9 items-center justify-center rounded-[12px] bg-brand/10 text-brand transition-transform duration-300 group-hover:scale-105">
+            <span class="flex size-9 items-center justify-center rounded-[12px] bg-brand/10 text-brand-ink transition-transform duration-300 group-hover:scale-105">
               <app-icon name="briefcase-business" class="size-[18px]"></app-icon>
             </span>
             <span class="mt-4 text-[13px] font-medium text-foreground">Hire a worker</span>
@@ -135,7 +135,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
             (click)="trackActiveTicket()"
             class="group flex min-h-[142px] flex-col items-start rounded-[20px] border border-border/70 bg-card p-4 text-left shadow-[0_8px_30px_color-mix(in_oklab,var(--foreground)_3%,transparent)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_30px_color-mix(in_oklab,var(--foreground)_7%,transparent)] active:scale-[0.98] sm:p-5"
           >
-            <span class="flex size-9 items-center justify-center rounded-[12px] bg-warning/10 text-warning transition-transform duration-300 group-hover:scale-105">
+            <span class="flex size-9 items-center justify-center rounded-[12px] bg-warning/10 text-warning-ink transition-transform duration-300 group-hover:scale-105">
               <app-icon name="locate-fixed" class="size-[18px]"></app-icon>
             </span>
             <span class="mt-4 text-[13px] font-medium text-foreground">View active report</span>
@@ -241,7 +241,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
             <div class="mt-5 flex flex-col gap-3">
               @for (booking of recentBookings(); track booking.id) {
                 <div class="flex items-center gap-3 rounded-[14px] bg-muted/50 p-3">
-                  <span class="flex size-9 items-center justify-center rounded-[11px] bg-brand/10 text-brand">
+                  <span class="flex size-9 items-center justify-center rounded-[11px] bg-brand/10 text-brand-ink">
                     <app-icon name="briefcase-business" class="size-4"></app-icon>
                   </span>
                   <div class="min-w-0 flex-1">
@@ -275,7 +275,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
                 {{ activeTicket() ? collectionHeading(activeTicket()!) : 'Collection status' }}
               </h2>
             </div>
-            <span class="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <span class="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
               <app-icon name="navigation" class="size-4"></app-icon>
             </span>
           </div>
@@ -286,7 +286,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">{{ ticket.worker || 'Your operative' }}</p>
                 <p class="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <app-icon name="shield-check" class="size-3 text-brand"></app-icon>
+                  <app-icon name="shield-check" class="size-3 text-brand-ink"></app-icon>
                   Verified operative · {{ ticket.status }}
                 </p>
               </div>
@@ -343,7 +343,7 @@ import { Booking, Ticket, View, isClosedStatus } from '../smartwaste/data';
       <!-- Impact Card -->
       <app-surface class="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div class="flex items-center gap-4">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-[15px] bg-brand/10 text-brand">
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-[15px] bg-brand/10 text-brand-ink">
             <app-icon name="leaf" class="size-5"></app-icon>
           </span>
           <div>

@@ -49,7 +49,7 @@ declare const L: any;
           aria-label="Recenter live map view"
           class="pointer-events-auto flex size-9 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-md backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
         >
-          <app-icon name="navigation" class="size-4 text-brand"></app-icon>
+          <app-icon name="navigation" class="size-4 text-brand-ink"></app-icon>
         </button>
       </div>
 

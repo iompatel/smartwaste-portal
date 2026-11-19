@@ -539,9 +539,9 @@ export class ProfileDropdownComponent {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapeKey() {
-    if (this.isOpen()) {
+  @HostListener('document:keydown', ['$event'])
+  onEscapeKey(event: Event) {
+    if ((event as KeyboardEvent).key === 'Escape' && this.isOpen()) {
       this.closeMenu();
     }
   }

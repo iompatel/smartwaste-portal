@@ -46,7 +46,7 @@ import { ApiService } from '../core/api.service';
           ></app-avatar>
           <h2 class="mt-5 text-lg font-semibold tracking-[-0.04em] text-foreground">{{ displayName() }}</h2>
           <p class="mt-1 text-xs text-muted-foreground">{{ meta().subtitle }}</p>
-          <span class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-[11px] font-medium text-brand">
+          <span class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-[11px] font-medium text-brand-ink">
             <app-icon name="user-round" class="size-3.5"></app-icon>
             {{ role() === 'worker' ? 'Field operative account' : 'Citizen account' }}
           </span>
@@ -64,7 +64,7 @@ import { ApiService } from '../core/api.service';
             }
             @if (memberSince()) {
               <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                <app-icon name="check-circle-2" class="size-3.5 text-brand"></app-icon>
+                <app-icon name="check-circle-2" class="size-3.5 text-brand-ink"></app-icon>
                 Member since {{ memberSince() }}
               </div>
             }
@@ -144,7 +144,7 @@ import { ApiService } from '../core/api.service';
             </div>
 
             @if (errorMessage()) {
-              <p role="alert" class="text-xs leading-5 text-danger">{{ errorMessage() }}</p>
+              <p role="alert" class="text-xs leading-5 text-danger-ink">{{ errorMessage() }}</p>
             }
 
             <div class="flex items-center justify-between border-t border-border/60 pt-5">
@@ -315,7 +315,7 @@ export class ProfileViewComponent implements OnInit {
             <div>
               <p class="text-sm font-medium text-foreground">Change password</p>
               <p class="mt-1 text-xs leading-5 text-muted-foreground">Firebase will email a secure password-change link to {{ accountEmail() }}.</p>
-              @if (passwordNote()) { <p class="mt-2 text-xs text-brand" aria-live="polite">{{ passwordNote() }}</p> }
+              @if (passwordNote()) { <p class="mt-2 text-xs text-brand-ink" aria-live="polite">{{ passwordNote() }}</p> }
             </div>
           </div>
           <button type="button" appButton variant="outline" class="min-h-11 rounded-full" [disabled]="passwordSending()" (click)="sendPasswordLink()">
@@ -326,7 +326,7 @@ export class ProfileViewComponent implements OnInit {
       }
 
       <app-surface class="flex items-center gap-3 p-5 text-xs text-muted-foreground sm:p-6">
-        <app-icon name="shield-check" class="size-5 shrink-0 text-brand"></app-icon>
+        <app-icon name="shield-check" class="size-5 shrink-0 text-brand-ink"></app-icon>
         <p>Your appearance preference is saved on this device.</p>
       </app-surface>
     </div>

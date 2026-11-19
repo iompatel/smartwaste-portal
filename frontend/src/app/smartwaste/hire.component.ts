@@ -43,12 +43,12 @@ export const services: ServiceOption[] = [
       <section class="relative isolate overflow-hidden rounded-[26px] border border-brand/15 bg-hero p-6 sm:p-8">
         <div class="pointer-events-none absolute -right-10 -bottom-28 -z-10 size-72 rounded-full border border-brand/15"></div>
         <div class="max-w-xl">
-          <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand">
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-medium text-brand-ink">
             <app-icon name="sparkles" class="size-3.5"></app-icon>
             Trusted help, on your schedule
           </span>
           <h1 class="mt-5 text-[32px] leading-tight font-semibold tracking-[-0.065em] text-foreground sm:text-[40px]">
-            A helping hand, when you need it<span class="text-brand">.</span>
+            A helping hand, when you need it<span class="text-brand-ink">.</span>
           </h1>
           <p class="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
             Request a verified local operative and follow every assignment update in one place.
@@ -77,7 +77,7 @@ export const services: ServiceOption[] = [
                 >
                   <span
                     class="flex size-9 items-center justify-center rounded-[11px]"
-                    [ngClass]="selected ? 'bg-brand/15 text-brand' : 'bg-muted text-muted-foreground'"
+                    [ngClass]="selected ? 'bg-brand/15 text-brand-ink' : 'bg-muted text-muted-foreground'"
                   >
                     <app-icon [name]="service.icon" class="size-4"></app-icon>
                   </span>
@@ -144,7 +144,7 @@ export const services: ServiceOption[] = [
 
             <div class="flex flex-col gap-3 border-t border-border/60 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <app-icon name="shield-check" class="size-3.5 text-brand"></app-icon>
+                <app-icon name="shield-check" class="size-3.5 text-brand-ink"></app-icon>
                 Verified operatives · Secure booking
               </span>
               <button
@@ -272,7 +272,7 @@ export class CitizenHireViewComponent {
         @for (booking of bookings(); track booking.id) {
           <app-surface class="p-5">
             <div class="flex items-start justify-between gap-3">
-              <span class="flex size-10 items-center justify-center rounded-[13px] bg-brand/10 text-brand">
+              <span class="flex size-10 items-center justify-center rounded-[13px] bg-brand/10 text-brand-ink">
                 <app-icon name="briefcase-business" class="size-5"></app-icon>
               </span>
               <app-status-badge [status]="booking.status"></app-status-badge>

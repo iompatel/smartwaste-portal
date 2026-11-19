@@ -145,7 +145,7 @@ import {
                 >
                   {{ f.label }}
                   @if (f.id === 'pending' && pendingCount() > 0) {
-                    <span class="ml-1.5 flex size-4 items-center justify-center rounded-full bg-white text-brand text-[9px] font-bold">
+                    <span class="ml-1.5 flex size-4 items-center justify-center rounded-full bg-white text-brand-ink text-[9px] font-bold">
                       {{ pendingCount() }}
                     </span>
                   }
@@ -205,7 +205,7 @@ import {
                       </p>
 
                       @if (app.status === 'rejected' && app.rejectionReason) {
-                        <div class="mt-2 rounded-lg bg-danger/10 border border-danger/20 p-2 text-xs text-danger">
+                        <div class="mt-2 rounded-lg bg-danger/10 border border-danger/20 p-2 text-xs text-danger-ink">
                           <strong>Rejection Note:</strong> {{ app.rejectionReason }}
                         </div>
                       }
@@ -219,7 +219,7 @@ import {
                           appButton
                           variant="outline"
                           size="sm"
-                          class="rounded-full text-danger border-danger/30 hover:bg-danger/10"
+                          class="rounded-full text-danger-ink border-danger/30 hover:bg-danger/10"
                           (click)="openRejectModal(app)"
                         >
                           <app-icon name="x-circle" class="size-3.5"></app-icon>
@@ -271,7 +271,7 @@ import {
           </div>
 
           @if (rejectError()) {
-            <p role="alert" class="text-xs text-danger">{{ rejectError() }}</p>
+            <p role="alert" class="text-xs text-danger-ink">{{ rejectError() }}</p>
           }
 
           <div class="flex justify-end gap-2 pt-3 border-t border-border/60">

@@ -61,12 +61,12 @@ import { cn } from '../shared/utils';
             (click)="navigate.emit(item.id)"
             [class]="navItemClass(active)"
           >
-            <app-icon [name]="item.icon" class="size-[17px]" [class.text-brand]="active"></app-icon>
+            <app-icon [name]="item.icon" class="size-[17px]" [class.text-brand-ink]="active"></app-icon>
             <span class="flex-1 text-left">{{ item.label }}</span>
             @if (badge) {
               <span
                 class="rounded-full px-2 py-0.5 text-[10px] tabular-nums"
-                [ngClass]="active ? 'bg-brand/15 text-brand' : 'bg-sidebar-accent text-muted-foreground'"
+                [ngClass]="active ? 'bg-brand/15 text-brand-ink' : 'bg-sidebar-accent text-muted-foreground'"
               >
                 {{ badge }}
               </span>

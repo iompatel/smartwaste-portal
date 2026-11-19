@@ -24,7 +24,7 @@ import { Role } from '../smartwaste/data';
       <div class="w-full max-w-md">
         <!-- Brand Header -->
         <div class="flex flex-col items-center text-center">
-          <div class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand mb-4">
+          <div class="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand-ink mb-4">
             <app-icon name="shield-check" class="size-4"></app-icon>
             Field Operative · City Fleet
           </div>
@@ -86,7 +86,7 @@ import { Role } from '../smartwaste/data';
             </div>
 
             @if (errorMessage()) {
-              <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium">
+              <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger-ink font-medium">
                 {{ errorMessage() }}
               </div>
             }

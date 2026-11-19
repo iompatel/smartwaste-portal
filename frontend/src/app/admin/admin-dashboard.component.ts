@@ -42,7 +42,7 @@ import { BackendTicket } from '../core/api.types';
   template: `
     <div class="flex flex-col gap-5 sm:gap-6">
       @if (error()) {
-        <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs text-danger">{{ error() }}</p>
+        <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs text-danger-ink">{{ error() }}</p>
       }
       <!-- Admin Hero (City Command) -->
       <section class="flex flex-col justify-between gap-5 rounded-[26px] border border-primary/15 bg-admin-hero p-6 sm:p-8 md:flex-row md:items-end">

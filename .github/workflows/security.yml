@@ -1,0 +1,36 @@
+name: Security Scan (Strix)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  strix-pr-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Strix CLI
+        run: curl -sSL https://strix.ai/install | bash
+
+      - name: Strix PR review (managed platform)
+        if: github.event_name == 'pull_request'
+        env:
+          STRIX_API_TOKEN: ${{ secrets.STRIX_API_TOKEN }}
+        run: |
+          strix cloud pr-reviews start \
+            --provider github \
+            --installation-id "${{ vars.STRIX_INSTALLATION_ID }}" \
+            --repository-full-name "${{ github.repository }}" \
+            --pr-number "${{ github.event.pull_request.number }}" \
+            --json
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: strix_runs
+          category: strix-pr-review

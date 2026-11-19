@@ -92,7 +92,7 @@ export interface TicketDraft {
                 <div class="flex items-start gap-3">
                   <span
                     class="flex size-11 shrink-0 items-center justify-center rounded-[14px]"
-                    [ngClass]="ticket.status === 'Completed' ? 'bg-brand/10 text-brand' : ticket.status === 'Cancelled' ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'"
+                    [ngClass]="ticket.status === 'Completed' ? 'bg-brand/10 text-brand-ink' : ticket.status === 'Cancelled' ? 'bg-danger/10 text-danger-ink' : 'bg-primary/10 text-primary'"
                   >
                     <app-icon name="trash-2" class="size-5"></app-icon>
                   </span>
@@ -129,14 +129,14 @@ export interface TicketDraft {
                         {{ ticket.code.slice(0, 3) }} {{ ticket.code.slice(3) }}
                       </p>
                     </div>
-                    <app-icon name="shield-check" class="size-5 text-brand"></app-icon>
+                    <app-icon name="shield-check" class="size-5 text-brand-ink"></app-icon>
                   </div>
                 }
 
                 <div class="mt-4 flex items-center justify-between gap-3">
                   <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     @if (ticket.status === 'Completed') {
-                      <app-icon name="check-circle-2" class="size-3.5 text-brand"></app-icon>
+                      <app-icon name="check-circle-2" class="size-3.5 text-brand-ink"></app-icon>
                       Verified collection
                     } @else {
                       <app-icon name="clock-3" class="size-3.5"></app-icon>
@@ -366,16 +366,17 @@ export class TicketsViewComponent {
         <!-- Schedule Pickup Options -->
         <div class="rounded-[16px] border border-border/80 p-4 bg-muted/20">
           <div class="flex items-center justify-between">
-            <div class="flex flex-col">
+            <label for="report-schedule-toggle" class="flex cursor-pointer flex-col">
               <span class="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <app-icon name="calendar-days" class="size-4 text-primary"></app-icon>
                 Schedule collection for later
               </span>
-              <span class="text-[11px] text-muted-foreground">Pick a preferred collection date & time slot</span>
-            </div>
+              <span id="report-schedule-hint" class="text-[11px] text-muted-foreground">Pick a preferred collection date & time slot</span>
+            </label>
             <input
               id="report-schedule-toggle"
               type="checkbox"
+              aria-describedby="report-schedule-hint"
               [checked]="isScheduled()"
               (change)="isScheduled.set(!isScheduled())"
               class="size-4 rounded accent-primary cursor-pointer"
@@ -455,7 +456,7 @@ export class TicketsViewComponent {
         </div>
 
         @if (error()) {
-          <p role="alert" class="text-xs text-danger">{{ error() }}</p>
+          <p role="alert" class="text-xs text-danger-ink">{{ error() }}</p>
         }
 
         <div class="flex flex-col-reverse gap-2 border-t border-border/60 pt-5 sm:flex-row sm:justify-end">
@@ -520,9 +521,9 @@ export class ReportModalComponent implements OnDestroy {
 
   getPriorityClass(isSelected: boolean, item: string): string {
     if (!isSelected) return 'border-border text-muted-foreground hover:text-foreground';
-    if (item === 'High') return 'border-danger/40 bg-danger/10 text-danger';
-    if (item === 'Medium') return 'border-warning/40 bg-warning/10 text-warning';
-    return 'border-brand/40 bg-brand/10 text-brand';
+    if (item === 'High') return 'border-danger/40 bg-danger/10 text-danger-ink';
+    if (item === 'Medium') return 'border-warning/40 bg-warning/10 text-warning-ink';
+    return 'border-brand/40 bg-brand/10 text-brand-ink';
   }
 
   onAddressChange(value: string) {
@@ -645,12 +646,12 @@ export class ReportModalComponent implements OnDestroy {
       </div>
 
       @if (currentStatus() === 'Cancelled') {
-        <div class="mt-4 rounded-[16px] bg-danger/10 border border-danger/20 p-4 text-xs text-danger">
+        <div class="mt-4 rounded-[16px] bg-danger/10 border border-danger/20 p-4 text-xs text-danger-ink">
           <div class="flex items-center gap-2 font-semibold text-sm">
-            <app-icon name="alert-triangle" class="size-4 text-danger"></app-icon>
+            <app-icon name="alert-triangle" class="size-4 text-danger-ink"></app-icon>
             Ticket Cancelled by Operative / Dispatch
           </div>
-          <p class="mt-1 text-danger/90 leading-5">
+          <p class="mt-1 text-danger-ink/90 leading-5">
             <strong>Reason:</strong> {{ ticket().cancellationReason || ticket().raw?.cancellationReason || 'This collection report was cancelled by operative or dispatch.' }}
           </p>
         </div>
@@ -694,7 +695,7 @@ export class ReportModalComponent implements OnDestroy {
         <div class="mt-4 overflow-hidden rounded-[20px] border border-border/80 bg-card/60 shadow-sm backdrop-blur-md">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3 bg-muted/40">
             <div class="flex items-center gap-2">
-              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand">
+              <span class="flex size-7 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
                 <app-icon name="navigation" class="size-3.5"></app-icon>
               </span>
               <div>
@@ -730,7 +731,7 @@ export class ReportModalComponent implements OnDestroy {
       @if (ticket().code && !isClosedStatus(ticket().status)) {
         <div class="mt-4 flex items-center justify-between gap-4 rounded-[18px] border border-brand/20 bg-brand/10 p-5">
           <div>
-            <p class="flex items-center gap-1.5 text-xs font-medium text-brand">
+            <p class="flex items-center gap-1.5 text-xs font-medium text-brand-ink">
               <app-icon name="shield-check" class="size-4"></app-icon>
               Private completion code
             </p>
@@ -749,7 +750,7 @@ export class ReportModalComponent implements OnDestroy {
             class="rounded-full bg-card/70"
           >
             @if (copied()) {
-              <app-icon name="check" class="size-4 text-brand"></app-icon>
+              <app-icon name="check" class="size-4 text-brand-ink"></app-icon>
             } @else {
               <app-icon name="copy" class="size-4"></app-icon>
             }
@@ -791,7 +792,7 @@ export class ReportModalComponent implements OnDestroy {
 
       @if (completionPhoto(); as photo) {
         <div class="mt-5 rounded-[18px] border border-brand/25 bg-brand/5 p-4">
-          <p class="flex items-center gap-2 text-xs font-medium text-brand">
+          <p class="flex items-center gap-2 text-xs font-medium text-brand-ink">
             <app-icon name="check-circle-2" class="size-4"></app-icon>
             OTP verified · Work completed
           </p>
@@ -863,7 +864,7 @@ export class ReportModalComponent implements OnDestroy {
           </button>
         </form>
         @if (messageError()) {
-          <p role="alert" class="border-t border-border/60 px-4 py-2 text-[11px] text-danger">{{ messageError() }}</p>
+          <p role="alert" class="border-t border-border/60 px-4 py-2 text-[11px] text-danger-ink">{{ messageError() }}</p>
         }
       </div>
     </app-modal>
@@ -1074,7 +1075,7 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
           title="Route queue"
           description="{{ activeRouteTickets().length }} stops queued. One verified handover at a time."
         ></app-section-header>
-        <div class="flex items-center gap-2 rounded-full px-3 py-2 text-xs" [ngClass]="onDuty() ? 'bg-brand/10 text-brand' : 'bg-muted text-muted-foreground'">
+        <div class="flex items-center gap-2 rounded-full px-3 py-2 text-xs" [ngClass]="onDuty() ? 'bg-brand/10 text-brand-ink' : 'bg-muted text-muted-foreground'">
           <span class="size-2 rounded-full" [ngClass]="onDuty() ? 'bg-brand' : 'bg-muted-foreground'"></span>
           {{ onDuty() ? 'On duty' : 'Off duty' }}
         </div>
@@ -1165,7 +1166,7 @@ export class TicketDetailModalComponent implements OnInit, OnDestroy {
                   variant="outline"
                   size="sm"
                   (click)="cancelTicket.emit(ticket)"
-                  class="rounded-full text-danger border-danger/30 hover:bg-danger/10 cursor-pointer text-xs"
+                  class="rounded-full text-danger-ink border-danger/30 hover:bg-danger/10 cursor-pointer text-xs"
                 >
                   <app-icon name="alert-triangle" class="size-3.5"></app-icon>
                   Query / Cancel
@@ -1305,7 +1306,7 @@ export class WorkerRoutesViewComponent {
         </div>
 
         @if (error()) {
-          <p role="alert" class="text-xs leading-5 text-danger">{{ error() }}</p>
+          <p role="alert" class="text-xs leading-5 text-danger-ink">{{ error() }}</p>
         }
 
         <button
@@ -1394,8 +1395,8 @@ export class HandoverModalComponent {
       (close)="close.emit()"
     >
       <form (ngSubmit)="submit()" class="flex flex-col gap-4">
-        <div class="rounded-xl bg-danger/10 border border-danger/20 p-3 text-xs text-danger flex items-start gap-2">
-          <app-icon name="alert-triangle" class="size-4 shrink-0 mt-0.5 text-danger"></app-icon>
+        <div class="rounded-xl bg-danger/10 border border-danger/20 p-3 text-xs text-danger-ink flex items-start gap-2">
+          <app-icon name="alert-triangle" class="size-4 shrink-0 mt-0.5 text-danger-ink"></app-icon>
           <p>
             Reporting a query will cancel your assignment on this ticket and notify the resident. The reason you provide will be logged.
           </p>
@@ -1431,7 +1432,7 @@ export class HandoverModalComponent {
         </div>
 
         @if (error()) {
-          <p role="alert" class="text-xs text-danger">{{ error() }}</p>
+          <p role="alert" class="text-xs text-danger-ink">{{ error() }}</p>
         }
 
         <div class="flex justify-end gap-2 pt-3 border-t border-border/60">

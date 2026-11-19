@@ -130,8 +130,8 @@ import {
 
                 <!-- Rejection Reason Alert -->
                 @if (leave.status === 'rejected' && leave.rejectionReason) {
-                  <div class="mt-3 rounded-lg bg-danger/10 border border-danger/20 p-3 text-xs text-danger flex items-start gap-2">
-                    <app-icon name="alert-triangle" class="size-4 shrink-0 mt-0.5 text-danger"></app-icon>
+                  <div class="mt-3 rounded-lg bg-danger/10 border border-danger/20 p-3 text-xs text-danger-ink flex items-start gap-2">
+                    <app-icon name="alert-triangle" class="size-4 shrink-0 mt-0.5 text-danger-ink"></app-icon>
                     <div>
                       <span class="font-semibold block">Admin Feedback / Rejection Note:</span>
                       <span class="mt-0.5 block">{{ leave.rejectionReason }}</span>
@@ -218,7 +218,7 @@ import {
           </div>
 
           @if (formError()) {
-            <p role="alert" class="text-xs text-danger">{{ formError() }}</p>
+            <p role="alert" class="text-xs text-danger-ink">{{ formError() }}</p>
           }
 
           <div class="flex justify-end gap-2 pt-3 border-t border-border/60">

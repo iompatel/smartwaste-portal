@@ -5,6 +5,7 @@ import {
   canUseLoginPortal,
   isNotificationTargetRole,
   isStrongPassword,
+  loginIdentityKey,
   tokenVersionMatches,
   usesFirebasePasswordProvider,
 } from '../src/auth-policy.js';
@@ -31,6 +32,13 @@ test('only Firebase password identities use the verification-link policy', () =>
   assert.equal(usesFirebasePasswordProvider({ firebase: { sign_in_provider: 'password' } }), true);
   assert.equal(usesFirebasePasswordProvider({ firebase: { sign_in_provider: 'google.com' } }), false);
   assert.equal(usesFirebasePasswordProvider({}), false);
+});
+
+test('login throttling keys on the attempted account instead of a caller-supplied IP', () => {
+  assert.equal(loginIdentityKey({ email: ' Person@Example.com ' }, 'ip'), 'person@example.com');
+  assert.equal(loginIdentityKey({ id: 42 }, 'ip'), '42');
+  assert.equal(loginIdentityKey({ identifier: 'SWM-1' }, 'ip'), 'swm-1');
+  assert.equal(loginIdentityKey({}, 'ip'), 'ip');
 });
 
 test('token versions revoke old sessions without invalidating legacy version-zero tokens', () => {

@@ -79,13 +79,13 @@ import { AdminService } from '../core/admin.service';
           </div>
 
           @if (sent()) {
-            <p role="status" class="flex items-center gap-2 text-xs text-brand">
+            <p role="status" class="flex items-center gap-2 text-xs text-brand-ink">
               <app-icon name="check-circle-2" class="size-4"></app-icon>
               Broadcast sent.
             </p>
           }
           @if (error()) {
-            <p role="alert" class="text-xs text-danger">{{ error() }}</p>
+            <p role="alert" class="text-xs text-danger-ink">{{ error() }}</p>
           }
         </form>
       </app-surface>

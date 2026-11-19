@@ -20,6 +20,7 @@ import {
   canUseLoginPortal,
   isNotificationTargetRole,
   isStrongPassword,
+  loginIdentityKey,
   tokenVersionMatches,
   usesFirebasePasswordProvider,
 } from './auth-policy.js';
@@ -142,6 +143,10 @@ async function hashPassword(value) {
 async function comparePassword(plain, hash) {
   return bcrypt.compare(String(plain), hash);
 }
+
+// Missing accounts are compared against a real hash so sign-in timing does not
+// reveal whether an email or ID exists.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('smartwaste-timing-equalizer', SALT_ROUNDS);
 
 function normalizeEmail(email) {
   return String(email ?? '').trim().toLowerCase();
@@ -1432,6 +1437,18 @@ const adminAuthLimiter = rateLimit({
   message: { message: 'Too many admin login attempts. Please wait a moment and try again.' },
 });
 
+// The IP behind a password attempt is caller-controlled on a directly reachable
+// origin, so each account also gets a fixed bucket that changing that header cannot reset.
+const authIdentityLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => loginIdentityKey(req.body, authClientIp(req)),
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many sign-in attempts for this account. Try again later.' },
+});
+
 const ticketCreateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
@@ -1479,6 +1496,10 @@ app.use('/api/auth', (req, res, next) => {
   if (req.path === '/admin-login') return next();
   return authLimiter(req, res, next);
 });
+app.use(
+  ['/api/auth/login', '/api/auth/worker-login', '/api/auth/admin-login'],
+  authIdentityLimiter,
+);
 
 function adminCookieOptions() {
   return {
@@ -1633,7 +1654,11 @@ async function handlePasswordLogin(req, res, portal) {
     : { email: normalizedEmail };
 
   const user = await User.findOne(query);
-  if (!user || user.disabled || !(await comparePassword(String(password), user.passwordHash))) {
+  const passwordValid = await comparePassword(
+    String(password),
+    user?.passwordHash || DUMMY_PASSWORD_HASH,
+  );
+  if (!user || user.disabled || !passwordValid) {
     return res.status(401).json({ message: 'Invalid email, ID, or password.' });
   }
 
@@ -1668,9 +1693,10 @@ async function handleAdminLogin(req, res) {
   }
 
   const user = await User.findOne({ email: normalizedEmail });
-  const passwordValid = user
-    ? await comparePassword(String(password), user.passwordHash)
-    : false;
+  const passwordValid = await comparePassword(
+    String(password),
+    user?.passwordHash || DUMMY_PASSWORD_HASH,
+  );
   if (!user || user.disabled || user.role !== 'admin' || !passwordValid) {
     return res.status(401).json({ message: 'Invalid admin credentials.' });
   }

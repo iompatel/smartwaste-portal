@@ -224,7 +224,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | 'cancel-ti
                 >
                   <app-icon name="bell" class="size-4"></app-icon>
                   @if (unreadNotifCount() > 0) {
-                    <span class="absolute top-1.5 right-1.5 flex size-3.5 items-center justify-center rounded-full bg-danger text-[8px] font-semibold text-white">
+                    <span class="absolute top-1.5 right-1.5 flex size-3.5 items-center justify-center rounded-full bg-danger-ink text-[8px] font-semibold text-white">
                       {{ unreadNotifCount() > 9 ? '9+' : unreadNotifCount() }}
                     </span>
                   }
@@ -377,7 +377,7 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | 'cancel-ti
         <nav
           aria-label="Mobile navigation"
           style="bottom: max(1rem, env(safe-area-inset-bottom, 0px))"
-          class="fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-[430px] -translate-x-1/2 items-center justify-between gap-1 rounded-[30px] border border-[#e8eaed] bg-[#fdfdfd]/95 p-1.5 shadow-[0_10px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-[#26282e] dark:bg-[#111215]/95 dark:shadow-[0_12px_36px_rgba(0,0,0,0.55)] lg:hidden"
+          class="fixed bottom-4 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-[430px] -translate-x-1/2 items-center justify-between gap-1 rounded-[30px] border border-border/70 bg-card/95 p-1.5 shadow-[0_10px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:shadow-[0_12px_36px_rgba(0,0,0,0.55)] lg:hidden"
         >
           @for (item of mobileNavItems(); track item.id) {
             @let active = view() === item.id;
@@ -386,20 +386,18 @@ type ModalName = 'report' | 'notifications' | 'ticket' | 'handover' | 'cancel-ti
               [attr.aria-current]="active ? 'page' : null"
               (click)="onNavigate(item.id)"
               class="group relative flex flex-1 flex-col items-center justify-center rounded-[20px] px-2 py-2 transition-all cursor-pointer"
-              [ngClass]="active ? 'bg-[#e7eefa] text-[#2a6cd5] dark:bg-[#171e2a] dark:text-[#4e8df2]' : 'text-[#64748b] hover:text-foreground dark:text-[#9b9fa5] dark:hover:text-white'"
+              [ngClass]="active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'"
             >
               <app-icon
                 [name]="item.icon"
                 class="size-5 transition-transform group-active:scale-95"
-                [class.text-[#2a6cd5]]="active"
-                [class.dark:text-[#4e8df2]]="active"
               ></app-icon>
               <span
                 class="mt-1 block max-w-[76px] truncate text-[11px] leading-tight tracking-tight text-center"
                 [class.font-semibold]="active"
                 [class.font-medium]="!active"
               >
-                {{ item.label }}
+                {{ item.shortLabel || item.label }}
               </span>
             </button>
           }

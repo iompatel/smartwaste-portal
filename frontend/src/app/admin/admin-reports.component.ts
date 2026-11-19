@@ -29,18 +29,18 @@ import { SectionHeaderComponent, SurfaceComponent } from '../shared/ui-component
             [disabled]="downloading()"
             (click)="selectReport(option.role)"
           >
-            <span class="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-brand/10 text-brand" aria-hidden="true">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-brand/10 text-brand-ink" aria-hidden="true">
               <app-icon [name]="option.icon" class="size-5"></app-icon>
             </span>
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="text-sm font-semibold text-foreground">{{ option.title }}</span>
                 @if (selectedRole() === option.role) {
-                  <app-icon name="check-circle-2" class="size-4 shrink-0 text-brand" aria-hidden="true"></app-icon>
+                  <app-icon name="check-circle-2" class="size-4 shrink-0 text-brand-ink" aria-hidden="true"></app-icon>
                 }
               </span>
               <span class="mt-2 block text-xs leading-relaxed text-muted-foreground">{{ option.description }}</span>
-              <span class="mt-3 block text-[11px] font-medium text-brand">{{ option.details }}</span>
+              <span class="mt-3 block text-[11px] font-medium text-brand-ink">{{ option.details }}</span>
             </span>
           </button>
         }
@@ -75,15 +75,15 @@ import { SectionHeaderComponent, SurfaceComponent } from '../shared/ui-component
           </div>
 
           @if (error()) {
-            <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs leading-relaxed text-danger">{{ error() }}</p>
+            <p role="alert" class="rounded-xl bg-danger/10 p-3 text-xs leading-relaxed text-danger-ink">{{ error() }}</p>
           }
           @if (success()) {
-            <p role="status" class="rounded-xl bg-brand/10 p-3 text-xs text-brand">{{ success() }}</p>
+            <p role="status" class="rounded-xl bg-brand/10 p-3 text-xs text-brand-ink">{{ success() }}</p>
           }
 
           <div class="flex flex-col gap-3 border-t border-border/60 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-2 text-xs text-muted-foreground">
-              <app-icon name="shield-check" class="size-4 shrink-0 text-brand" aria-hidden="true"></app-icon>
+              <app-icon name="shield-check" class="size-4 shrink-0 text-brand-ink" aria-hidden="true"></app-icon>
               <span>Includes account details, ticket totals, report date, and corporation seal.</span>
             </div>
             <div class="flex shrink-0 items-center gap-2">

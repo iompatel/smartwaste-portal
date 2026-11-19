@@ -1,11 +1,14 @@
 import {
+  AfterViewInit,
   Component,
+  ElementRef,
   HostListener,
   OnDestroy,
   OnInit,
   computed,
   input,
   output,
+  viewChild,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -31,7 +34,7 @@ export const inputClassName =
       </span>
       @if (!compact()) {
         <span class="font-semibold tracking-[-0.055em] text-foreground select-none" [class]="textClasses()">
-          smartwaste<span class="text-brand">.</span>
+          smartwaste<span class="text-brand-ink">.</span>
         </span>
       }
     </div>
@@ -132,13 +135,13 @@ export class StatusBadgeComponent {
     const s = this.status();
     const tone =
       s === 'Completed' || s === 'Confirmed' || s === 'On route' || s === 'Online'
-        ? 'bg-success/10 text-success'
+        ? 'bg-success/10 text-success-ink'
         : s === 'Cancelled'
-          ? 'bg-danger/10 text-danger'
+          ? 'bg-danger/10 text-danger-ink'
         : s === 'In progress' || s === 'Pending' || s === 'Open'
           ? 'bg-primary/10 text-primary'
           : s === 'Scheduled'
-            ? 'bg-warning/10 text-warning'
+            ? 'bg-warning/10 text-warning-ink'
             : 'bg-muted text-muted-foreground';
     return cn(
       'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap',
@@ -164,9 +167,9 @@ export class PriorityBadgeComponent {
     const p = this.priority();
     const tone =
       p === 'High'
-        ? 'bg-danger/10 text-danger'
+        ? 'bg-danger/10 text-danger-ink'
         : p === 'Medium'
-          ? 'bg-warning/10 text-warning'
+          ? 'bg-warning/10 text-warning-ink'
           : 'bg-muted text-muted-foreground';
     return cn(
       'rounded-md px-2 py-1 text-[10px] font-semibold tracking-wide uppercase',
@@ -239,7 +242,7 @@ export class SectionHeaderComponent {
           <app-icon [name]="icon()" class="size-[18px]"></app-icon>
         </span>
         @if (trend()) {
-          <span class="text-[11px] font-medium text-brand">{{ trend() }}</span>
+          <span class="text-[11px] font-medium text-brand-ink">{{ trend() }}</span>
         }
       </div>
       <div class="mt-5 flex flex-col gap-1">
@@ -264,9 +267,9 @@ export class MetricCardComponent {
   toneClass = computed(() => {
     const tones = {
       blue: 'bg-primary/10 text-primary',
-      green: 'bg-brand/10 text-brand',
-      amber: 'bg-warning/10 text-warning',
-      red: 'bg-danger/10 text-danger',
+      green: 'bg-brand/10 text-brand-ink',
+      amber: 'bg-warning/10 text-warning-ink',
+      red: 'bg-danger/10 text-danger-ink',
     };
     return cn(
       'flex size-9 items-center justify-center rounded-[12px]',
@@ -376,13 +379,16 @@ export class ToggleComponent {
       (mousedown)="onBackdropClick($event)"
     >
       <div
+        #dialog
         role="dialog"
         aria-modal="true"
-        [class]="modalClasses()"
+        tabindex="-1"
+        [attr.aria-labelledby]="titleId"
+        [class]="modalClasses() + ' outline-none'"
       >
         <div class="mb-6 flex items-start justify-between gap-4">
           <div class="flex flex-col gap-1.5">
-            <h2 class="text-xl font-semibold tracking-[-0.04em] text-foreground">
+            <h2 [id]="titleId" class="text-xl font-semibold tracking-[-0.04em] text-foreground">
               {{ title() }}
             </h2>
             @if (description()) {
@@ -408,12 +414,15 @@ export class ToggleComponent {
     </div>
   `
 })
-export class ModalComponent implements OnInit, OnDestroy {
+export class ModalComponent implements OnInit, AfterViewInit, OnDestroy {
   title = input.required<string>();
   description = input<string>('');
   wide = input<boolean>(false);
   close = output<void>();
 
+  readonly titleId = `modal-title-${Math.random().toString(36).slice(2, 8)}`;
+  private dialog = viewChild<ElementRef<HTMLElement>>('dialog');
+  private previousFocus: HTMLElement | null = null;
   private previousOverflow = '';
 
   modalClasses = computed(() => {
@@ -424,17 +433,51 @@ export class ModalComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit() {
+    this.previousFocus = document.activeElement as HTMLElement | null;
     this.previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
   }
 
-  ngOnDestroy() {
-    document.body.style.overflow = this.previousOverflow;
+  ngAfterViewInit() {
+    this.dialog()?.nativeElement.focus();
   }
 
-  @HostListener('document:keydown.escape')
-  onEscape() {
-    this.closeModal();
+  ngOnDestroy() {
+    document.body.style.overflow = this.previousOverflow;
+    this.previousFocus?.focus();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: Event) {
+    const keyEvent = event as KeyboardEvent;
+    if (keyEvent.key === 'Escape') {
+      this.closeModal();
+      return;
+    }
+    if (keyEvent.key !== 'Tab') return;
+    const root = this.dialog()?.nativeElement;
+    if (!root) return;
+    const focusables = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+    if (!focusables.length) {
+      keyEvent.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (document.activeElement === root || !root.contains(document.activeElement)) {
+      keyEvent.preventDefault();
+      (keyEvent.shiftKey ? last : first).focus();
+    } else if (keyEvent.shiftKey && document.activeElement === first) {
+      keyEvent.preventDefault();
+      last.focus();
+    } else if (!keyEvent.shiftKey && document.activeElement === last) {
+      keyEvent.preventDefault();
+      first.focus();
+    }
   }
 
   onBackdropClick(event: MouseEvent) {
@@ -458,7 +501,7 @@ export class ModalComponent implements OnInit, OnDestroy {
       role="status"
       class="fixed right-4 bottom-20 z-[60] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 text-sm text-foreground shadow-2xl backdrop-blur-xl sm:right-6 sm:bottom-6"
     >
-      <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand">
+      <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand-ink">
         <app-icon name="check" class="size-3.5"></app-icon>
       </span>
       <span class="leading-5">{{ message() }}</span>
@@ -491,7 +534,7 @@ export class ToastComponent {
     <button
       type="button"
       (click)="clicked.emit()"
-      class="inline-flex items-center gap-1 text-xs font-medium text-primary transition-opacity hover:opacity-70"
+      class="inline-flex items-center gap-1 rounded text-xs font-medium text-primary transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <ng-content></ng-content>
       <app-icon name="chevron-right" class="size-3.5"></app-icon>

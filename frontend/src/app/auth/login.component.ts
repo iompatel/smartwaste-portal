@@ -113,7 +113,7 @@ import { Role } from '../smartwaste/data';
             </div>
 
             @if (errorMessage()) {
-              <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger font-medium">
+              <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger-ink font-medium">
                 {{ errorMessage() }}
               </div>
             }
@@ -135,12 +135,12 @@ import { Role } from '../smartwaste/data';
             }
 
             @if (needsVerification()) {
-              <div class="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning font-medium leading-5">
+              <div class="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning-ink font-medium leading-5">
                 Your email is not verified yet. Click the verification link in your inbox.
                 <button
                   type="button"
                   (click)="resendLink()"
-                  class="ml-1 underline font-semibold cursor-pointer bg-transparent border-none p-0 text-warning"
+                  class="ml-1 underline font-semibold cursor-pointer bg-transparent border-none p-0 text-warning-ink"
                 >
                   Resend verification link
                 </button>
